@@ -1,0 +1,208 @@
+# AxonFlow Documentation
+> Technical documentation for AxonFlow — runtime control layer for production AI workflows. Five SDKs, four agent plugins, source-available BSL 1.1.
+
+## Overview
+AxonFlow is the execution authority and system of record for AI decisions in production workflows. This documentation site covers installation, configuration, SDK integration, plugin setup, governance policies, Workflow Control Plane (WCP), Multi-Agent Planning (MAP), audit and decision records, multi-model routing, and compliance frameworks.
+
+## Quick Links
+- **Getting Started**: https://docs.getaxonflow.com/docs/getting-started/
+- **SDK Overview**: https://docs.getaxonflow.com/docs/sdk/overview/
+- **Choosing a mode** (Gateway / Proxy / WCP): https://docs.getaxonflow.com/docs/sdk/choosing-a-mode/
+- **API Reference**: https://docs.getaxonflow.com/docs/api/agent-endpoints/
+- **Policy catalog**: https://docs.getaxonflow.com/docs/policies/overview/
+- **Architecture deep-dive**: https://docs.getaxonflow.com/docs/architecture/overview/
+- **Compliance frameworks**: https://docs.getaxonflow.com/docs/compliance/overview/
+- **Workflow Control Plane (WCP)**: https://docs.getaxonflow.com/docs/orchestration/wcp/overview/
+- **Decision records**: https://docs.getaxonflow.com/docs/governance/decisions/
+- **Telemetry**: https://docs.getaxonflow.com/docs/telemetry/
+- **Community vs Evaluation vs Enterprise (feature matrix)**: https://docs.getaxonflow.com/docs/features/community-vs-enterprise/
+- **Telemetry + Plugin Pro details**: https://docs.getaxonflow.com/docs/telemetry/
+
+## Editions
+
+- **Community** (free, source-available, BSL 1.1, self-hosted) — full runtime, all detection engines, WCP step gates, limited tenant/org policies
+- **Evaluation** (free 90-day license, B2B) - higher limits + policy simulation, evidence export with limits (HITL approvals need Professional or above)
+- **Enterprise** (paid) — unlimited policies/providers, full HITL retention, SSO/SAML/SCIM, Customer Portal, advanced compliance, SLAs
+- **Plugin Pro** (paid SaaS, B2C) — $9.99 USD one-time / 90 days, for individual plugin users on try.getaxonflow.com (Community SaaS)
+
+## Plugins (governance for AI coding stacks)
+
+AxonFlow ships four official governance plugins. All four share the same 80+ governance policy set; OpenClaw, Claude Code, and Cursor enforce inline on every governed tool call. Codex uses a hybrid model — hard-enforced on terminal commands via PreToolUse hooks, advisory via skills for Write/Edit/MCP tools.
+
+- **OpenClaw**: https://docs.getaxonflow.com/docs/integration/openclaw/
+- **Claude Code**: https://docs.getaxonflow.com/docs/integration/claude-code/
+- **Cursor**: https://docs.getaxonflow.com/docs/integration/cursor/
+- **Codex**: https://docs.getaxonflow.com/docs/integration/codex/
+
+Plugin landing page: https://getaxonflow.com/plugins/
+
+## SDKs
+
+Five language SDKs, all thin wrappers over the same REST APIs.
+
+### Python (v9.4.0)
+```bash
+pip install axonflow
+```
+Docs: https://docs.getaxonflow.com/docs/sdk/overview/
+
+### TypeScript (v9.4.0)
+```bash
+npm install @axonflow/sdk
+```
+
+### Go (v9.4.0)
+```bash
+go get github.com/getaxonflow/axonflow-sdk-go/v9
+```
+
+### Java (v9.4.0)
+```xml
+<dependency>
+  <groupId>com.getaxonflow</groupId>
+  <artifactId>axonflow-sdk</artifactId>
+  <version>9.4.0</version>
+</dependency>
+```
+
+### Rust (v0.11.0 preview)
+```bash
+cargo add axonflow-sdk-rust
+```
+
+SDK landing page: https://getaxonflow.com/sdks/
+
+## Integration Modes
+
+### Gateway Mode
+Pre-check + your LLM call + audit. Minimal latency overhead. Best for adding governance to existing call sites.
+
+```python
+from axonflow import AxonFlow
+
+async with AxonFlow(endpoint="http://localhost:8080") as client:
+    ctx = await client.get_policy_approved_context(
+        user_token="user-123",
+        query="Analyze customer sentiment",
+        request_type="chat",
+    )
+    if ctx.is_approved():
+        # call your LLM
+        response = openai.chat.completions.create(...)
+        await client.audit_llm_call(
+            context_id=ctx.context_id,
+            model="gpt-4",
+            success=True,
+        )
+```
+
+### Proxy Mode
+Full request lifecycle: policy check, planning, model routing, audit. AxonFlow proxies the LLM call end-to-end. OpenAI-compatible — zero code changes for OpenAI clients.
+
+### Workflow Control Plane (WCP) Mode
+Step-level gate checks for governed multi-step workflows. Durable step ledger, cancellation, safe resume. Drop in alongside any orchestrator (LangGraph, CrewAI, custom).
+
+Choosing a mode: https://docs.getaxonflow.com/docs/sdk/choosing-a-mode/
+
+## Key Features
+
+### Policy Enforcement (60+ built-in)
+- **Security**: SQL injection (37 patterns), schema exposure, shell injection, SSRF, reverse shells, prompt injection
+- **Sensitive Data**: SSN, credit cards, Aadhaar, PAN, IBAN, email, phone, salary, medical records
+- **Compliance**: GDPR, HIPAA, PCI-DSS basic constraints (Community); EU AI Act, RBI, SEBI, MAS, DORA frameworks (Enterprise)
+- **Cost & Abuse**: Per-org/team/agent/user budgets, anomalous usage detection, token budgets, circuit breaker
+- **Code Governance**: Detect LLM-generated code, identify language and security issues
+- **Media Governance**: Image input classification, multimodal policy enforcement
+- All policies configurable; teams typically start in observe-only mode
+
+### Workflow Control Plane (WCP)
+- Step-level gate checks (allow / block / require_approval) before each side-effecting step
+- Durable step ledger — distinguishes attempted from committed steps
+- Safe resume semantics based on commit state
+- SSE streaming for live execution telemetry
+- Works with any orchestrator (LangGraph, CrewAI, custom)
+
+### Multi-Model Routing
+- Vendor-neutral across OpenAI, Anthropic, AWS Bedrock, Azure OpenAI, Google Gemini, Mistral, Ollama
+- Automatic failover, cost optimization, intelligent selection
+- OpenAI-compatible proxy mode
+
+### MCP Connectivity (Model Context Protocol)
+- 16+ pre-built connectors: PostgreSQL, MySQL, MongoDB, Redis, Cassandra, Snowflake, S3, Azure Blob, GCS, Salesforce, ServiceNow, HubSpot, Jira, Slack, generic HTTP
+- Request-side argument validation; response-side SQLi scanning + PII redaction
+- Permission-aware retrieval, service account management
+
+### Multi-Agent Planning (MAP)
+- Define agents in YAML, AxonFlow turns natural language into executable workflows
+- Parallel execution (2-6× speedup), DAG support, automatic retries
+- Step gates apply to MAP-generated workflows automatically
+
+### HITL Approvals
+- Require explicit human approval for high-risk steps
+- Configurable expiry, pending limits by tier, automatic workflow abort on expiration
+- Customer Portal UI for approval queues (Enterprise)
+
+### Audit + Decision Records
+- Immutable audit logs for every interaction
+- Structured decision context: which policy fired, version, what matched, redactions applied
+- Token usage tracked for cost attribution
+- SIEM export (Splunk, Datadog, CloudWatch)
+- Decision and execution replay with timeline view
+
+### Observability
+- 80+ Prometheus/Grafana metrics
+- Real-time dashboards for policy enforcement, latency, throughput
+- Request tracing across agent and orchestrator
+- CloudWatch integration for AWS deployments
+
+### Compliance
+- GDPR, HIPAA, PCI-DSS, SOX
+- EU AI Act (Article 12 logging, Article 14 human oversight)
+- RBI FREE-AI Framework (India banking)
+- SEBI AI/ML Guidelines (India securities)
+- MAS FEAT principles (Singapore)
+- DORA (EU Digital Operational Resilience Act)
+
+## Industry Guides
+
+- **Banking and FinTech**: https://docs.getaxonflow.com/docs/industry/banking/
+- **Telecommunications**: https://docs.getaxonflow.com/docs/industry/telecommunications/
+- **Healthcare**: https://docs.getaxonflow.com/docs/industry/healthcare/
+- **Government and Public Sector**: https://docs.getaxonflow.com/docs/industry/government/
+- **Insurance**: https://docs.getaxonflow.com/docs/industry/insurance/
+- **Energy and Utilities**: https://docs.getaxonflow.com/docs/industry/energy/
+- **Travel and Hospitality**: https://docs.getaxonflow.com/docs/industry/travel/
+- **E-commerce**: https://docs.getaxonflow.com/docs/industry/ecommerce/
+- **HR and People Tech**: https://docs.getaxonflow.com/docs/industry/hr-tech/
+
+## Deployment Options
+- **Self-Hosted**: Docker Compose, Kubernetes — run on your own infrastructure (any cloud or on-prem)
+- **In-VPC**: AWS, Azure, GCP — deploy inside your VPC for data sovereignty
+- **On-Premises / Air-gapped**: for regulated industries
+- **Community SaaS**: try.getaxonflow.com — free public endpoint for plugin evaluation
+- **AWS Marketplace**: https://aws.amazon.com/marketplace/seller-profile?id=seller-o2ymsaotlum32
+
+## Telemetry + Privacy
+
+AxonFlow SDKs, plugins, and platform binaries (agent + orchestrator) emit an anonymous heartbeat at most once every 7 days during activity — version, OS/architecture, environment class, license tier. No prompts, payloads, API keys, or tenant identifiers are collected. Opt out across all surfaces with `export AXONFLOW_TELEMETRY=off`. Full schema: https://docs.getaxonflow.com/docs/telemetry/
+
+## Resources
+
+- **Documentation home**: https://docs.getaxonflow.com
+- **Main website**: https://getaxonflow.com
+- **GitHub (community)**: https://github.com/getaxonflow/axonflow
+- **Plugins index**: https://getaxonflow.com/plugins/
+- **SDKs index**: https://getaxonflow.com/sdks/
+- **Pricing**: https://getaxonflow.com/pricing/
+- **Interactive demo portal**: https://demo.getaxonflow.com
+- **Product demo videos**: https://getaxonflow.com/demo/
+- **AWS Marketplace**: https://aws.amazon.com/marketplace/seller-profile?id=seller-o2ymsaotlum32
+- **Blog**: https://getaxonflow.com/blog/
+- **Privacy Policy**: https://getaxonflow.com/privacy/
+- **Support**: hello@getaxonflow.com
+
+## License
+
+- **Community Edition**: BSL 1.1 (source-available, free for production use, converts to Apache 2.0 after 4 years)
+- **Plugin Pro**: SaaS terms, $9.99 USD one-time / 90 days
+- **Enterprise Edition**: Commercial license

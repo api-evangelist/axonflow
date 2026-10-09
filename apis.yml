@@ -1,23 +1,3698 @@
 aid: axonflow
+
 name: AxonFlow
-description: 'AxonFlow is a company surfaced via the API Evangelist harvest backlog (source: spectral-ruleset-github)
-  and added to the network as a stub for full-pipeline profiling.'
+
+description: 'AxonFlow is a runtime governance platform for AI agents. It gives every agent a mandate, limits and a paper trail: deterministic
+  policies evaluated before an agent acts, human approvals, PII redaction, AI usage budgets, tamper-evident audit logs and decision records exportable
+  for frameworks such as the EU AI Act, RBI, SEBI and MAS FEAT. It ships an open-source Community Edition on GitHub, an Evaluation licence and
+  a paid production program, runs in the customer''s own environment, and integrates via Python, TypeScript, Go, Java and Rust SDKs and plugins
+  for LangChain, LangGraph, CrewAI, LiteLLM, n8n, Claude Code, Cursor and others, plus an optional Fraud & Risk Add-on for payment agents.'
+
 url: https://raw.githubusercontent.com/api-evangelist/axonflow/refs/heads/main/apis.yml
+
 x-type: company
+
 x-source: harvest:spectral-ruleset-github
-x-tier: stub
-x-tier-reason: harvest
+
+x-tier: profiled
+x-tier-reason: enrichment pass 2026-10-09 (modular-v1; was harvest)
+
 specificationVersion: '0.20'
+
 created: '2026-10-09'
+
 modified: '2026-10-09'
+
 tags:
 - Company
-apis: []
+- AI Governance
+- AI Agents
+- Policy Enforcement
+- Audit Logging
+- Compliance
+- MCP
+- Open Source
+
 maintainers:
 - FN: Kin Lane
   email: kin@apievangelist.com
 - FN: APIs.json
   email: info@apis.io
+
+image: https://docs.getaxonflow.com/img/axonflow-social-card.png
+
 common:
+- type: SecurityTxt
+  url: well-known/axonflow-getaxonflow-security.txt
+- type: AgenticAccess
+  url: agentic-access/axonflow-agentic-access.yml
+- type: RateLimits
+  url: rate-limits/axonflow-rate-limits.yml
+- type: Plans
+  url: plans/axonflow-plans-pricing.yml
+- type: Spectral
+  url: rules/axonflow-rules.yml
+- type: Spectral
+  url: rules/axonflow-axonflow-spectral-rules.yml
+- type: JSONLD
+  url: json-ld/axonflow-context.jsonld
+- type: Vocabulary
+  url: vocabulary/axonflow-vocabulary.yml
+- type: AgentSkill
+  url: skills/_index.yml
+- type: DataModel
+  url: data-model/axonflow-data-model.yml
+- type: ChangeLog
+  url: changelog/axonflow-changelog.yml
+- type: Idempotency
+  url: conventions/axonflow-conventions.yml
+- type: Conventions
+  url: conventions/axonflow-conventions.yml
+- type: Sandbox
+  url: sandbox/axonflow-sandbox.yml
+- type: Deprecation
+  url: lifecycle/axonflow-lifecycle.yml
+- type: Lifecycle
+  url: lifecycle/axonflow-lifecycle.yml
+- type: ErrorCatalog
+  url: errors/axonflow-error-codes.yml
+- type: ErrorCatalog
+  url: errors/axonflow-problem-types.yml
+- type: Conformance
+  url: conformance/axonflow-conformance.yml
+- type: Overlay
+  url: overlays/axonflow-agent-overlay.yaml
+- type: LLMsTxt
+  url: llms/axonflow-llms.txt
+- type: ToolCrosswalk
+  url: mcp/axonflow-tool-crosswalk.yml
+- type: MCPServer
+  url: mcp/axonflow-mcp.yml
+- type: SecurityTxt
+  url: well-known/axonflow-security.txt
+- type: SecurityTxt
+  url: well-known/axonflow-docs-security.txt
+- type: WellKnown
+  url: well-known/axonflow-well-known.yml
+- type: Hosts
+  url: hosts/axonflow-hosts.yml
+- type: Vendors
+  url: vendors/axonflow-vendors.yml
+- type: Packages
+  url: packages/axonflow-packages.yml
+- type: DeveloperPortal
+  url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+- type: DomainSecurity
+  url: security/axonflow-domain-security.yml
+- type: Authentication
+  url: authentication/axonflow-authentication.yml
 - type: Website
+  url: https://docs.getaxonflow.com
+- type: GettingStarted
+  url: https://docs.getaxonflow.com/docs/getting-started/
+- type: APIReference
+  url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+- type: ChangeLog
+  url: https://docs.getaxonflow.com/docs/releases/
+- type: GitHubOrganization
+  url: https://github.com/getaxonflow
+- type: GitHubRepository
   url: https://github.com/getaxonflow/axonflow
+- type: SDKs
+  url: https://getaxonflow.com/sdks/
+- type: Pricing
+  url: https://getaxonflow.com/pricing/
+- type: Blog
+  url: https://getaxonflow.com/blog/
+- type: Login
+  url: https://app.getaxonflow.com/
+- type: TrustCenter
+  url: https://getaxonflow.com/trust/
+- type: About
+  url: https://getaxonflow.com/about/
+- type: TermsOfService
+  url: https://getaxonflow.com/terms-of-service/
+- type: PrivacyPolicy
+  url: https://getaxonflow.com/privacy/
+- type: SpectralRules
+  url: https://github.com/getaxonflow/axonflow/blob/220ffccc4ee5776e04b72fded5a91cc76b3c3332/.spectral.yaml
+
+apis:
+- aid: axonflow:axonflow-agents-api
+  name: AxonFlow Agents API
+  description: >-
+    Agent configuration management (MAP 0.8). **Enterprise only** — the
+
+    `/api/v1/agents` route family is registered only in Enterprise builds
+
+    with a database connection; Community returns 404.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Agents
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-agents-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-assessments-api
+  name: AxonFlow Assessments API
+  description: FEAT Assessment lifecycle
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Assessments
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-assessments-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-audit-api
+  name: AxonFlow Audit API
+  description: Audit log search and retrieval
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Audit
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-audit-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-audit-verification-api
+  name: AxonFlow Audit Verification API
+  description: >-
+    Non-repudiation verification of the signed decision chain (#2722).
+
+    Read-only endpoints that re-verify per-record Ed25519 signatures and
+
+    the prev_hash linkage of a tenant's decision records, and publish the
+
+    current public signing key for offline verification. These are not
+
+    Policy Enforcement Points (no decision-engine call); they are org-scoped
+
+    via the authenticated request context and read under RLS, so a caller can
+
+    only verify chains/records belonging to its own organization. Available in
+
+    any deployment mode once a usage database is configured; signatures verify
+
+    only when an `AXONFLOW_AUDIT_SIGNING_KEY` is set (otherwise records are
+
+    hash-chained but reported as unsigned).
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Audit Verification
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-audit-verification-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-bulk-operations-api
+  name: AxonFlow Bulk Operations API
+  description: Import and export policies
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Bulk Operations
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-bulk-operations-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-circuit-breaker-api
+  name: AxonFlow Circuit Breaker API
+  description: >-
+    Emergency circuit breaker for AI operations (EU AI Act Article 14).
+
+    Instantly halt AI operations with two-person deactivation requirement.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Circuit Breaker
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-circuit-breaker-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-community-saas-api
+  name: AxonFlow Community SaaS API
+  description: >-
+    Self-registration on the hosted Community SaaS deployment
+
+    (`DEPLOYMENT_MODE=community-saas` only).
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Community SaaS
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-community-saas-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-compliance-api
+  name: AxonFlow Compliance API
+  description: The Compliance API from AxonFlow — 3 operation(s) for compliance.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Compliance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-compliance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-connectors-api
+  name: AxonFlow Connectors API
+  description: Connector marketplace
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Connectors
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-connectors-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-cost-controls-api
+  name: AxonFlow Cost Controls API
+  description: >-
+    Budget management and LLM usage tracking for cost optimization.
+
+    Supports budgets at organization, team, agent, workflow, and user scopes.
+
+    Provides usage summaries, breakdowns, and pre-request budget checks.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Cost Controls
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-cost-controls-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-cost-management-api
+  name: AxonFlow Cost Management API
+  description: The Cost Management API from AxonFlow — 2 operation(s) for cost management.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Cost Management
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-cost-management-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-decision-execution-replay-api
+  name: AxonFlow Decision & Execution Replay API
+  description: >-
+    Decision & Execution Replay API for debugging, auditing, and compliance.
+
+    Captures every step of workflow execution with full input/output snapshots and policy decisions.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Decision & Execution Replay
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-decision-execution-replay-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-decision-mode-api
+  name: AxonFlow Decision Mode API
+  description: >-
+    Synchronous policy decision endpoint (ADR-056). Called by an
+
+    infrastructure gateway acting as a Policy Enforcement Point (PEP);
+
+    AxonFlow returns a verdict (`allow` or `deny`) and
+
+    the PEP enforces it. Same shared-policy engine as Gateway Mode
+
+    pre-check; difference is the caller.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Decision Mode
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-decision-mode-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-decisions-overrides-api
+  name: AxonFlow Decisions & Overrides API
+  description: >-
+    Decision explainability (ADR-043) and session-scoped policy overrides
+
+    (ADR-044). List recent governance decisions, explain a specific decision,
+
+    and create/list/revoke time-boxed policy overrides.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Decisions & Overrides
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-decisions-overrides-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-dynamic-policies-api
+  name: AxonFlow Dynamic Policies API
+  description: >-
+    Legacy policy management on `/api/v1/policies`. Reads, tests and
+
+    simulation are served; writes answer `409 LEGACY_POLICY_WRITE_FROZEN` in
+
+    v11 (see the `LegacyPolicyWriteFrozen` response) - author policy through
+
+    Typed Policy Authoring instead.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Dynamic Policies
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-dynamic-policies-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-eu-ai-act-api
+  name: AxonFlow EU AI Act API
+  description: >-
+    EU AI Act compliance endpoints for technical documentation export,
+
+    conformity assessments (Article 43), and accuracy/bias tracking (Article 15).
+
+    Enterprise feature for EU regulatory compliance.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - EU AI Act
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-eu-ai-act-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-eu-ai-act-proxied-api
+  name: AxonFlow EU AI Act (Proxied) API
+  description: >-
+    EU AI Act compliance module (conformity assessments, accuracy
+
+    monitoring, evidence exports). Served by the orchestrator and PROXIED
+
+    through the agent (`/api/v1/euaiact/*`) per the single-entry-point
+
+    architecture — clients call the agent, never the orchestrator.
+
+    Canonical operation schemas live in orchestrator-api.yaml. Enterprise only.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - EU AI Act (Proxied)
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-eu-ai-act-proxied-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-evidence-export-api
+  name: AxonFlow Evidence Export API
+  description: The Evidence Export API from AxonFlow — 2 operation(s) for evidence export.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Evidence Export
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-evidence-export-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-gateway-mode-api
+  name: AxonFlow Gateway Mode API
+  description: Pre-check and audit for SDK-managed LLM calls
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Gateway Mode
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-gateway-mode-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-health-api
+  name: AxonFlow Health API
+  description: Service health and readiness checks
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Health
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-health-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-hitl-api
+  name: AxonFlow HITL API
+  description: >-
+    Human-in-the-Loop decision queue (EU AI Act Article 14).
+
+    Route high-risk AI decisions for human review before execution.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - HITL
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-hitl-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-kill-switch-api
+  name: AxonFlow Kill Switch API
+  description: Emergency system disable mechanism
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Kill Switch
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-kill-switch-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-llm-providers-api
+  name: AxonFlow LLM Providers API
+  description: LLM provider management
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - LLM Providers
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-llm-providers-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-map-api
+  name: AxonFlow MAP API
+  description: The MAP API from AxonFlow — 1 operation(s) for map.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - MAP
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-map-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-mcp-connectors-api
+  name: AxonFlow MCP Connectors API
+  description: Model Context Protocol data connector operations
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - MCP Connectors
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-mcp-connectors-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-mcp-server-api
+  name: AxonFlow MCP Server API
+  description: >-
+    Streamable-HTTP MCP server (spec 2025-06-18) exposing AxonFlow
+
+    governance as MCP tools (check_policy, check_output, audit_tool_call,
+
+    list_policies, get_policy_stats, explain_decision + Pro tools).
+
+    Consumed by the Claude Code / Cursor / Codex plugins and any MCP
+
+    client. Authentication is HTTP Basic (org:license-key) — NOT OAuth;
+
+    the `/.well-known/oauth-*` discovery paths deliberately return an
+
+    advisory 404 saying so.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - MCP Server
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-mcp-server-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-media-governance-api
+  name: AxonFlow Media Governance API
+  description: >-
+    Multimodal image governance for LLM requests.
+
+    Analyzes images for PII (via OCR), content safety, face/biometric detection, and document classification.
+
+    Community tier provides fail-open governance with audit trail.
+
+    Enterprise tier adds configurable enforcement and cloud analyzers.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Media Governance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-media-governance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-metrics-api
+  name: AxonFlow Metrics API
+  description: Performance monitoring and observability
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Metrics
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-metrics-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-multi-agent-planning-api
+  name: AxonFlow Multi-Agent Planning API
+  description: LLM-powered task decomposition and execution
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Multi-Agent Planning
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-multi-agent-planning-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-ojk-compliance-api
+  name: AxonFlow OJK Compliance API
+  description: >-
+    OJK AI Governance + UU PDP compliance for Indonesian financial services.
+
+    Audit export, retention/readiness checks, UU PDP Art. 46 breach-notification
+
+    lifecycle, and a compliance dashboard. **Enterprise** feature.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - OJK Compliance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-ojk-compliance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-openai-compatible-api
+  name: AxonFlow OpenAI Compatible API
+  description: >-
+    OpenAI-compatible gateway endpoint (Issue #2351). Accepts standard
+
+    OpenAI Chat Completions requests, runs AxonFlow policy checks, forwards
+
+    to the upstream provider, records audit, and returns an OpenAI-compatible
+
+    response. Customers change only `baseURL` in their OpenAI SDK setup.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - OpenAI Compatible
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-openai-compatible-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-otlp-ingest-api
+  name: AxonFlow OTLP Ingest API
+  description: >-
+    OpenTelemetry OTLP/HTTP ingest for Claude Code (cowork) telemetry
+
+    (#2832). **Enterprise only** — community builds mount the routes but
+
+    return 501. Org/tenant identity always comes from the authenticated
+
+    license, never from OTLP resource attributes.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - OTLP Ingest
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-otlp-ingest-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-policies-api
+  name: AxonFlow Policies API
+  description: Dynamic policy CRUD operations (Orchestrator)
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Policies
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-policies-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-policy-simulation-api
+  name: AxonFlow Policy Simulation API
+  description: The Policy Simulation API from AxonFlow — 3 operation(s) for policy simulation.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Policy Simulation
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-policy-simulation-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-processing-api
+  name: AxonFlow Processing API
+  description: Main request processing pipeline
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Processing
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-processing-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-proxy-mode-api
+  name: AxonFlow Proxy Mode API
+  description: Full request interception and processing
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Proxy Mode
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-proxy-mode-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-rbi-compliance-api
+  name: AxonFlow RBI Compliance API
+  description: >-
+    RBI FREE-AI Framework compliance for Indian banking institutions.
+
+    Enterprise feature providing AI System Registry, Model Validation,
+
+    Incident Management, Kill Switch, Board Reporting, and Audit Export.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - RBI Compliance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-rbi-compliance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-registry-api
+  name: AxonFlow Registry API
+  description: AI System Registry management
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Registry
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-registry-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-sebi-compliance-api
+  name: AxonFlow SEBI Compliance API
+  description: >-
+    SEBI AI/ML Guidelines compliance and DPDP Act 2023 audit exports.
+
+    Enterprise feature for Indian financial services compliance.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - SEBI Compliance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-sebi-compliance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-simulation-api
+  name: AxonFlow Simulation API
+  description: >-
+    Policy simulation, impact reports, and conflict detection.
+
+    **Evaluation tier and above.**
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Simulation
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-simulation-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-static-policies-api
+  name: AxonFlow Static Policies API
+  description: >-
+    DEPRECATED spelling of System Policies, served at
+
+    `/api/v1/static-policies`. Every operation is the same handler as its
+
+    `/api/v1/system-policies` counterpart and returns the same status code
+
+    and body.
+
+
+    In v11 BOTH spellings are the deprecated export surface (PRD §1.11):
+
+    reads are served, and every response carries
+
+    `Link: </api/v1/typed-policies>; rel="successor-version"` and
+
+    `X-AxonFlow-Removed-In: v12.0`, plus an RFC 9745
+
+    `Deprecation: @<epoch>` from the v11.0.0 tag. v12.0.0 removes both
+
+    spellings; there is no `Sunset` header until that release has a date.
+
+    The v11 write refusal described under System Policies applies to these
+
+    paths identically.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Static Policies
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-static-policies-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-system-policies-api
+  name: AxonFlow System Policies API
+  description: >-
+    System policy management (ADR-019), served at `/api/v1/system-policies`.
+
+    Pattern-based enforcement rules for SQL injection detection, PII
+
+    detection and similar checks, resolved across the system, organization
+
+    and tenant tiers.
+
+
+    **v11: writes to this family are refused by the legacy policy freeze.**
+
+    `migrations/core/172` makes `static_policies` read-only to the
+
+    application roles, and create, update, delete and the enabled toggle
+
+    write that table. On a deployment whose connection is an application
+
+    role (the agent's default) those writes are
+
+    refused with `409 LEGACY_POLICY_WRITE_FROZEN`, the answer the
+
+    orchestrator gives for its own policy writes (see `policy-api.yaml`).
+
+    Its `error.code` is that string, where the other errors on these routes
+
+    carry the numeric status. Author policy through the typed authoring
+
+    route, `/api/v1/typed-policies` in `orchestrator-api.yaml`. Reads, the
+
+    pattern test, and the per-policy overrides - which are stored in their
+
+    own table - are unaffected. A deployment whose connection may still
+
+    write the table (the database owner; a property of the connection, not
+
+    of `AXONFLOW_DB_USE_APP_ROLE` alone) is not bound by the revoke.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - System Policies
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-system-policies-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-templates-api
+  name: AxonFlow Templates API
+  description: Policy templates for quick policy creation
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Templates
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-templates-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-tenant-policies-api
+  name: AxonFlow Tenant Policies API
+  description: >-
+    Tenant policy CRUD via the ADR-024 `/api/v1/tenant-policies` surface
+
+    (Orchestrator, proxied by the Agent). On create, update and import it
+
+    accepts only policies whose category starts with `dynamic-` or
+
+    `media-`; the list and the export return the caller's rows whatever
+
+    their category (#4293).
+
+
+    Note the category prefixes keep their original spelling. The
+
+    terminology migration renamed the PATHS only; the category vocabulary
+
+    is a separate, stored value on every existing policy row and renaming
+
+    it would be a data migration, not an alias.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Tenant Policies
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-tenant-policies-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-testing-api
+  name: AxonFlow Testing API
+  description: Policy testing and validation
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Testing
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-testing-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-typed-policy-authoring-api
+  name: AxonFlow Typed Policy Authoring API
+  description: >-
+    The ADR-065 typed policy authoring surface, available on EVERY edition
+
+    (#3907). It is the write path a deployment without the Enterprise customer
+
+    portal uses, and the portal is one client of the same library rather than
+
+    the only way in.
+
+
+    What an edition may express is bounded by CONSTRUCTS - scope kinds, the
+
+    request-context attribute namespaces, obligation families - and not by the
+
+    signing root: every customer-authored policy on every edition is
+
+    organization-root. `GET /api/v1/typed-policies/edition` reports this
+
+    deployment's boundary and its document ceiling, so a caller can read the
+
+    limits rather than discover them one refusal at a time.
+
+
+    The organization and the author are taken from the `X-Org-ID` and
+
+    `X-User-ID` headers the agent gateway stamps, never from the request body:
+
+    the author is carried inside the signed policy source. No endpoint in this
+
+    family accepts an organization anywhere.
+
+
+    **The Enterprise customer portal serves some of these same paths with a
+
+    DIFFERENT handler**, and this document describes the orchestrator's. The
+
+    portal's `/api/v1/typed-policies/*` surface is behind a portal session and
+
+    `policy:write`, takes an explicit approver list resolved against the
+
+    organization's directory, and carries editor affordances (catalog, schema,
+
+    diff, artifacts, rollback) this surface does not. A caller reaches one or
+
+    the other by which service it addresses, never by a field in the request.
+
+    The two share the library, the vocabulary and the document format; they do
+
+    not share this specification.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Typed Policy Authoring
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-typed-policy-authoring-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-unified-executions-api
+  name: AxonFlow Unified Executions API
+  description: >-
+    Unified execution tracking and real-time streaming for MAP plans and WCP workflows.
+
+    SSE streaming provides real-time status updates. Community: 5 concurrent connections
+
+    per tenant. Enterprise: Unlimited.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Unified Executions
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-unified-executions-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-us-banking-compliance-api
+  name: AxonFlow US Banking Compliance API
+  description: >-
+    US federal banking and Farm Credit examination evidence (ADR-063). One
+
+    read: the examination-readiness summary. The evidence itself is produced
+
+    by the compliance report facade with `regulator=usbanking`; this module
+
+    owns no tables and adds no second path to the underlying rows.
+
+    **Enterprise** feature.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - US Banking Compliance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-us-banking-compliance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-us-insurance-compliance-api
+  name: AxonFlow US Insurance Compliance API
+  description: >-
+    NAIC AI Systems Evaluation Tool exhibit evidence for US insurers, with
+
+    the NYDFS Circular Letter No. 7 and Colorado Regulation 10-1-1 annexes.
+
+    Read-only: these routes report AI system surfaces, human oversight and
+
+    consumer data classes observed in governed traffic. AxonFlow performs no
+
+    statistical fairness testing and designates no system as high risk.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - US Insurance Compliance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-us-insurance-compliance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-us-securities-compliance-api
+  name: AxonFlow US Securities Compliance API
+  description: >-
+    SEC adviser and FINRA broker-dealer examination evidence (ADR-064). One
+
+    read: the examination-readiness summary. The evidence itself is produced
+
+    by the compliance report facade with `regulator=ussecurities`; this module
+
+    owns no tables and adds no second path to the underlying rows. The
+
+    supervised population is DERIVED from the framework a report requests, so
+
+    the same evidence is cited against the adviser's instruments, the
+
+    broker-dealer's, or both under Regulation S-P. **Enterprise** feature.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - US Securities Compliance
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-us-securities-compliance-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-webhooks-api
+  name: AxonFlow Webhooks API
+  description: >-
+    Webhook subscription management for real-time event notifications.
+
+    Subscribe to events like policy violations, workflow completions, budget alerts, etc.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Webhooks
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-webhooks-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-workflow-control-plane-api
+  name: AxonFlow Workflow Control Plane API
+  description: >-
+    Governance gates for external orchestrators (LangChain, LangGraph, CrewAI).
+
+    "LangChain runs the workflow. AxonFlow decides when it's allowed to move forward."
+
+
+    Features:
+
+    - Register workflows from external orchestrators
+
+    - Check step gates before each workflow step
+
+    - Apply policies at step transitions (allow/block/require_approval)
+
+    - Track workflow lifecycle (in_progress/completed/aborted/failed)
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Workflow Control Plane
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-workflow-control-plane-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-workflows-api
+  name: AxonFlow Workflows API
+  description: Workflow execution engine
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Workflows
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-workflows-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+- aid: axonflow:axonflow-auth-zen-api
+  name: AxonFlow Auth ZEN API
+  description: The Auth ZEN API from AxonFlow — 1 operation(s) for auth zen.
+  humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  baseURL: http://localhost:8080
+  tags:
+  - Auth ZEN
+  properties:
+  - type: OpenAPI
+    url: openapi/axonflow-auth-zen-api-openapi.yml
+  - type: Documentation
+    url: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-input-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-pre-check-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-client-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-decide-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-mcpcheck-output-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-log-entry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-step-gate-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-ojkaudit-export-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-approval-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-audit-action-report-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-policy-evaluation-result-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-simulate-policies-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-policy-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-impact-report-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-apply-template-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-test-policy-response-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-featassessment-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-aisystem-registry-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-create-registry-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-assessment-request-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-kill-switch-schema.json
+  - type: JSONSchema
+    url: json-schema/axonflow-update-registry-request-schema.json
+x-enrichment:
+  date: '2026-10-09'
+  status: enriched
+  artifacts_added: 71
+  pass: modular-v1
+  engine: identity=anthropic,contract=anthropic,surfaces=anthropic,docs=anthropic,regulatory=anthropic
+x-coverage:
+  state: covered
+  reason: identity-verified
+  detail: 'Enriched 2026-10-09: website and identity verified (verified) from the provider''s own pages; probed URLs below.'
+  evidence:
+  - url: https://getaxonflow.com/
+    status: null

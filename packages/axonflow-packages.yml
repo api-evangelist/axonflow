@@ -1,0 +1,56 @@
+generated: '2026-10-09'
+method: searched
+source: https://docs.getaxonflow.com/docs/sdk/overview/
+name: AxonFlow Packages
+description: First-party AxonFlow SDKs as listed on the SDK overview page (docs.getaxonflow.com/docs/sdk/overview, HTTP 200 on 2026-10-09). Versions and publish dates read from each registry's metadata endpoint on 2026-10-09.
+packages:
+- name: axonflow
+  registry: pypi
+  url: https://pypi.org/project/axonflow/
+  language: Python
+  official: true
+  version: 9.4.0
+  published: '2026-09-15'
+  repository: https://github.com/getaxonflow/axonflow-sdk-python
+  status: Stable
+  metadata_source: https://pypi.org/pypi/axonflow/json
+- name: '@axonflow/sdk'
+  registry: npm
+  url: https://www.npmjs.com/package/@axonflow/sdk
+  language: TypeScript
+  official: true
+  version: 9.4.0
+  published: '2026-09-15'
+  repository: https://github.com/getaxonflow/axonflow-sdk-typescript
+  status: Stable
+  metadata_source: https://registry.npmjs.org/@axonflow/sdk
+- name: github.com/getaxonflow/axonflow-sdk-go/v9
+  registry: go
+  url: https://pkg.go.dev/github.com/getaxonflow/axonflow-sdk-go/v9
+  language: Go
+  official: true
+  version: v9.4.0
+  published: '2026-09-14'
+  repository: https://github.com/getaxonflow/axonflow-sdk-go
+  status: Stable
+  metadata_source: https://proxy.golang.org/github.com/getaxonflow/axonflow-sdk-go/v9/@latest
+- name: com.getaxonflow:axonflow-sdk
+  registry: maven
+  url: https://central.sonatype.com/artifact/com.getaxonflow/axonflow-sdk
+  language: Java
+  official: true
+  version: 9.4.0
+  published: '2026-09-15'
+  status: Stable
+  metadata_source: https://repo1.maven.org/maven2/com/getaxonflow/axonflow-sdk/maven-metadata.xml
+  note: Date is the Last-Modified of the 9.4.0 POM on repo1.maven.org (maven-metadata lastUpdated 20260915073746).
+- name: axonflow-sdk-rust
+  registry: crates.io
+  url: https://crates.io/crates/axonflow-sdk-rust
+  language: Rust
+  official: true
+  version: 0.11.0
+  published: '2026-09-15'
+  repository: https://github.com/getaxonflow/axonflow-sdk-rust
+  status: Preview
+  metadata_source: https://crates.io/api/v1/crates/axonflow-sdk-rust/0.11.0

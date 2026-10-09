@@ -1,0 +1,560 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Registry API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Registry across 2 of this provider''s published API definitions: axonflow-masfeat-api.yaml, axonflow-masfeat-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (via AxonFlow agent proxy)
+- url: http://localhost:8080
+  description: Local Development (agent proxy)
+- url: http://localhost:8081
+  description: Local Development (orchestrator direct, internal only)
+security:
+- OrgHeader: []
+tags:
+- name: Registry
+  description: AI System Registry management
+paths:
+  /api/v1/masfeat/registry:
+    post:
+      summary: Register AI System
+      description: 'Register a new AI system in the MAS FEAT registry.
+
+
+        The system will be created with `draft` status and materiality
+
+        will be automatically calculated based on risk ratings.'
+      operationId: registerSystem
+      tags:
+      - Registry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRegistryRequest'
+            example:
+              system_id: credit-scoring-ai-v1
+              system_name: Credit Scoring AI
+              description: AI system for automated credit scoring decisions
+              use_case: credit_scoring
+              risk_rating_impact: 4
+              risk_rating_complexity: 3
+              risk_rating_reliance: 5
+              owner_team: Risk Management
+              owner_email: risk-lead@example.com
+              data_sources:
+              - credit_bureau
+              - transaction_history
+              model_type: gradient_boosting
+              version: 1.0.0
+      responses:
+        '201':
+          description: System registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AISystemRegistry'
+        '400':
+          description: Invalid request or missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: System already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: List AI Systems
+      description: 'List AI systems in the registry for the organization.
+
+
+        The response wraps the results in an object with a `systems` array
+
+        and a `count` of returned items.'
+      operationId: listSystems
+      tags:
+      - Registry
+      parameters:
+      - name: status
+        in: query
+        description: Filter by system status
+        schema:
+          type: string
+          enum:
+          - draft
+          - active
+          - suspended
+          - retired
+      - name: limit
+        in: query
+        description: Maximum number of results (default 50, capped at 1000)
+        schema:
+          type: integer
+          default: 50
+          maximum: 1000
+      - name: offset
+        in: query
+        description: Offset for pagination
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: List of AI systems
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistryListResponse'
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/registry/summary:
+    get:
+      summary: Get Registry Summary
+      description: Get summary statistics for the AI system registry.
+      operationId: getRegistrySummary
+      tags:
+      - Registry
+      responses:
+        '200':
+          description: Registry summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrySummary'
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/registry/{id}:
+    get:
+      summary: Get AI System
+      description: Get details of a specific AI system by its registry record ID.
+      operationId: getSystem
+      tags:
+      - Registry
+      parameters:
+      - $ref: '#/components/parameters/RegistryID'
+      responses:
+        '200':
+          description: AI system details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AISystemRegistry'
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: System not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update AI System
+      description: 'Update an AI system''s details. Materiality will be recalculated
+
+        if risk ratings are changed.
+
+
+        Status transitions (for example `draft` → `active`, or `active` →
+
+        `suspended`) are performed by setting the `status` field in this
+
+        request; there is no separate activation endpoint.'
+      operationId: updateSystem
+      tags:
+      - Registry
+      parameters:
+      - $ref: '#/components/parameters/RegistryID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRegistryRequest'
+            example:
+              status: active
+              risk_rating_impact: 5
+              owner_email: new-owner@example.com
+      responses:
+        '200':
+          description: System updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AISystemRegistry'
+        '400':
+          description: Invalid request or missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: System not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Retire AI System
+      description: 'Retire an AI system. This sets the status to `retired` and
+
+        preserves the record for audit purposes.'
+      operationId: retireSystem
+      tags:
+      - Registry
+      parameters:
+      - $ref: '#/components/parameters/RegistryID'
+      responses:
+        '200':
+          description: System retired successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetireSystemResponse'
+              example:
+                message: System retired successfully
+                id: a3a5b3a0-8f1e-4a67-9a5e-2f4f4b1c2d3e
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: System not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+components:
+  schemas:
+    AISystemRegistry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Registry record ID
+        org_id:
+          type: string
+        system_id:
+          type: string
+          description: Caller-chosen AI system identifier
+        system_name:
+          type: string
+        description:
+          type: string
+        use_case:
+          type: string
+          enum:
+          - credit_scoring
+          - robo_advisory
+          - insurance_underwriting
+          - trading_algorithm
+          - aml_cft
+          - customer_service
+          - fraud_detection
+          - other
+        status:
+          type: string
+          enum:
+          - draft
+          - active
+          - suspended
+          - retired
+        risk_rating_impact:
+          type: integer
+          minimum: 1
+          maximum: 5
+        risk_rating_complexity:
+          type: integer
+          minimum: 1
+          maximum: 5
+        risk_rating_reliance:
+          type: integer
+          minimum: 1
+          maximum: 5
+        materiality_classification:
+          type: string
+          enum:
+          - high
+          - medium
+          - low
+          description: 'Materiality classification computed from the 3-dimensional risk rating
+
+            (impact, complexity, reliance) per MAS AI Risk Management Guidelines 2025.
+
+            '
+        owner_team:
+          type: string
+        owner_email:
+          type: string
+        data_sources:
+          type: array
+          items:
+            type: string
+        model_type:
+          type: string
+        version:
+          type: string
+        deployment_date:
+          type: string
+          format: date-time
+        last_assessment_date:
+          type: string
+          format: date-time
+        next_assessment_due:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+        updated_by:
+          type: string
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+    UpdateRegistryRequest:
+      type: object
+      properties:
+        system_name:
+          type: string
+        description:
+          type: string
+        use_case:
+          type: string
+          enum:
+          - credit_scoring
+          - robo_advisory
+          - insurance_underwriting
+          - trading_algorithm
+          - aml_cft
+          - customer_service
+          - fraud_detection
+          - other
+        status:
+          type: string
+          enum:
+          - draft
+          - active
+          - suspended
+          - retired
+          description: 'Target system status. Status transitions (e.g. activation) are
+
+            performed via this field; there is no separate activation endpoint.
+
+            '
+        risk_rating_impact:
+          type: integer
+          minimum: 1
+          maximum: 5
+        risk_rating_complexity:
+          type: integer
+          minimum: 1
+          maximum: 5
+        risk_rating_reliance:
+          type: integer
+          minimum: 1
+          maximum: 5
+        owner_team:
+          type: string
+        owner_email:
+          type: string
+        data_sources:
+          type: array
+          items:
+            type: string
+        model_type:
+          type: string
+        version:
+          type: string
+    RegistryListResponse:
+      type: object
+      properties:
+        systems:
+          type: array
+          items:
+            $ref: '#/components/schemas/AISystemRegistry'
+        count:
+          type: integer
+          description: Number of systems returned
+    RegistrySummary:
+      type: object
+      properties:
+        org_id:
+          type: string
+        total_systems:
+          type: integer
+        active_systems:
+          type: integer
+        high_materiality:
+          type: integer
+        medium_materiality:
+          type: integer
+        low_materiality:
+          type: integer
+        assessments_due:
+          type: integer
+        kill_switches_triggered:
+          type: integer
+    CreateRegistryRequest:
+      type: object
+      required:
+      - system_id
+      - system_name
+      - use_case
+      - risk_rating_impact
+      - risk_rating_complexity
+      - risk_rating_reliance
+      - owner_team
+      - owner_email
+      properties:
+        system_id:
+          type: string
+          description: Unique identifier for the AI system
+        system_name:
+          type: string
+          description: Human-readable name
+        description:
+          type: string
+          description: Description of the AI system
+        use_case:
+          type: string
+          enum:
+          - credit_scoring
+          - robo_advisory
+          - insurance_underwriting
+          - trading_algorithm
+          - aml_cft
+          - customer_service
+          - fraud_detection
+          - other
+          description: Primary use case category
+        risk_rating_impact:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Customer impact rating (1-5)
+        risk_rating_complexity:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Model complexity rating (1-5)
+        risk_rating_reliance:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Human reliance rating (1-5)
+        owner_team:
+          type: string
+          description: Team responsible for the system
+        owner_email:
+          type: string
+          description: Email of the system owner
+        data_sources:
+          type: array
+          items:
+            type: string
+          description: Data sources consumed by the system
+        model_type:
+          type: string
+          description: Model type (e.g. gradient_boosting, llm, rules_engine)
+        version:
+          type: string
+          description: System/model version
+    RetireSystemResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: System retired successfully
+        id:
+          type: string
+          description: Registry record ID of the retired system
+  parameters:
+    RegistryID:
+      name: id
+      in: path
+      required: true
+      description: Registry record ID (UUID assigned at registration, not the caller-chosen `system_id`)
+      schema:
+        type: string
+        format: uuid
+  securitySchemes:
+    OrgHeader:
+      type: apiKey
+      in: header
+      name: X-Org-ID
+      description: 'Organization ID (required). `X-Tenant-ID` is accepted as a fallback.
+
+        Requests without either header are rejected with HTTP 400.
+
+        '
+    UserHeader:
+      type: apiKey
+      in: header
+      name: X-User-ID
+      description: 'Acting user for audit attribution (optional). `X-User-Email` is
+
+        accepted as a fallback; when absent, actions are attributed to
+
+        `"system"`.
+
+        '
+x-refined-from:
+- axonflow-masfeat-api.yaml
+- axonflow-masfeat-openapi.yml

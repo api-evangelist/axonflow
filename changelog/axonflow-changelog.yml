@@ -1,0 +1,17 @@
+generated: '2026-10-09'
+method: searched
+source: https://docs.getaxonflow.com/docs/releases/
+dates_source: https://api.github.com/repos/getaxonflow/axonflow/releases
+name: AxonFlow Platform Release Notes
+scheme: semver
+current_version: v11.1.0
+note: Every MINOR platform release has a dedicated release-notes page; PATCH releases get a page when they change user-visible behavior. Dates are GitHub release publish dates for github.com/getaxonflow/axonflow. breaking is set true only for the MAJOR releases.
+entries:
+- {version: v11.1.0, date: '2026-09-26', breaking: false, highlights: "AxonFlow v11.1.0 brings back the Fraud & Risk Add-on's risk score as an advisory fact the FinCrime pack holds on", url: 'https://github.com/getaxonflow/axonflow/releases/tag/v11.1.0'}
+- {version: v11.0.0, date: '2026-09-15', breaking: true, highlights: 'AxonFlow v11.0.0 makes the policy decision and identity plane the whole system; legacy policy tables become read-only (LEGACY_POLICY_WRITE_FROZEN)', url: 'https://github.com/getaxonflow/axonflow/releases/tag/v11.0.0'}
+- {version: v10.4.0, date: '2026-09-06', breaking: false, highlights: AxonFlow v10.4.0 makes the PEP capability handshake readable on three enforcement planes, url: 'https://github.com/getaxonflow/axonflow/releases/tag/v10.4.0'}
+- {version: v10.3.0, date: '2026-09-02', breaking: false, highlights: 'Adds an AuthZEN-native authorization endpoint, POST /api/v1/access/evaluation', url: 'https://github.com/getaxonflow/axonflow/releases/tag/v10.3.0'}
+- {version: v10.2.0, date: '2026-08-31', breaking: false, highlights: AxonFlow v10.2.0 lands the ADR-065 policy decision and identity control plane as dark infrastructure, url: 'https://github.com/getaxonflow/axonflow/releases/tag/v10.2.0'}
+- {version: v10.1.0, date: '2026-08-28', breaking: false, highlights: 'AxonFlow v10.1.0 ships the US compliance framework family: three new compliance-report regulators', url: 'https://github.com/getaxonflow/axonflow/releases/tag/v10.1.0'}
+- {version: v10.0.0, date: '2026-08-26', breaking: true, highlights: AxonFlow v10.0.0 is a major release that closes eight enforcement gaps and stops four read surfaces from reporting things the platform never measured, url: 'https://github.com/getaxonflow/axonflow/releases/tag/v10.0.0'}
+- {version: v9.19.0, date: '2026-08-20', breaking: false, highlights: AxonFlow v9.19.0 makes the operator console tell the truth, url: 'https://github.com/getaxonflow/axonflow/releases/tag/v9.19.0'}

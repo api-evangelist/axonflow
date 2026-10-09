@@ -1,0 +1,84 @@
+generated: '2026-10-09'
+method: searched
+source:
+- https://docs.getaxonflow.com/docs/api/auth-header-matrix/
+- https://docs.getaxonflow.com/docs/api/error-codes/
+- https://docs.getaxonflow.com/docs/orchestration/wcp/retry-and-idempotency/
+- https://docs.getaxonflow.com/docs/sdk/version-compatibility/
+- openapi/axonflow-agent-openapi.yml
+- openapi/axonflow-orchestrator-openapi.yml
+name: AxonFlow API Conventions
+base_url: Self-hosted; docs examples use http://localhost:8080 (agent) and http://localhost:8081 (orchestrator)
+api_style: REST over HTTP, JSON request and response bodies, paths under /api/v1
+authentication:
+  style: 'HTTP Basic -- Authorization: Basic base64(clientId:clientSecret); client secret optional in community mode'
+  tenant_header: X-Tenant-ID is still tolerated but identity is derived from the authenticated credentials (deprecated alias since v8.0.0)
+  license_header: X-License-Token (Community SaaS Pro tier), with X-Axonflow-Client set by the SDKs
+  see: authentication/axonflow-authentication.yml
+idempotency:
+  coverage: partial
+  scope:
+  - mcpCheckInput
+  - createHITLDecision
+  - auditToolCall
+  - checkStepGate
+  - markStepCompleted
+  note: Of 185 mutating operations across the four contracts, only the five named above carry replay protection.
+  docs: https://docs.getaxonflow.com/docs/orchestration/wcp/retry-and-idempotency/
+  mechanism: Idempotency-Key header on three operations (24h response cache) plus an idempotency_key body field on the WCP step gate/complete
+    calls
+  header: Idempotency-Key
+  header_operations:
+  - mcpCheckInput
+  - createHITLDecision
+  - auditToolCall
+  retention: 24h (2xx and 4xx responses cached; 5xx not cached; replay adds Idempotent-Replayed true)
+  key_format: 1-256 chars, ^[A-Za-z0-9_.:\-/]+$
+  body_field: idempotency_key (WCP /gate and /complete, up to 255 characters, immutable for the lifetime of the step; mismatch returns 409 IDEMPOTENCY_KEY_MISMATCH)
+pagination:
+  style: mixed limit/offset and page/page_size query parameters (no single documented convention)
+  params:
+  - limit
+  - offset
+  - page
+  - page_size
+request_tracing:
+  header: traceparent (W3C Trace Context, declared in the contract)
+versioning:
+  scheme: semantic versions for platform and SDKs, released on a coordinated cadence; version discovery via GET /health capabilities
+  see: lifecycle/axonflow-lifecycle.yml
+error_envelope:
+  shape: '{ "error": { "code": "...", "message": "..." } } on most api/v1 handlers; not universal'
+  see: errors/axonflow-error-codes.yml
+rate_limits:
+  status: 429
+  code: RATE_LIMIT_EXCEEDED
+  see: rate-limits/axonflow-rate-limits.yml
+dry_run:
+  available: true
+  operation: POST /api/v1/policies/simulate
+  description: Policy Simulation runs all active policies against one input as a dry run (Evaluation tier and above).
+  docs: https://docs.getaxonflow.com/docs/features/policy-simulation/
+reversibility:
+  status: documented
+  note: Reversal operations exist in the contracts for a handful of write surfaces; the docs read for this pass state no time window for any of
+    them, so none is asserted.
+  surfaces:
+  - surface: multi-agent plans
+    reversal: cancelPlan
+    operation: POST /api/v1/plan/{id}/cancel
+    condition: Cancel a pending plan (operation summary)
+    window: null
+  - surface: plan versions
+    reversal: rollbackPlan
+    operation: POST /api/v1/plan/{id}/rollback/{version}
+    condition: Rollback plan to a previous version (Enterprise only)
+    window: null
+  - surface: unified executions
+    reversal: cancelUnifiedExecution
+    operation: POST /api/v1/unified/executions/{id}/cancel
+    window: null
+  - surface: MAS FEAT kill switch
+    reversal: restoreKillSwitch
+    operation: POST /api/v1/masfeat/killswitch/{system_id}/restore
+    window: null

@@ -1,0 +1,34 @@
+generated: '2026-10-09'
+method: searched
+source:
+- https://docs.getaxonflow.com/docs/releases/
+- openapi/axonflow-agent-openapi.yml
+name: AxonFlow Standards Conformance
+standards:
+- id: openid-authzen
+  conforms: claimed
+  evidence: 'Release notes v10.3.0: "Live: an AuthZEN-native authorization endpoint, POST /api/v1/access/evaluation, available in every edition
+    at every tier with no flag"; the agent contract declares the path /api/v1/access/evaluation (openapi/axonflow-agent-openapi.yml line 1610).'
+  evidence_url: https://docs.getaxonflow.com/docs/releases/
+- id: w3c-trace-context
+  conforms: partial
+  evidence: The contracts declare a traceparent header (6 occurrences across openapi/*.yml).
+- id: openapi-3.0
+  conforms: true
+  evidence: the document declares 3.0.3
+- id: oauth2
+  conforms: false
+  evidence: 'securitySchemes: BasicAuth (http), BearerAuth (http), InternalServiceID (apiKey), InternalServiceToken (apiKey), OrgHeader (apiKey),
+    UserHeader (apiKey), basicAuth (http)'
+- id: rfc9457
+  conforms: false
+  evidence: no response declares application/problem+json
+- id: idempotency
+  conforms: true
+  evidence: Idempotency-Key declared on 5 of 185 mutating operations (partial)
+- id: pagination
+  conforms: true
+  evidence: list operations take limit, offset, page, page_size
+- id: ratelimit-headers
+  conforms: true
+  evidence: responses declare Retry-After

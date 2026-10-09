@@ -1,0 +1,980 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Proxy Mode API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Proxy Mode across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: Proxy Mode
+  description: Full request interception and processing
+paths:
+  /api/request:
+    post:
+      tags:
+      - Proxy Mode
+      summary: Process client request
+      description: 'Main entry point for Proxy Mode. The Agent:
+
+        1. Authenticates the client credential. On Enterprise it also admits
+
+        the user token, which is required there: a request with no token,
+
+        or one that does not verify, is refused 401. On Community and
+
+        community-SaaS the credential is the principal and a user token is
+
+        ignored
+
+        2. Decides the request in ONE anchored pass: the shared static
+
+        engine''s evaluation is the detector input, and the ADR-065 anchored
+
+        engine authors the verdict for the credential or the verified user
+
+        (PRD v11 §1.1, §1.6)
+
+        3. Forwards to the Orchestrator if allowed
+
+        4. Returns the response with the engine that decided it
+
+
+        **One pass since v11.0.0 (#4253).** The second pass that used to
+
+        follow an anchored approval - the tier engine, over `static_policies`''
+
+        stored action column and an organization''s legacy per-policy
+
+        overrides - is retired. A legacy per-policy override (block or
+
+        require_approval) no longer decides this route; the effective-policies
+
+        read (`GET /api/v1/static-policies/effective`) keeps showing it under
+
+        its deprecation (PRD v11 §1.11). A shipped system control whose stored
+
+        action is block is still refused here, by the anchored engine, naming
+
+        its policy. The agent''s pass resolves no governance segments, so a
+
+        segment-store outage refuses nothing at that pass (a request it
+
+        forwards to the orchestrator''s `/api/v1/process` or
+
+        `/api/v1/plan/execute` is decided there by the anchored engine too,
+
+        whose facts resolve the user''s segments and refuse when that fails), and
+
+        the pass never holds a request for approval: an anchored approval
+
+        challenge is a refusal.
+
+
+        Every policy verdict names the engine that decided it (`engine`,
+
+        always `anchored`), the type of principal it decided for
+
+        (`subject_type`) and the digest of the policy bundle
+
+        (`policy_bundle`).
+
+
+        **The LLM response is decided too.** A forwarded request''s response
+
+        is decided by the orchestrator response plane, on the anchored
+
+        engine, and `response_plane` names that decision. A response it
+
+        withholds answers `success: false` and `blocked: true`, and is not
+
+        counted against the client''s circuit breaker.
+
+
+        **Use this endpoint when you want AxonFlow to intercept and process all LLM requests.**'
+      operationId: processRequest
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - $ref: '#/components/parameters/ClientSecret'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientRequest'
+            examples:
+              sqlQuery:
+                summary: SQL query request
+                value:
+                  query: Show sales data for last quarter
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  client_id: travel-app-prod
+                  request_type: sql
+                  context:
+                    connector: postgres
+              llmChat:
+                summary: LLM chat request
+                value:
+                  query: Summarize the customer feedback
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  client_id: support-bot
+                  request_type: llm_chat
+                  context:
+                    model_preference: gpt-4
+              multiAgentPlan:
+                summary: Multi-agent planning request
+                value:
+                  query: Find flights from NYC to LAX and book a hotel
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  client_id: travel-planner
+                  request_type: multi-agent-plan
+                  context:
+                    domain: travel
+                    execution_mode: parallel
+      responses:
+        '200':
+          description: Request processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+              example:
+                success: true
+                data:
+                  response: Here is the summary of customer feedback...
+                result: 'Flight options found: UA123, AA456, DL789'
+                plan_id: plan_1234567890_abc123
+                metadata:
+                  tasks_executed: 3
+                  execution_time_ms: 2500
+                policy_info:
+                  policies_evaluated:
+                  - pii-detection
+                  - rate-limit
+                  static_checks:
+                  - ssn_pattern
+                  - credit_card
+                  processing_time: 45.2ms
+                  tenant_id: tenant-123
+                engine: anchored
+                subject_type: User
+                policy_bundle: sha256:<the digest of the bundle that decided the request>
+                response_plane:
+                  engine: anchored
+                  subject_type: Client
+                  policy_bundle: sha256:<the digest of the bundle that decided the response>
+                  verdict: allowed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: 'A configured cost budget blocks the request (Enterprise cost
+
+            controls; `blocked: true`, `policy_info.matched_policies`
+
+            `["budget_exceeded"]`), or the licence''s ceiling refuses a
+
+            principal: the client credential''s service principal at
+
+            authentication, or the verified user token''s human principal
+
+            when the user is resolved. Both tier-limit refusals answer one
+
+            shape: `blocked: true`, `code` the `ERR_TIER_LIMIT_*` code of the
+
+            refused dimension, and `error` and `block_reason` the refusal''s
+
+            message, which begins with that code. A tier-limit refusal
+
+            carries `Retry-After` only when the licence ledger could not be
+
+            reached (its message says the ledger cannot be reached); a refusal over the
+
+            ceiling has no reset and carries none. Both bodies are a
+
+            `ClientResponse`. This route answers no 429 for the ceiling.
+
+            '
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: 'Present only on a tier-limit refusal the licence ledger''s
+
+                outage caused: seconds before retrying (30). Absent on every
+
+                other 402.
+
+                '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+        '403':
+          description: 'Request refused by the anchored engine. `block_reason` is the
+
+            refusal''s reason code (for example `explicit_constraint`) and
+
+            `policy_info.matched_policies` names the policy that decided it,
+
+            first. Since v11.0.0 no refusal on this route comes from another
+
+            engine, and none is an approval hold (#4253).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+              example:
+                success: false
+                blocked: true
+                block_reason: explicit_constraint
+                policy_info:
+                  matched_policies:
+                  - corpus:static_policies:drop__table__prevention
+                  policies_evaluated:
+                  - corpus:static_policies:drop__table__prevention
+                  processing_time: 2.1ms
+                  tenant_id: tenant-123
+                engine: anchored
+                subject_type: Client
+                policy_bundle: sha256:<the digest of the bundle that decided the request>
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: 'The anchored engine could not decide the request (for example, no
+
+            enforcer is wired in the process). The route fails CLOSED and
+
+            never falls back to another engine: `blocked` is true and
+
+            `policy_info.matched_policies` is `["decision_enforcement_unavailable"]`.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/policies/test:
+    post:
+      tags:
+      - Proxy Mode
+      summary: Preview /api/request's verdict (a dry run of its one pass)
+      description: 'Previews what `POST /api/request` would decide for the authenticated
+
+        credential, through the same pass: the same detector evaluation and
+
+        the same anchored enforcing seam. A policy is tested against the
+
+        engine that enforces it (PRD v11 §1 item 10). It records no decision:
+
+        no `audit_logs` row, no enforce-decision count, no circuit-breaker
+
+        violation and no signed decision. The shared engine''s evaluation that
+
+        feeds the pass still counts in its metrics, and where the engine
+
+        carries an audit queue a matched block is logged to
+
+        `policy_violations`, as before v11.0.0.
+
+
+        **Changed in v11.0.0 (#4253).** It used to preview two legacy passes
+
+        and resolve the governance segments of the body''s `user_email`. It now
+
+        decides for the credential that authenticated the call
+
+        (`subject_type` `Client`): on Community as `/api/request` decides a
+
+        request that carries no user token; on Enterprise, where
+
+        `/api/request` requires a user token, as the credential''s service
+
+        identity, the way `/api/v1/decide` decides a token-less caller - and
+
+        it is refused 401 where the organization requires a user token, as
+
+        decide refuses it. `user_email` is accepted and ignored (a body field is not a
+
+        principal), `segments_resolved` is no longer in the response, and the
+
+        response gains `engine`, `subject_type` and `policy_bundle`. Where the
+
+        anchored engine cannot decide, the preview answers 503, as the route
+
+        does.'
+      operationId: testPolicies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - query
+              properties:
+                query:
+                  type: string
+                  description: Query to preview
+                user_email:
+                  type: string
+                  description: 'Accepted and ignored since v11.0.0 (#4253): the preview is
+
+                    decided for the authenticated credential.
+
+                    '
+                request_type:
+                  type: string
+                  description: Request type
+            example:
+              query: DROP TABLE customers
+              request_type: sql
+      responses:
+        '200':
+          description: The verdict /api/request would give
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyTestResponse'
+              example:
+                blocked: true
+                reason: explicit_constraint
+                triggered_policies:
+                - corpus:static_policies:drop__table__prevention
+                checks_performed:
+                - shared_policy_engine
+                processing_time_ms: 3
+                engine: anchored
+                subject_type: Client
+                policy_bundle: sha256:<the digest of the bundle that decided the preview>
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: 'The anchored engine could not decide the preview (for example, no
+
+            enforcer is wired in the process): `blocked` is true and
+
+            `triggered_policies` is `["decision_enforcement_unavailable"]`.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyTestResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/clients:
+    get:
+      tags:
+      - Proxy Mode
+      summary: List registered clients
+      description: Returns all registered client applications
+      operationId: listClients
+      responses:
+        '200':
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Client'
+    post:
+      tags:
+      - Proxy Mode
+      summary: Register a new client
+      description: Register a new client application
+      operationId: createClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Client'
+      responses:
+        '201':
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Internal server error
+  parameters:
+    ClientSecret:
+      name: X-Client-Secret
+      in: header
+      required: false
+      deprecated: true
+      description: '**DEPRECATED**: Use Basic authentication instead.
+
+        Legacy client secret header. Prefer using `Authorization: Basic` header.
+
+        '
+      schema:
+        type: string
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
+  schemas:
+    ClientRequest:
+      type: object
+      required:
+      - query
+      - client_id
+      properties:
+        query:
+          type: string
+          description: The query or prompt to process
+          minLength: 1
+          maxLength: 100000
+        user_token:
+          type: string
+          description: JWT token for user authentication
+        client_id:
+          type: string
+          description: Registered client application ID
+        request_type:
+          type: string
+          enum:
+          - sql
+          - llm_chat
+          - rag_search
+          - mcp-query
+          - multi-agent-plan
+          description: 'Type of request:
+
+            - `sql`: Database query
+
+            - `llm_chat`: LLM conversation
+
+            - `rag_search`: RAG retrieval
+
+            - `mcp-query`: MCP connector query
+
+            - `multi-agent-plan`: Multi-agent planning
+
+            '
+        skip_llm:
+          type: boolean
+          default: false
+          description: Skip LLM calls (for testing)
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for request processing
+        media:
+          type: array
+          description: 'Optional multimodal payload accompanying the query
+
+            (images, documents, etc.). Consumed by the platform''s
+
+            media-governance code path; per-item shape is
+
+            `MediaContent` from the SDK.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+    PolicyEvaluationInfo:
+      type: object
+      properties:
+        matched_policies:
+          type: array
+          items:
+            type: string
+          description: 'The policies that matched the request, the deciding one first.
+
+            `policies_evaluated` carries the same list under its older name.
+
+            '
+        policies_evaluated:
+          type: array
+          items:
+            type: string
+          description: The same list as `matched_policies`, kept under its older name for existing consumers.
+        static_checks:
+          type: array
+          items:
+            type: string
+          description: List of static checks performed
+        processing_time:
+          type: string
+          description: Time taken for policy evaluation
+          example: 2.5ms
+        tenant_id:
+          type: string
+          description: Tenant ID for the request
+        code_artifact:
+          type: object
+          description: 'Code-artifact metadata captured by the code-governance
+
+            evaluation path when the request carried code content
+
+            (LLM-generated or user-provided). Mirrors the SDK''s
+
+            `CodeArtifact` type — language, code_type, size_bytes,
+
+            line_count, secrets_detected, unsafe_patterns,
+
+            policies_checked.
+
+            '
+          additionalProperties: true
+    Client:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique client identifier
+        name:
+          type: string
+          description: Client application name
+        org_id:
+          type: string
+          description: Organization ID for usage tracking
+        tenant_id:
+          type: string
+          description: Tenant ID for multi-tenancy
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Granted permissions
+        rate_limit:
+          type: integer
+          description: Requests per minute limit
+        enabled:
+          type: boolean
+          description: Whether client is active
+        license_tier:
+          type: string
+          enum:
+          - Community
+          - starter
+          - professional
+          - enterprise
+          description: License tier
+        license_expiry:
+          type: string
+          format: date-time
+          description: When license expires
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+    ClientResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          description: Response data (varies by request type)
+        result:
+          type: string
+          description: Result string for multi-agent planning
+        plan_id:
+          type: string
+          description: Plan ID for multi-agent planning
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Execution metadata for multi-agent planning
+        error:
+          type: string
+          description: Error message if success is false
+        code:
+          type: string
+          enum:
+          - ERR_TIER_LIMIT_HUMAN_PRINCIPAL
+          - ERR_TIER_LIMIT_SERVICE_PRINCIPAL
+          - ERR_TIER_LIMIT_ORG_ROOT_POLICY
+          - ERR_TIER_LIMIT_NODE
+          description: 'The refusal''s machine-readable code, present on a licence-ceiling
+
+            (tier-limit) refusal: one code per admission dimension. On
+
+            `/api/request` only the two principal codes occur. Omitted on
+
+            every other response.
+
+            '
+        blocked:
+          type: boolean
+          description: True if the request was blocked, by policy, a cost budget or the licence's ceiling
+        block_reason:
+          type: string
+          description: Reason for blocking
+        policy_info:
+          $ref: '#/components/schemas/PolicyEvaluationInfo'
+        budget_info:
+          type: object
+          description: 'Budget enforcement status (Issue #1082) — present when a
+
+            budget check ran. Surfaces current usage vs limits so
+
+            callers can render budget-aware UI without a separate
+
+            /api/v1/budgets call.
+
+            '
+          additionalProperties: true
+        media_analysis:
+          type: object
+          description: 'Media-governance analysis result — populated when the
+
+            request carried a `media` payload. Shape mirrors
+
+            `MediaAnalysisResponse`.
+
+            '
+          additionalProperties: true
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'Which policy engine authored this verdict: `anchored`, the
+
+            ADR-065 decision plane, which authors every verdict on this route
+
+            (PRD v11 §1.1). Since v11.0.0 (#4253) `legacy` is never written:
+
+            the tier engine that authored it after an anchored approval is
+
+            retired. Omitted on a refusal no engine decided.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
+
+            `User` for a verified user token, `Client` when the request
+
+            presented no user identity and its client credential is the
+
+            principal. Omitted wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided: the system corpus''s
+
+            restriction for this route and the organization root - the
+
+            organization''s active typed document composed with the
+
+            deployment''s baseline permission pack, or, while it has published
+
+            nothing, the implicit bundle of that pack and the organization
+
+            template. A rollback reinstates an earlier digest. Omitted wherever
+
+            `engine` is.
+
+            '
+        policy_packs:
+          type: array
+          items:
+            type: string
+          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
+
+            into `policy_bundle` on this route, each as `<pack id>@<digest of
+
+            the pack document the deployment instantiated>`, sorted. Omitted
+
+            when the deployment installs no pack or none binds on this route.
+
+            '
+        legacy_validators:
+          type: array
+          description: 'A checksum validator that acted BEFORE the anchored engine decided
+
+            (#4122): under an organization''s recorded `pii=block` or
+
+            `pii=redact` detection override, the Indonesia or India validator
+
+            blocked the request or masked the response ahead of the decision
+
+            plane. Present on this envelope only for an MCP connector route''s
+
+            response-pass refusal, and never on `/api/request`, whose request pass
+
+            runs no checksum validator. Omitted when none did, which is every request without
+
+            such an override.
+
+            '
+          items:
+            type: object
+            required:
+            - validator
+            - action
+            properties:
+              validator:
+                type: string
+                enum:
+                - indonesia_pii
+                - india_pii
+              action:
+                type: string
+                enum:
+                - blocked
+                - masked
+        response_plane:
+          type: object
+          description: 'The orchestrator response plane''s decision on the LLM response
+
+            `/api/request` forwarded (PRD v11 §1.1). It is a SEPARATE decision
+
+            from the top-level `engine`, `subject_type` and `policy_bundle`,
+
+            which name the request pass that let the request through: the
+
+            response is decided afterwards, on the orchestrator, for the client
+
+            credential the agent forwarded. Omitted on a response no
+
+            response-plane decision covers, including every refusal of the
+
+            request itself.
+
+            '
+          properties:
+            engine:
+              type: string
+              enum:
+              - anchored
+            subject_type:
+              type: string
+              description: 'The principal type the response was decided for: `Client` on every edition.'
+            policy_bundle:
+              type: string
+              description: The digest of the policy set that decided the response.
+            verdict:
+              type: string
+              enum:
+              - allowed
+              - redacted
+              - blocked
+              description: '`allowed` (the response as the provider sent it), `redacted`
+
+                (`data` carries it masked) or `blocked` (withheld: `success` is
+
+                false, `blocked` is true, and the refusal is not counted against
+
+                the client''s circuit breaker, because the caller did not cause it).
+
+                '
+    PolicyTestResponse:
+      type: object
+      description: '`POST /api/policies/test`''s preview of `/api/request`''s verdict for
+
+        the authenticated credential (#4253).
+
+        '
+      required:
+      - blocked
+      - triggered_policies
+      - engine
+      properties:
+        blocked:
+          type: boolean
+        reason:
+          type: string
+          description: The refusal's reason; empty when the preview allows.
+        triggered_policies:
+          type: array
+          items:
+            type: string
+          description: 'The policies the verdict names, the deciding one first. Always an
+
+            array, empty when nothing triggered.
+
+            '
+        checks_performed:
+          type: array
+          items:
+            type: string
+        processing_time_ms:
+          type: integer
+        engine:
+          type: string
+          enum:
+          - anchored
+        subject_type:
+          type: string
+        policy_bundle:
+          type: string
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

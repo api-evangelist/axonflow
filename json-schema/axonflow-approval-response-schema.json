@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-approval-response-schema.json",
+  "title": "ApprovalResponse",
+  "description": "Rich response returned by the WCP `/approve` and `/reject` endpoints\nand by the MAP plan-scoped equivalents\n(`/api/v1/plans/{id}/steps/{step_id}/approve|reject`). Both planes\nproject through the same helper — see ADR-046 (HITL response parity)\nand ADR-045 (retry_context wire contract). A refused approval answers\nthe same status on both planes: 409 when the approval has expired\n(`approval_expired`), 503 when its state cannot be read\n(`approval_state_unreadable`).\n\n`decision` resolves to `allow` on a successful approval (the step can\nnow proceed) or `block` on rejection (workflow aborted). `plan_id` is\npopulated only on MAP-plane responses; on WCP-plane responses it is\nomitted. `retry_context` is always present and mirrors the StepGate\n`retry_context` shape.\n",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-orchestrator-openapi.yml#/components/schemas/ApprovalResponse",
+  "type": "object",
+  "properties": {
+    "workflow_id": {
+      "type": "string",
+      "description": "Underlying WCP workflow identifier"
+    },
+    "plan_id": {
+      "type": "string",
+      "description": "MAP plan id — present on MAP-plane responses. Omitted on WCP-plane\nresponses (WCP has no plan concept).\n"
+    },
+    "step_id": {
+      "type": "string",
+      "description": "Step that was approved or rejected"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "expired"
+      ],
+      "description": "Flat string alias of `approval_status`. Both fields always carry\nthe same value — `status` is convenient for loggers, dashboards,\nand clients that prefer a simple string; `approval_status` is the\ntyped source of truth. First-class on both the WCP and MAP\nresponse shapes so existing clients reading either field keep\nworking without branching.\n"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "block",
+        "require_approval"
+      ],
+      "description": "Post-approval decision. Approved `require_approval` steps resolve\nto `allow`; rejected to `block`. `require_approval` on an\napprove/reject response means the step is still pending.\n"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Decision reason text. Approved / rejected responses prefix the\noriginal policy reason with `Approved:` or `Rejected:`.\n"
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "expired"
+      ],
+      "description": "Terminal approval status after the mutation landed. `expired` is an\nauto-timeout (Evaluation-tier) — a terminal not-approved state that\nblocks the step, kept distinct from a human `rejected`.\n"
+    },
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "HITL queue entry UUID of the hold this decision acted on: the\nstep's pending hold, else its newest (hold 1 is UUID v5 over\n`workflow_id + \":\" + step_id`; hold n >= 2, a step held again\nafter an earlier hold was decided, is UUID v5 over\n`workflow_id + \":\" + step_id + \"#\" + n`). Matches the queue row\nwritten by the WCP HITL adapter. With no hold for the step (a\nstep-gate row outside its hold ids is not a hold) it is the hold-1\nid; empty on the legacy in-memory MAP flow, and omitted when the\nqueue could not be read.\n"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Identity (X-User-ID, typically email) that approved the step"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the approval was persisted"
+    },
+    "rejected_by": {
+      "type": "string",
+      "description": "Identity that rejected the step (rejection path only)"
+    },
+    "rejected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the rejection was persisted"
+    },
+    "policies_matched": {
+      "type": "array",
+      "description": "Policies that triggered the original `require_approval` decision",
+      "items": {
+        "$ref": "#/$defs/PolicyMatch"
+      }
+    },
+    "retry_context": {
+      "$ref": "#/$defs/RetryContext"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable status summary"
+    }
+  },
+  "$defs": {
+    "PolicyMatch": {
+      "type": "object",
+      "description": "Details of a policy match during evaluation (Issue",
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "description": "Unique identifier for the policy"
+        },
+        "policy_name": {
+          "type": "string",
+          "description": "Human-readable name of the policy"
+        },
+        "action": {
+          "type": "string",
+          "description": "Action taken by this policy",
+          "enum": [
+            "allow",
+            "block",
+            "require_approval",
+            "redact"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the policy match"
+        }
+      }
+    },
+    "RetryContext": {
+      "type": "object",
+      "description": "First-class retry and execution state (Issue #1673 Phase 1). Always\npresent on every `StepGateResponse`, including the first gate call.\nReplaces the ambiguous `cached: bool` signal with unambiguous state\nthe agent and policy engine can reason about.\n",
+      "required": [
+        "gate_count",
+        "completion_count",
+        "prior_completion_status",
+        "prior_output_available",
+        "prior_output",
+        "prior_completion_at",
+        "first_attempt_at",
+        "last_attempt_at",
+        "last_decision",
+        "idempotency_key"
+      ],
+      "properties": {
+        "gate_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of /gate calls for this (workflow_id, step_id), including\nthe current call. First call returns 1.\n"
+        },
+        "completion_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of /complete calls for this (workflow_id, step_id). Normally\n0 on first gate, 1 after the step completes.\n"
+        },
+        "prior_completion_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "completed",
+            "gated_not_completed"
+          ],
+          "description": "\"none\" on first gate call. \"completed\" when a prior /gate + /complete\nboth landed. \"gated_not_completed\" when a prior /gate landed but no\n/complete followed — uncertain territory the agent needs to reconcile\nagainst the downstream system before re-executing.\n"
+        },
+        "prior_output_available": {
+          "type": "boolean",
+          "description": "True iff prior_completion_status == \"completed\". Mirrors whether\nprior_output *could* be returned if include_prior_output=true.\n"
+        },
+        "prior_output": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true,
+          "description": "Always present in the schema. Populated only when the caller set\n?include_prior_output=true AND prior_output_available is true.\nOtherwise null.\n"
+        },
+        "prior_completion_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Timestamp of the prior /complete call, if any."
+        },
+        "first_attempt_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the first /gate call for this step. On the first call,\nequals last_attempt_at.\n"
+        },
+        "last_attempt_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of this /gate call."
+        },
+        "last_decision": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "block",
+            "require_approval"
+          ],
+          "description": "Decision of the immediately prior /gate call. On the first call\n(gate_count == 1), equals the current decision (first-call\ninvariant).\n"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "description": "The caller-supplied business-level key recorded on this step\n(Issue #1673 Phase 2). Always present in the schema — empty\nstring `\"\"` if the caller never supplied one.\n"
+        }
+      }
+    }
+  }
+}

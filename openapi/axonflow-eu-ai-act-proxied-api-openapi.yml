@@ -1,0 +1,448 @@
+openapi: 3.2.0
+info:
+  title: Axonflow EU AI Act (Proxied) API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged EU AI Act (Proxied) across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: EU AI Act (Proxied)
+  description: 'EU AI Act compliance module (conformity assessments, accuracy
+
+    monitoring, evidence exports). Served by the orchestrator and PROXIED
+
+    through the agent (`/api/v1/euaiact/*`) per the single-entry-point
+
+    architecture — clients call the agent, never the orchestrator.
+
+    Canonical operation schemas live in orchestrator-api.yaml. Enterprise only.'
+paths:
+  /api/v1/euaiact/export:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: List compliance evidence exports (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml `GET /api/v1/euaiact/export`.
+      operationId: euaiactListExportsViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Export request list (see orchestrator-api.yaml for the schema)
+    post:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Create a compliance evidence export (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml `POST /api/v1/euaiact/export`.
+      operationId: euaiactCreateExportViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '201':
+          description: Export request created (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/export/{export_id}:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Get an export request (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactGetExportViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: export_id
+        in: path
+        required: true
+        description: Export request identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Export request status (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/export/{export_id}/download:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Download a completed export (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactDownloadExportViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: export_id
+        in: path
+        required: true
+        description: Export request identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Evidence bundle download (see orchestrator-api.yaml for content types)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/conformity:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: List conformity assessments (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml `GET /api/v1/euaiact/conformity`.
+      operationId: euaiactListConformityViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Assessment list (see orchestrator-api.yaml for the schema)
+    post:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Create a conformity assessment (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml `POST /api/v1/euaiact/conformity`.
+      operationId: euaiactCreateConformityViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '201':
+          description: Assessment created (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Get a conformity assessment (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactGetConformityViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: assessment_id
+        in: path
+        required: true
+        description: Conformity assessment identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Assessment detail (see orchestrator-api.yaml for the schema)
+    put:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Update a conformity assessment (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactUpdateConformityViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: assessment_id
+        in: path
+        required: true
+        description: Conformity assessment identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Assessment updated (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}/submit:
+    post:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Submit an assessment for review (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactSubmitConformityViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: assessment_id
+        in: path
+        required: true
+        description: Conformity assessment identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Assessment submitted (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}/approve:
+    post:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Approve an assessment (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactApproveConformityViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: assessment_id
+        in: path
+        required: true
+        description: Conformity assessment identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Assessment approved (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}/reject:
+    post:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Reject an assessment (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactRejectConformityViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: assessment_id
+        in: path
+        required: true
+        description: Conformity assessment identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Assessment rejected (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/accuracy:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Accuracy summary (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml `GET /api/v1/euaiact/accuracy`.
+      operationId: euaiactAccuracySummaryViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Per-model accuracy summary (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/accuracy/record:
+    post:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Record an accuracy metric (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactRecordAccuracyViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '201':
+          description: Metric recorded (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/accuracy/bias:
+    post:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Record a bias measurement (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactRecordBiasViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '201':
+          description: Bias measurement recorded (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/accuracy/history:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: Accuracy metric history (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactAccuracyHistoryViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Metric history (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/euaiact/accuracy/alerts:
+    get:
+      tags:
+      - EU AI Act (Proxied)
+      summary: List accuracy alerts (proxied to orchestrator)
+      description: Agent-proxied. Canonical contract in orchestrator-api.yaml.
+      operationId: euaiactListAlertsViaAgent
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Alert list (see orchestrator-api.yaml for the schema)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  parameters:
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

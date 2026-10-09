@@ -1,0 +1,44 @@
+generated: '2026-10-09'
+method: searched
+source: https://getaxonflow.com/pricing/
+name: AxonFlow Rate Limits
+description: Published limits apply to the hosted plugin endpoint try.getaxonflow.com (Community SaaS). Self-hosted deployments apply "configured rate limits" with no published default. Exhaustion returns HTTP 429 with error code RATE_LIMIT_EXCEEDED and a details object (limit, remaining, reset_at), per https://docs.getaxonflow.com/docs/api/error-codes/ ; the contract also declares Retry-After on some responses.
+exhaustion_status: 429
+exhaustion_error_code: RATE_LIMIT_EXCEEDED
+signaling:
+  body_fields: [limit, remaining, reset_at]
+  headers: [Retry-After]
+  headers_source: openapi/axonflow-agent-openapi.yml
+  docs: https://docs.getaxonflow.com/docs/api/error-codes/
+limit_count: 4
+limits:
+- name: Free burst rate limit
+  plan: Free
+  kind: burst
+  limit_text: 25 requests per minute burst limit
+  max: 25
+  limit: 25
+  window: 1 minute
+  scope: per-tenant
+- name: Free governed events per day
+  plan: Free
+  limit_text: 200 governed events per day
+  max: 200
+  limit: 200
+  window: 1 day
+  scope: per-tenant
+- name: Plugin Pro burst rate limit
+  plan: Plugin Pro
+  kind: burst
+  limit_text: 200 requests per minute burst limit
+  max: 200
+  limit: 200
+  window: 1 minute
+  scope: per-tenant
+- name: Plugin Pro governed events per day
+  plan: Plugin Pro
+  limit_text: 2,000 governed events per day
+  max: 2000
+  limit: 2000
+  window: 1 day
+  scope: per-tenant

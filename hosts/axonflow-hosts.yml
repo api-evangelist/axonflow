@@ -1,0 +1,89 @@
+generated: '2026-10-09'
+method: derived
+source: the pre-flight dossier, apis.yml pointers, spec servers, well-known, vendors -- nothing fetched here
+generator: derive-hosts.py
+summary:
+  hosts: 5
+  own: 4
+  other_domain: 0
+  platform: 1
+  roles:
+  - api
+  - identity
+  - marketing
+  - source
+  - website
+hosts:
+- host: api.getaxonflow.com
+  found_by:
+  - contract-discovery
+  types: []
+  serves: []
+  registrable_domain: getaxonflow.com
+  role: api
+  relation: own
+- host: app.getaxonflow.com
+  found_by:
+  - pointer
+  - probed
+  - site-links
+  - contract-discovery
+  - well-known
+  types:
+  - Login
+  serves: []
+  registrable_domain: getaxonflow.com
+  role: identity
+  relation: own
+- host: docs.getaxonflow.com
+  found_by:
+  - pointer
+  - apis[]
+  - probed
+  - docs-index
+  - contract-discovery
+  - well-known
+  - vendor-detect
+  types:
+  - DeveloperPortal
+  - Website
+  - GettingStarted
+  - APIReference
+  - ChangeLog
+  serves:
+  - docs
+  - cdn
+  vendor: cloudflare
+  registrable_domain: getaxonflow.com
+  role: website
+  relation: own
+- host: getaxonflow.com
+  found_by:
+  - pointer
+  - probed
+  - site-links
+  - contract-discovery
+  - well-known
+  types:
+  - SDKs
+  - Pricing
+  - Blog
+  - TrustCenter
+  - About
+  - TermsOfService
+  - PrivacyPolicy
+  serves: []
+  registrable_domain: getaxonflow.com
+  role: marketing
+  relation: own
+- host: github.com
+  found_by:
+  - pointer
+  types:
+  - GitHubOrganization
+  - GitHubRepository
+  - SpectralRules
+  serves: []
+  registrable_domain: github.com
+  role: source
+  relation: platform

@@ -1,0 +1,237 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Connectors API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Connectors across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Connectors
+  description: Connector marketplace
+paths:
+  /api/v1/connectors:
+    get:
+      tags:
+      - Connectors
+      summary: List available connectors
+      description: List connectors from the marketplace
+      operationId: listConnectors
+      responses:
+        '200':
+          description: List of connectors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectorInfo'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/connectors/{id}:
+    get:
+      tags:
+      - Connectors
+      summary: Get connector details
+      description: Get detailed information about a connector
+      operationId: getConnectorDetails
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Connector identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Connector details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorInfo'
+        '404':
+          description: Connector not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/connectors/{id}/install:
+    post:
+      tags:
+      - Connectors
+      summary: Install a connector
+      description: Install a connector from the marketplace
+      operationId: installConnector
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Connector identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Connector installed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/connectors/{id}/uninstall:
+    delete:
+      tags:
+      - Connectors
+      summary: Uninstall a connector
+      description: Uninstall an installed connector
+      operationId: uninstallConnector
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Connector identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Connector uninstalled
+        '404':
+          description: Connector not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/connectors/{id}/health:
+    get:
+      tags:
+      - Connectors
+      summary: Check connector health
+      description: Check health status of a connector
+      operationId: getConnectorHealth
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Connector identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Connector health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                  latency_ms:
+                    type: integer
+        '404':
+          description: Connector not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    ConnectorInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        installed:
+          type: boolean
+        healthy:
+          type: boolean
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

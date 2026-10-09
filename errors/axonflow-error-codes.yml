@@ -1,0 +1,91 @@
+generated: '2026-10-09'
+method: searched
+source: https://docs.getaxonflow.com/docs/api/error-codes/
+name: AxonFlow API Error Codes
+format: custom-json
+envelope:
+  shape: '{ "error" : { "code" : "VALIDATION_ERROR" , "message" : "Request validation failed" } }'
+  note: 'The docs state AxonFlow does not have one universal error enum; some older handlers return plain string bodies or { "error" : "Invalid
+    request body" }, and MCP check endpoints return a flat { allowed, block_reason, policies_evaluated } response. Clients should branch on HTTP
+    status first, then inspect error.code when present.'
+problems:
+- status: 400
+  title: Bad Request
+  type: VALIDATION_ERROR
+  description: Invalid request parameters; typed control-plane handlers return VALIDATION_ERROR
+  remediation: Treat 400 and 401 as client-fixable issues.
+- status: 400
+  title: Bad Request
+  type: INVALID_JSON
+  description: Template and policy handlers when the request body is malformed
+- status: 400
+  title: Bad Request
+  type: INVALID_REQUEST
+  description: Media governance and some gateway or legacy handlers
+- status: 401
+  title: Unauthorized
+  type: UNAUTHORIZED
+  description: Missing tenant scope or auth on structured handlers
+- status: 401
+  title: Unauthorized
+  type: TENANT_REQUIRED
+  description: Tenant-scoped handlers called without X-Tenant-ID. Added in platform v7.2.0.
+  remediation: Send the X-Tenant-ID header (the agent proxy injects it for SDK and Portal traffic).
+- status: 403
+  title: Forbidden
+  type: TIER_RESTRICTED
+  description: Paid-tier-only config such as media governance writes
+- status: 403
+  title: Forbidden
+  type: FEATURE_REQUIRES_EVALUATION_LICENSE
+  description: Evaluation-tier-or-higher feature attempted on a Community license (evidence export, policy simulation, retry-aware policy conditions).
+  remediation: 'Upgrade path: getaxonflow.com/evaluation-license'
+- status: 403
+  title: Forbidden
+  type: LICENSE_ERROR
+  description: License-gated provider creation failures
+- status: 403
+  title: Policy Denial
+  type: policy-denial
+  description: Returned when a governance policy blocks the request; the body differs by plane and is not normalized to one POLICY_DENIED envelope.
+    On POST /api/v1/decide a refusal is a 200 whose verdict is deny.
+- status: 403
+  title: Identity refusal
+  type: identity-refusal
+  description: A user token the identity plane does not admit; reasons include UNKNOWN_REALM, ORG_BINDING_MISMATCH, SUBJECT_MISSING, CREDENTIAL_EXPIRED,
+    CREDENTIAL_NOT_YET_VALID and CREDENTIAL_REVOKED.
+- status: 404
+  title: Not Found
+  type: NOT_FOUND
+  description: Missing providers, policies, templates, executions, or steps
+  remediation: Treat 404 as a missing resource or a wrong endpoint.
+- status: 409
+  title: Conflict
+  type: CONFLICT
+  description: Duplicate provider names or resource conflicts
+- status: 409
+  title: Conflict
+  type: LEGACY_POLICY_WRITE_FROZEN
+  description: 'v11: any write to the legacy system-policy, tenant-policy or /api/v1/policies families, and applying a policy template.'
+  remediation: Do not retry it; author the policy through /api/v1/typed-policies.
+- status: 409
+  title: Conflict
+  type: IDEMPOTENCY_KEY_MISMATCH
+  description: WCP /gate or /complete supplied an idempotency_key that does not match the key recorded on the step's first gate call.
+- status: 415
+  title: Unsupported Media Type
+  type: unsupported-content-type
+  description: check-input called with a content_type that has no registered redaction detector (fail-closed governance refusal)
+- status: 429
+  title: Rate Limiting
+  type: RATE_LIMIT_EXCEEDED
+  description: Returned when the client exceeds configured rate limits; details carry limit, remaining and reset_at.
+- status: 500
+  title: Internal Server Error
+  type: INTERNAL_ERROR
+  description: Backend or storage failures
+  remediation: Treat 500 as retriable operational failure after logging enough context.
+- status: 503
+  title: Service Unavailable
+  type: subject_unverifiable
+  description: A dependency is unavailable; in v11 also a request whose caller identity could not be established (fails closed).

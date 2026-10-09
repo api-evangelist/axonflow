@@ -1,0 +1,2399 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Multi-Agent Planning API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Multi-Agent Planning across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Multi-Agent Planning
+  description: LLM-powered task decomposition and execution
+paths:
+  /api/v1/plan:
+    post:
+      tags:
+      - Multi-Agent Planning
+      summary: Execute multi-agent plan
+      description: 'Multi-Agent Planning (MAP) endpoint for complex, multi-step tasks.
+
+
+        ## How MAP Works
+
+        1. **Decomposition**: LLM analyzes query and breaks into sub-tasks
+
+        2. **Planning**: Creates workflow with dependencies
+
+        3. **Execution**: Runs tasks (parallel when possible)
+
+        4. **Aggregation**: Synthesizes results into final response
+
+
+        ## Provider routing
+
+        The organization''s route rows (`allowed_providers`,
+
+        `preferred_provider`) bind every LLM call a plan makes, as they bind
+
+        `/api/v1/process` (#4249): the two calls that generate the plan and
+
+        each `llm-call` step when it runs, decided over the prompt the call
+
+        sends. When several applying rows name a `preferred_provider`, the last
+
+        applying row in evaluation order (priority descending, then newest
+
+        first) wins it; `allowed_providers` intersect across every applying row.
+
+        Rows that permit no provider refuse the call before any provider
+
+        is called (`no_compliant_provider`, or `segment_not_established`), and a
+
+        route that cannot be established refuses it
+
+        (`segment_resolution_failed`, `decision_enforcement_unavailable`).
+
+        Plan generation answers such a refusal 403; a refused step fails with
+
+        the reason.
+
+
+        ## Execution Modes
+
+        - `auto`: Automatically determines parallel/sequential (recommended)
+
+        - `parallel`: Force parallel execution of all independent steps
+
+        - `sequential`: Force sequential step-by-step execution
+
+        - `balanced`: I/O-bound connector steps parallel, LLM steps sequential
+
+        - `confirm`: Every step requires explicit approval (Enterprise only)
+
+        - `step`: First step auto-executes, subsequent require approval (Enterprise only)
+
+
+        ## Domains
+
+        - `travel`: Flights, hotels, itineraries
+
+        - `healthcare`: Medical queries
+
+        - `finance`: Financial analysis
+
+        - `generic`: General-purpose tasks
+
+
+        Plan steps are automatically routed to matching connectors based on capabilities.
+
+        Community: Subject to connector limits (2 connectors).
+
+        Enterprise: Unlimited connectors with multi-connector fallback support.
+
+
+        **Requires authentication**: Requests must come through the Agent.'
+      operationId: executePlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+            examples:
+              travelPlan:
+                summary: Travel planning
+                value:
+                  query: Find flights from NYC to LAX next week and suggest hotels
+                  domain: travel
+                  execution_mode: auto
+                  user:
+                    id: 123
+                    email: traveler@company.com
+                    role: employee
+                    permissions:
+                    - query
+                    - mcp_query
+                    tenant_id: tenant-abc
+                  client:
+                    id: travel-planner
+                    name: Travel Planning App
+                  context:
+                    departure_date: '2025-01-20'
+                    return_date: '2025-01-25'
+                    budget: 1500
+              genericPlan:
+                summary: Generic task
+                value:
+                  query: Research competitor pricing and create a summary report
+                  domain: generic
+                  execution_mode: sequential
+                  user:
+                    id: 456
+                    email: analyst@company.com
+                    role: analyst
+                    permissions:
+                    - query
+                    - llm_chat
+                    tenant_id: tenant-xyz
+      responses:
+        '200':
+          description: Plan executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+              example:
+                success: true
+                plan_id: plan_1705312200_abc123
+                workflow_execution_id: exec_xyz789
+                result:
+                  flights:
+                  - flight_number: UA123
+                    price: 299
+                    departure: '2025-01-20T08:00:00Z'
+                  hotels:
+                  - name: Hilton LAX
+                    price_per_night: 189
+                    rating: 4.5
+                  summary: Found 5 flights and 3 hotels within budget
+                metadata:
+                  tasks_executed: 3
+                  execution_mode: parallel
+                  execution_time_ms: 3500
+                  tasks:
+                  - name: search_flights
+                    status: completed
+                    time_ms: 1200
+                  - name: search_hotels
+                    status: completed
+                    time_ms: 1100
+                  - name: synthesize_results
+                    status: completed
+                    time_ms: 800
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Authentication required: requests must be routed through AxonFlow Agent'
+        '403':
+          description: 'The organization''s route rows refuse the planner''s LLM call, or the
+
+            route could not be established (#4249). No provider was called; the
+
+            `error` names the reason.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Planning refused: no_compliant_provider: the organization''s route rows permit no provider for this call'
+        '413':
+          $ref: '#/components/responses/StepRequestTooLargeFlat'
+        '503':
+          description: Planning engine unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plan/execute:
+    post:
+      tags:
+      - Multi-Agent Planning
+      summary: Execute a stored plan
+      description: 'Executes a plan previously generated and stored via `POST /api/v1/plan`.
+
+        The plan to execute is identified by `context.plan_id` in the request body.
+
+        The execution mode is taken from the **stored plan** (not this request):
+
+        `auto`, `parallel`, `sequential`, `balanced`, or the Enterprise-only
+
+        HITL modes `confirm` / `step`.
+
+
+        Where a multi-agent step is decided - in `confirm` and `step` mode, and in
+
+        the other modes only when the orchestrator runs with
+
+        `AXONFLOW_HITL_ENABLED=true` outside Community (otherwise no step is
+
+        decided per step) - it is decided over its content as text: its
+
+        `prompt`, `statement` and `parameters` as written, then what its
+
+        processor sends (the rendered prompt of an `llm-call`; the statement and
+
+        built parameters of a `connector-call`) or, for any other step type, the
+
+        input it is passed. In `confirm` and `step` mode a step''s hold asks no
+
+        policy; each step is decided when it runs (`POST
+
+        /api/v1/plan/{id}/resume`), for the credential that resumed the plan, in
+
+        the plan''s organization, and anything but an allow fails the step.
+
+
+        **Requires authentication**: requests must be routed through the AxonFlow
+
+        Agent (`user.id` must be set). The `X-Tenant-ID` / `X-Org-ID` headers set
+
+        by the Agent auth chain override any identity fields in the body.
+
+
+        A plan can be executed once: re-executing returns 409, a cancelled plan
+
+        returns 409, and an expired plan returns 410.'
+      operationId: executeStoredPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+            example:
+              query: Find flights from NYC to LAX next week
+              domain: travel
+              user:
+                id: 123
+                email: traveler@company.com
+                role: employee
+                permissions:
+                - query
+                - mcp_query
+                tenant_id: tenant-abc
+              context:
+                plan_id: plan_1705312200_abc123
+      responses:
+        '200':
+          description: 'Plan executed successfully. Body is a PlanResponse for normal
+
+            execution, in which every step was decided by the organization''s
+
+            policy before it ran, on every deployment (#4382; since v11.1.0
+
+            `AXONFLOW_HITL_ENABLED` is ignored). HITL `confirm`/`step`
+
+            dispatch returns an inline object (`plan_id`, `workflow_id`,
+
+            `status`, `current_step`, `total_steps`, `step_name`,
+
+            `approval_info`) instead.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '400':
+          description: Invalid request body or missing context.plan_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not routed through AxonFlow Agent (user.id missing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 'Refused. Policy blocked the plan at its request-level decision, or
+
+            HITL confirm/step mode was requested in Community edition (a
+
+            `PlanResponse` or flat error body).
+
+
+            Or a step was refused before it ran (#4382), in `auto`,
+
+            `sequential`, `parallel` or `balanced` mode: the body is a
+
+            `MultiAgentStepRefusal` (`execution_blocked`;
+
+            `approval_requires_durable_record` for a step that requires an
+
+            approval, which only `confirm` and `step` mode can hold; or
+
+            `route_refused` for an `llm-call` step whose call the
+
+            organization''s route rows refuse, naming the route''s reason as
+
+            `policy`, #4249). The plan is marked failed. A refusal is not a
+
+            failure: `soft_failure_tolerance` does not absorb it. In
+
+            `parallel` and `balanced` mode a group of steps is decided whole
+
+            before any of them starts, so a step DECISION''s refusal runs none
+
+            of the group. A `route_refused` is made at the step''s LLM call,
+
+            not at the decision: a sibling in the same group whose call the
+
+            route rows permit may already have reached its provider, and the
+
+            steps after the group do not run.
+
+
+            Before v11.1.0 a step was decided only when
+
+            `AXONFLOW_HITL_ENABLED` was `true`, and a paused step answered
+
+            `202`; that response no longer exists.
+
+            '
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/PlanResponse'
+                - $ref: '#/components/schemas/MultiAgentStepRefusal'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Plan already executed or cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '410':
+          description: Plan expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/StepRequestTooLargeFlat'
+        '429':
+          description: Concurrent plan-execution limit reached
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: CONCURRENT_EXECUTION_LIMIT
+                      message:
+                        type: string
+        '503':
+          description: Workflow engine or plan storage unavailable, or (outside confirm/step mode) the workflow engine decides no step because its step gate is not wired; the plan is marked failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plan/{id}:
+    get:
+      tags:
+      - Multi-Agent Planning
+      summary: Get plan execution status
+      description: 'Retrieve the status of a plan by ID.
+
+
+        Returns detailed execution status including:
+
+        - Overall plan status (pending, executing, completed, failed, expired)
+
+        - Step-level progress with completion percentage
+
+        - Duration and cost tracking
+
+        - Error details if execution failed
+
+
+        **New in #1075:** Response now includes unified execution tracking with:
+
+        - `steps` array with individual step status
+
+        - `progress_percent` for real-time progress
+
+        - `duration` for elapsed time
+
+        - `estimated_cost_usd` and `actual_cost_usd` for cost tracking'
+      operationId: getPlanStatus
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Plan ID (e.g., plan_1705312200_abc123)
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Plan status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanStatusResponse'
+              examples:
+                pending:
+                  summary: Pending plan
+                  value:
+                    plan_id: plan_1705312200_abc123
+                    execution_id: plan_xyz789
+                    status: pending
+                    query: Find flights from NYC to LAX
+                    domain: travel
+                    total_steps: 3
+                    completed_steps: 0
+                    progress_percent: 0
+                    created_at: '2025-01-15T10:00:00Z'
+                    expires_at: '2025-01-15T12:00:00Z'
+                executing:
+                  summary: Executing plan with step progress
+                  value:
+                    plan_id: plan_1705312200_abc123
+                    execution_id: plan_xyz789
+                    status: executing
+                    query: Research competitor pricing
+                    domain: generic
+                    total_steps: 3
+                    completed_steps: 1
+                    progress_percent: 33.33
+                    duration: 15s
+                    started_at: '2025-01-15T10:00:00Z'
+                    steps:
+                    - step_id: step_0_analyze
+                      step_index: 0
+                      step_name: analyze
+                      step_type: llm_call
+                      status: completed
+                      duration: 8s
+                      model: gpt-4
+                      provider: openai
+                    - step_id: step_1_research
+                      step_index: 1
+                      step_name: research
+                      step_type: llm_call
+                      status: running
+                      started_at: '2025-01-15T10:00:08Z'
+                    - step_id: step_2_synthesize
+                      step_index: 2
+                      step_name: synthesize
+                      step_type: llm_call
+                      status: pending
+                completed:
+                  summary: Completed plan with costs
+                  value:
+                    plan_id: plan_1705312200_abc123
+                    execution_id: plan_xyz789
+                    status: completed
+                    query: Analyze sales data
+                    domain: finance
+                    total_steps: 2
+                    completed_steps: 2
+                    progress_percent: 100
+                    duration: 25s
+                    estimated_cost_usd: 0.05
+                    actual_cost_usd: 0.042
+                    created_at: '2025-01-15T10:00:00Z'
+                    started_at: '2025-01-15T10:00:00Z'
+                    completed_at: '2025-01-15T10:00:25Z'
+                    steps:
+                    - step_id: step_0_query
+                      step_index: 0
+                      step_name: query_data
+                      step_type: connector_call
+                      status: completed
+                      duration: 5s
+                      cost_usd: 0.002
+                    - step_id: step_1_analyze
+                      step_index: 1
+                      step_name: analyze
+                      step_type: llm_call
+                      status: completed
+                      duration: 20s
+                      cost_usd: 0.04
+                      model: claude-sonnet-4
+                      provider: anthropic
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Plan not found: plan_nonexistent'
+        '410':
+          description: Plan expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Plan has expired: plan_1705312200_abc123'
+        '503':
+          description: Plan service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+      - Multi-Agent Planning
+      summary: Update a pending plan
+      description: 'Update a plan that has not yet been executed.
+
+        Uses optimistic locking via the `version` field — the request must include
+
+        the expected current version. If the version doesn''t match, returns 409.
+
+
+        Only plans with status `pending` can be updated.'
+      operationId: updatePlan
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Plan ID to update
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlanRequest'
+            example:
+              version: 1
+              execution_mode: parallel
+      responses:
+        '200':
+          description: Plan updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatePlanResponse'
+              example:
+                success: true
+                plan_id: plan_1705312200_abc123
+                version: 2
+                status: pending
+        '404':
+          description: Plan not found
+        '409':
+          description: Version conflict (plan was modified by another request)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Version conflict: expected version 1, current version is 2'
+        '413':
+          $ref: '#/components/responses/StepRequestTooLargeFlat'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plan/{id}/cancel:
+    post:
+      tags:
+      - Multi-Agent Planning
+      summary: Cancel a pending plan
+      description: 'Cancel a plan that has not yet completed execution.
+
+        Only plans with status `pending` or `executing` can be cancelled.
+
+        Returns 409 if the plan is already completed or cancelled.'
+      operationId: cancelPlan
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Plan ID to cancel
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional cancellation reason
+                  example: User requested cancellation
+      responses:
+        '200':
+          description: Plan cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelPlanResponse'
+              example:
+                success: true
+                plan_id: plan_1705312200_abc123
+                status: cancelled
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Plan cannot be cancelled (already completed or cancelled)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Plan is already completed and cannot be cancelled
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plan/{id}/versions:
+    get:
+      tags:
+      - Multi-Agent Planning
+      summary: Get plan version history
+      description: 'Retrieve the version history for a plan, showing all changes made.
+
+        Each version entry includes the change type, who made it, and when.
+
+
+        Community: Max 10 versions per plan, max 25 plans with versioning.
+
+        Enterprise: Unlimited.'
+      operationId: getPlanVersions
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Plan ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Version history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanVersionsResponse'
+              example:
+                plan_id: plan_1705312200_abc123
+                versions:
+                - version: 1
+                  changed_at: '2026-01-15T10:00:00Z'
+                  change_type: created
+                  change_summary: Plan created
+                - version: 2
+                  changed_at: '2026-01-15T10:05:00Z'
+                  changed_by: user-123
+                  change_type: updated
+                  change_summary: Changed execution_mode to parallel
+        '404':
+          description: Plan not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plan/{id}/resume:
+    post:
+      tags:
+      - Multi-Agent Planning
+      summary: Resume a paused plan (Enterprise only)
+      description: 'Resume execution of a plan that is paused at an approval gate.
+
+        Used with `confirm` and `step` execution modes.
+
+
+        - `confirm` mode: Every step requires explicit approval
+
+        - `step` mode: First step auto-executes, subsequent steps require approval
+
+
+        Set `approved: true` to approve and execute the next step,
+
+        or `approved: false` to reject and abort the plan.
+
+
+        The resume acts on the workflow bound to the plan when it entered
+
+        `confirm` or `step` mode (#4249), read under the caller''s tenant (the
+
+        tenant that executed the plan). A plan that entered its mode before
+
+        that binding existed is resumed through the workflow named for its mode
+
+        under the plan''s tenant, and refused when that selection is not the one
+
+        live workflow.
+
+
+        The plan''s steps run in order (#4249). The step that runs is the
+
+        plan''s NEXT step: the lowest-numbered step that has not run. The resume
+
+        approves (`approved: true`) or rejects (`approved: false`) that step''s
+
+        pending gate and no other; a step already approved through the
+
+        plan-level approve route runs. A later step''s gate, whoever wrote it,
+
+        is read only at that step''s turn. In `step` mode the first resume runs
+
+        the ungated first step, and records it before it runs (a
+
+        `workflow_steps` row with decision `allow`, no approval status and the
+
+        reason `step_mode_first_step_ungated`), so a later gate cannot make the
+
+        resume skip it. A step-mode plan in flight at the upgrade to this
+
+        release has that record written for it (reason
+
+        `backfilled_at_upgrade`), at the orchestrator''s start or at its next
+
+        resume; until the upgrade''s migration 187 has run, such a plan''s resume
+
+        answers 409.
+
+
+        A resume never runs a step past a gate that is not approved. It answers
+
+        403 when the caller is not of the plan''s tenant and cannot see the
+
+        plan''s workflow; 404 when the caller is of the plan''s tenant and the
+
+        workflow is not visible to it (for example, another tenant of the
+
+        organization executed the plan, or the workflow was deleted); and 409,
+
+        running nothing, when:
+
+        - the plan is not in `confirm` or `step` mode;
+
+        - the plan''s workflow is still being set up: it was marked executing
+
+        and its executor has not returned. An executor that fails fails the
+
+        plan; a plan left in this state (for example after a process stop)
+
+        is ended with `POST /api/v1/plan/{id}/cancel`;
+
+        - the plan''s workflow has ended (a rejection or an expiry aborts it);
+
+        `approved: false` then fails the plan instead;
+
+        - the plan''s next step''s gate is pending (the error names the step to
+
+        approve), has no approval, or was rejected or expired, or its
+
+        approval is refused because it is no longer pending;
+
+        - a `confirm` workflow has no gate row, or no gate row names the plan''s
+
+        next step;
+
+        - every step of the plan has already run;
+
+        - the plan''s first step is already recorded by a concurrent resume;
+
+        - (a `step` plan in flight at the upgrade) whether its first step ran
+
+        cannot be decided yet, because migration 187 has not run;
+
+        - the pending step''s approval has expired (`approval_expired`), as the
+
+        workflow step approve answers it;
+
+        - (a plan without a binding) a workflow named for the plan has ended,
+
+        or more than one is running.
+
+
+        It answers 503, approving and running nothing, when the approval''s
+
+        state cannot be read (`approval_state_unreadable`), as the workflow
+
+        step approve answers it.
+
+
+        It answers 500 when a step ran but its completion could not be
+
+        recorded; the step''s row still reads not completed, so the next resume
+
+        runs that step again (at-least-once). A step-mode first step whose
+
+        record was written but whose run never finished is run by the next
+
+        resume the same way.
+
+
+        **Requires:** Enterprise license.'
+      operationId: resumePlan
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Plan ID to resume
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approved:
+                  type: boolean
+                  description: Whether to approve the pending step
+                  default: true
+            example:
+              approved: true
+      responses:
+        '200':
+          description: Plan resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumePlanResponse'
+              examples:
+                awaitingNext:
+                  summary: Step approved, waiting at next step
+                  value:
+                    plan_id: plan_1705312200_abc123
+                    status: awaiting_approval
+                    result: null
+                completed:
+                  summary: All steps complete
+                  value:
+                    plan_id: plan_1705312200_abc123
+                    status: completed
+                    result:
+                      summary: Trip booked successfully
+        '403':
+          description: 'Enterprise license required; or (#4249) the caller''s tenant cannot
+
+            see the plan''s workflow (`this plan belongs to another tenant`); or
+
+            the resumed step was withheld by policy (`error` begins "Step
+
+            withheld by policy"): the step is decided when it runs, and
+
+            anything but an allow fails it and the plan. A policy approval
+
+            requirement on the step is refused as `approval_required` rather
+
+            than held again (#4249).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Confirm/step execution modes require an Enterprise license
+        '404':
+          description: Plan not found or not awaiting approval
+        '409':
+          description: 'The resume runs nothing (#4249). The `error` names why; the cases
+
+            are listed in the operation''s description.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: step step_0_fetch holds approval none; the plan resume does not run a step past an unapproved gate
+        '413':
+          $ref: '#/components/responses/StepRequestTooLargeFlat'
+        '503':
+          description: 'The approval''s state could not be read, so nothing is approved and
+
+            nothing runs (`approval_state_unreadable`, #4249).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Failed to approve step: approval_state_unreadable: the approval''s expiry could not be read, so the step is not approved (fail-closed)'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plan/{id}/rollback/{version}:
+    post:
+      tags:
+      - Multi-Agent Planning
+      summary: Rollback plan to a previous version (Enterprise only)
+      description: 'Rollback a plan to a previously saved version. This creates a new version
+
+        that restores the plan state from the specified historical version.
+
+
+        Uses the plan''s version history to retrieve the target version and applies
+
+        it as the current state. Returns 409 if a concurrent modification occurred.
+
+
+        **Requires:** Enterprise license.'
+      operationId: rollbackPlan
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Plan ID to rollback
+        schema:
+          type: string
+        example: plan_1705312200_abc123
+      - name: version
+        in: path
+        required: true
+        description: Target version number to rollback to
+        schema:
+          type: integer
+        example: 2
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Plan rolled back successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackPlanResponse'
+              example:
+                plan_id: plan_1705312200_abc123
+                version: 4
+                previous_version: 2
+                status: pending
+        '403':
+          description: Enterprise license required (community mode)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Plan rollback requires an Enterprise license
+        '404':
+          description: Plan or version not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Plan not found: plan_nonexistent'
+        '409':
+          description: Version conflict (concurrent modification)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Version conflict: plan was modified during rollback'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plans/{planId}/steps/{stepId}/approve:
+    post:
+      tags:
+      - Multi-Agent Planning
+      summary: Approve a MAP plan step (HITL parity with WCP)
+      description: 'Plan-scoped approval endpoint. Returns the same `ApprovalResponse`
+
+        shape as the WCP endpoint (`/api/v1/workflows/{id}/steps/{step_id}/approve`)
+
+        plus a `plan_id` field — see ADR-046 (HITL response parity).
+
+
+        A plan step is held only in MAP **confirm** / **step** mode, backed by
+
+        a WCP workflow: the handler delegates to the WCP service and projects
+
+        the full `retry_context`, approver metadata, and `policies_matched`. A
+
+        plan no workflow backs has no paused step, and answers 404. (The
+
+        in-memory pause the multi-agent routes used before v11.1.0 is retired,
+
+        #4249.)'
+      operationId: approveMAPPlanStep
+      parameters:
+      - name: planId
+        in: path
+        required: true
+        description: MAP plan ID
+        schema:
+          type: string
+        example: plan-abc123
+      - name: stepId
+        in: path
+        required: true
+        description: Step ID awaiting approval
+        schema:
+          type: string
+        example: step_0_analyze
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approved_by:
+                  type: string
+                  description: Identity approving the step (overrides X-User-ID header)
+                comment:
+                  type: string
+                  description: Audit justification. Required on WCP-backed plans (min 10 chars); if shorter, the handler auto-fills a generated audit message.
+            example:
+              approved_by: fraud.analyst@banking.example
+              comment: Approved after full audit review of the payment intent
+      responses:
+        '200':
+          description: Step approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+              example:
+                workflow_id: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+                plan_id: plan-abc123
+                step_id: step_0_analyze
+                status: approved
+                decision: allow
+                reason: 'Approved: High-value transfer requires oversight'
+                approval_status: approved
+                approval_id: 318a270f-7b42-5c56-a191-8dbd1bf2e1e4
+                approved_by: fraud.analyst@banking.example
+                approved_at: '2026-04-22T10:05:00Z'
+                policies_matched:
+                - policy_id: high-value-wire-oversight
+                  policy_name: High-Value Wire Transfer Oversight
+                  action: require_approval
+                retry_context:
+                  gate_count: 1
+                  completion_count: 0
+                  prior_completion_status: none
+                  prior_output_available: false
+                  prior_output: null
+                  prior_completion_at: null
+                  idempotency_key: payment-intent-123
+                  last_decision: require_approval
+                  first_attempt_at: '2026-04-22T10:00:00Z'
+                  last_attempt_at: '2026-04-22T10:00:00Z'
+                message: Step approved
+        '403':
+          description: 'MAP step approval requires Enterprise license (community mode), or
+
+            (#4249) the caller''s tenant cannot see the plan''s workflow (`this
+
+            plan belongs to another tenant`).
+
+            '
+        '404':
+          description: No paused execution / plan step found
+        '409':
+          description: 'The step cannot be approved, and the plan stays paused. On a plan
+
+            backed by a workflow, the workflow step is not pending, its approval
+
+            timed out (`approval_expired`), or its expiry could not be read
+
+            (`approval_state_unreadable`). A timed-out approval is a deny.
+
+
+            A confirm or step plan''s workflow is the one bound to the plan when
+
+            it entered that mode (#4249). The approval is also refused (409)
+
+            when that workflow has ended, when the plan''s workflow is still
+
+            being set up (a plan left in that state is ended with
+
+            `POST /api/v1/plan/{id}/cancel`), or, for a plan that began
+
+            executing before the binding existed, when a workflow named for the
+
+            plan has ended or more than one is running.
+
+            '
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plans/{planId}/steps/{stepId}/reject:
+    post:
+      tags:
+      - Multi-Agent Planning
+      summary: Reject a MAP plan step (HITL parity with WCP)
+      description: 'Plan-scoped rejection endpoint. Symmetric with the WCP endpoint
+
+        (`/api/v1/workflows/{id}/steps/{step_id}/reject`) — same response
+
+        shape (`ApprovalResponse`) plus `plan_id`. See ADR-046.
+
+
+        Rejection aborts the workflow / plan: the WCP service''s `RejectStep`
+
+        handles the abort. A plan no workflow backs has no paused step, and
+
+        answers 404.'
+      operationId: rejectMAPPlanStep
+      parameters:
+      - name: planId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rejected_by:
+                  type: string
+                reason:
+                  type: string
+                  description: Audit justification. Required on WCP-backed plans (min 10 chars); auto-filled otherwise.
+            example:
+              rejected_by: fraud.analyst@banking.example
+              reason: Output contains PII that was not redacted
+      responses:
+        '200':
+          description: Step rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+        '403':
+          description: 'MAP step rejection requires Enterprise license, or (#4249) the
+
+            caller''s tenant cannot see the plan''s workflow.
+
+            '
+        '404':
+          description: No paused execution / plan step found
+        '409':
+          description: '(#4249) The rejection is refused, and nothing changes, when the
+
+            plan''s bound workflow has ended, when the plan''s workflow is still
+
+            being set up, or, for a plan that began executing before the binding
+
+            existed, when a workflow named for the plan has ended or more than
+
+            one is running. The same selection as the approve route.
+
+            '
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    PolicyMatch:
+      type: object
+      description: Details of a policy match during evaluation (Issue
+      properties:
+        policy_id:
+          type: string
+          description: Unique identifier for the policy
+        policy_name:
+          type: string
+          description: Human-readable name of the policy
+        action:
+          type: string
+          description: Action taken by this policy
+          enum:
+          - allow
+          - block
+          - require_approval
+          - redact
+        reason:
+          type: string
+          description: Reason for the policy match
+    CancelPlanResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        plan_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - cancelled
+        message:
+          type: string
+          description: 'Human-readable summary of the cancel outcome (e.g.
+
+            "Plan cancelled — 3 of 5 steps had already executed and
+
+            were rolled back"). Useful for end-user UI; programmatic
+
+            callers should prefer `status`.
+
+            '
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    PlanStatusResponse:
+      type: object
+      description: 'Unified execution status for MAP plans. Provides step-level progress tracking,
+
+        duration, and cost information. Compatible with the unified ExecutionStatus schema.
+
+        '
+      required:
+      - plan_id
+      - status
+      - query
+      - domain
+      - total_steps
+      properties:
+        plan_id:
+          type: string
+          description: Original plan identifier
+          example: plan_1705312200_abc123
+        execution_id:
+          type: string
+          description: Unified execution ID for cross-system tracking
+          example: plan_xyz789
+        status:
+          type: string
+          enum:
+          - pending
+          - executing
+          - completed
+          - failed
+          - expired
+          - cancelled
+          - aborted
+          - awaiting_approval
+          description: Current execution status
+          example: executing
+        query:
+          type: string
+          description: Original user query that created the plan
+          example: Research competitor pricing strategies
+        domain:
+          type: string
+          description: Domain classification of the plan
+          example: finance
+        total_steps:
+          type: integer
+          description: Total number of steps in the plan
+          example: 3
+        completed_steps:
+          type: integer
+          description: Number of completed steps
+          example: 1
+        progress_percent:
+          type: number
+          format: float
+          description: Completion percentage (0-100)
+          example: 33.33
+        duration:
+          type: string
+          description: Human-readable elapsed duration
+          example: 15s
+        estimated_cost_usd:
+          type: number
+          format: float
+          description: Estimated total cost in USD
+          example: 0.05
+        actual_cost_usd:
+          type: number
+          format: float
+          description: Actual cost incurred so far in USD
+          example: 0.042
+        created_at:
+          type: string
+          format: date-time
+          description: When the plan was created
+        started_at:
+          type: string
+          format: date-time
+          description: When execution started
+        completed_at:
+          type: string
+          format: date-time
+          description: When execution completed (if terminal)
+        expires_at:
+          type: string
+          format: date-time
+          description: When the plan expires
+        error:
+          type: string
+          description: Error message if status is failed
+        steps:
+          type: array
+          description: Detailed status of each step
+          items:
+            $ref: '#/components/schemas/StepStatus'
+        metadata:
+          type: object
+          description: Additional plan metadata
+          additionalProperties: true
+    PolicyEvaluationResult:
+      type: object
+      description: 'The policy verdict carried on every orchestrator response. Its property
+
+        SET is held equal to the Go type''s JSON members by
+
+        `TestThePublishedSchemasMatchTheTypesThePlatformMarshals`, which
+
+        compares the two by reflection, so a field added to one and not the
+
+        other fails CI rather than reaching a spec-generated client (#3724).
+
+        The properties are also written in the Go type''s declaration order as a
+
+        courtesy to a reader diffing the two; nothing enforces that, and order
+
+        is not part of the contract.
+
+        '
+      properties:
+        allowed:
+          type: boolean
+        applied_policies:
+          type: array
+          items:
+            type: string
+        risk_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          description: Highest severity among the matched policies.
+        severity_policy_id:
+          type: string
+          description: The policy that contributed `severity`.
+        required_actions:
+          type: array
+          items:
+            type: string
+        processing_time_ms:
+          type: integer
+        database_accessed:
+          type: boolean
+        evaluation_error:
+          type: boolean
+          description: 'Distinguishes **could not govern** from **a policy said block**,
+
+            and is the only signal that does. True when the engine could NOT
+
+            complete evaluation because governance-segment resolution failed
+
+            (a resolver or storage error -- never "the caller belongs to zero
+
+            segments"). `allowed` is always false when this is set, because the
+
+            engine fails CLOSED on that error, so a consumer reading only
+
+            `allowed` still behaves safely; a consumer that audits or alerts
+
+            MUST read this field to tell an availability failure apart from a
+
+            genuine policy match. Before it existed the only signal was the
+
+            magic string `applied_policies: ["segment_resolution_failed"]`.
+
+            '
+        segments_resolved:
+          type: boolean
+          description: 'True only when a resolved, non-empty governance-segment set was
+
+            actually factored into this verdict. False covers every legitimate
+
+            organisation-only case -- no identity supplied, no resolver wired
+
+            (community, or no SCIM), or the caller belongs to zero segments --
+
+            as well as the `evaluation_error` case. None of those are failures:
+
+            the flag exists so a reader of a policy-simulation preview does not
+
+            mistake a legitimate org-only allow for a segment-aware one.
+
+            '
+        applied_policies_detail:
+          type: array
+          description: 'Structured mirror of `applied_policies` carrying each matched
+
+            policy''s risk level and allow_override metadata, without a second
+
+            query. No session override is applied to a result in v11 (#4252).
+
+            '
+          items:
+            $ref: '#/components/schemas/AppliedPolicyDetail'
+        preferred_provider:
+          type: string
+          description: 'LLM provider a matched routing policy prefers. When more than one
+
+            applying route row names one, the LAST applying row in evaluation
+
+            order wins it and the routing reason: rows are walked by priority,
+
+            highest first, then newest first, so the winner is the
+
+            lowest-priority applying row (#4249).
+
+            '
+        allowed_providers:
+          type: array
+          items:
+            type: string
+          description: 'Strict provider allow-list for compliance routing. Failover stays
+
+            within this list. It is the intersection of every applying route
+
+            row''s list, whatever their order; an empty intersection refuses the
+
+            request (`no_compliant_provider`).
+
+            '
+        routing_reason:
+          type: string
+          description: Why routing was changed.
+    PlanRequest:
+      type: object
+      required:
+      - query
+      - user
+      properties:
+        query:
+          type: string
+          description: Natural language task description
+        domain:
+          type: string
+          enum:
+          - travel
+          - healthcare
+          - finance
+          - generic
+          default: generic
+          description: Task domain for specialized handling
+        execution_mode:
+          type: string
+          enum:
+          - auto
+          - parallel
+          - sequential
+          - balanced
+          - confirm
+          - step
+          default: auto
+          description: 'How to execute sub-tasks.
+
+            - `auto`: Automatically determines parallel/sequential (recommended)
+
+            - `parallel`: Force parallel execution of all independent steps
+
+            - `sequential`: Force sequential step-by-step execution
+
+            - `balanced`: I/O-bound connector steps parallel, LLM steps sequential
+
+            - `confirm`: Every step requires explicit approval before execution (Enterprise only)
+
+            - `step`: First step auto-executes, subsequent steps require approval (Enterprise only)
+
+            '
+        user:
+          $ref: '#/components/schemas/UserContext'
+        client:
+          type: object
+          additionalProperties: true
+        context:
+          type: object
+          additionalProperties: true
+    MultiAgentStepRefusal:
+      description: 'A multi-agent step refused before it ran (#4382), on
+
+        `POST /api/v1/workflows/execute` and `POST /api/v1/plan/execute`.
+
+        This is the flat `ErrorResponse` envelope with a machine-readable
+
+        `code` and the refusing policy added. It is a refinement of that
+
+        shape, not a fourth one, as `LLMProviderAPIError` refines the coded
+
+        shape.
+
+        '
+      allOf:
+      - $ref: '#/components/schemas/ErrorResponse'
+      - type: object
+        properties:
+          error:
+            type: string
+            example: 'execution blocked by policy: ceiling.no_tool_calls'
+          code:
+            type: string
+            enum:
+            - execution_blocked
+            - approval_requires_durable_record
+            - route_refused
+            description: '`execution_blocked`: a policy blocks the step. `approval_requires_durable_record`: a policy requires an approval, and this execution path keeps no durable approval record, so the step is withheld; `confirm` and `step` mode hold durably. `route_refused`: the organization''s route rows refuse an `llm-call` step''s call before any provider is called, and `policy` is the route''s reason (`no_compliant_provider`, `segment_not_established`, `segment_resolution_failed` or `decision_enforcement_unavailable`).'
+          policy:
+            type: string
+            description: The policy, or the cause, that refused the step.
+          reason:
+            type: string
+            description: Why the step was refused.
+        required:
+        - code
+        - policy
+        - reason
+    AppliedPolicyDetail:
+      type: object
+      description: 'One structured per-policy match inside `PolicyEvaluationResult`.
+
+        '
+      properties:
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        description:
+          type: string
+        action:
+          type: string
+        risk_level:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+        allow_override:
+          type: boolean
+          description: False if and only if the policy forbids a session override.
+        matched_rule:
+          type: string
+        segment_id:
+          type: string
+          description: 'The governance segment this policy is scoped to, or absent when it
+
+            is not segment-scoped. ATTRIBUTION AND AUDIT ONLY -- it is not an
+
+            override-eligibility signal anywhere: a segment-scoped policy uses
+
+            the same `allow_override` contract as a tenant policy.
+
+            '
+    UpdatePlanResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        plan_id:
+          type: string
+        version:
+          type: integer
+          description: New version number after update
+        status:
+          type: string
+    StepStatus:
+      type: object
+      description: Status of an individual execution step
+      required:
+      - step_id
+      - step_index
+      - step_name
+      - status
+      properties:
+        step_id:
+          type: string
+          description: Unique step identifier
+          example: step_0_analyze
+        step_index:
+          type: integer
+          description: Position in the execution sequence (0-based)
+          example: 0
+        step_name:
+          type: string
+          description: Human-readable step name
+          example: analyze
+        step_type:
+          type: string
+          enum:
+          - llm_call
+          - tool_call
+          - connector_call
+          - human_task
+          - synthesis
+          - action
+          - gate
+          description: Type of step operation
+          example: llm_call
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - skipped
+          - blocked
+          - approval
+          description: Current step status
+          example: completed
+        duration:
+          type: string
+          description: Human-readable step duration
+          example: 8s
+        started_at:
+          type: string
+          format: date-time
+          description: When the step started
+        ended_at:
+          type: string
+          format: date-time
+          description: When the step ended
+        model:
+          type: string
+          description: LLM model used (for llm_call steps)
+          example: gpt-4
+        provider:
+          type: string
+          description: LLM provider (for llm_call steps)
+          example: openai
+        cost_usd:
+          type: number
+          format: float
+          description: Cost of this step in USD
+          example: 0.04
+        input_tokens:
+          type: integer
+          description: Number of input tokens (for LLM steps)
+        output_tokens:
+          type: integer
+          description: Number of output tokens (for LLM steps)
+        error:
+          type: string
+          description: Error message if step failed
+    RetryContext:
+      type: object
+      description: 'First-class retry and execution state (Issue #1673 Phase 1). Always
+
+        present on every `StepGateResponse`, including the first gate call.
+
+        Replaces the ambiguous `cached: bool` signal with unambiguous state
+
+        the agent and policy engine can reason about.
+
+        '
+      required:
+      - gate_count
+      - completion_count
+      - prior_completion_status
+      - prior_output_available
+      - prior_output
+      - prior_completion_at
+      - first_attempt_at
+      - last_attempt_at
+      - last_decision
+      - idempotency_key
+      properties:
+        gate_count:
+          type: integer
+          minimum: 1
+          description: 'Number of /gate calls for this (workflow_id, step_id), including
+
+            the current call. First call returns 1.
+
+            '
+          example: 2
+        completion_count:
+          type: integer
+          minimum: 0
+          description: 'Number of /complete calls for this (workflow_id, step_id). Normally
+
+            0 on first gate, 1 after the step completes.
+
+            '
+          example: 1
+        prior_completion_status:
+          type: string
+          enum:
+          - none
+          - completed
+          - gated_not_completed
+          description: '"none" on first gate call. "completed" when a prior /gate + /complete
+
+            both landed. "gated_not_completed" when a prior /gate landed but no
+
+            /complete followed — uncertain territory the agent needs to reconcile
+
+            against the downstream system before re-executing.
+
+            '
+          example: completed
+        prior_output_available:
+          type: boolean
+          description: 'True iff prior_completion_status == "completed". Mirrors whether
+
+            prior_output *could* be returned if include_prior_output=true.
+
+            '
+          example: true
+        prior_output:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+          description: 'Always present in the schema. Populated only when the caller set
+
+            ?include_prior_output=true AND prior_output_available is true.
+
+            Otherwise null.
+
+            '
+        prior_completion_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Timestamp of the prior /complete call, if any.
+        first_attempt_at:
+          type: string
+          format: date-time
+          description: 'Timestamp of the first /gate call for this step. On the first call,
+
+            equals last_attempt_at.
+
+            '
+        last_attempt_at:
+          type: string
+          format: date-time
+          description: Timestamp of this /gate call.
+        last_decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+          description: 'Decision of the immediately prior /gate call. On the first call
+
+            (gate_count == 1), equals the current decision (first-call
+
+            invariant).
+
+            '
+          example: allow
+        idempotency_key:
+          type: string
+          description: 'The caller-supplied business-level key recorded on this step
+
+            (Issue #1673 Phase 2). Always present in the schema — empty
+
+            string `""` if the caller never supplied one.
+
+            '
+          example: payment:wire:invoice-7721
+    ResumePlanResponse:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - awaiting_approval
+          - completed
+          - failed
+          description: Status after resuming
+        result:
+          description: Final result if plan completed
+        approved:
+          type: boolean
+          description: 'True when the resume was driven by an approval; false when
+
+            the resume rejected the pending decision. Mirrors the
+
+            decision the caller submitted on /resume.
+
+            '
+        message:
+          type: string
+          description: 'Human-readable summary of the resume outcome (e.g.
+
+            "Step 3 approved; plan continuing to step 4").
+
+            '
+        next_step:
+          type: integer
+          description: '1-based index of the next step the orchestrator will run
+
+            after the resume completes. Absent when the plan is
+
+            already terminal.
+
+            '
+        next_step_name:
+          type: string
+          description: 'Name of the step at `next_step` (mirrors PlanStep.name).
+
+            Useful for callers rendering "Continuing to: …" UI.
+
+            '
+        step_result:
+          description: 'Result of the step that was waiting on this approval.
+
+            Shape depends on the step type; treat as opaque on the
+
+            client unless the step type is known.
+
+            '
+        total_steps:
+          type: integer
+          description: 'Total number of steps in the plan, so callers can render
+
+            "Step N of M" without a separate plan-status lookup.
+
+            '
+        ignored_foreign_gate_rows:
+          type: integer
+          description: 'Gate rows on the plan''s workflow whose step id is not one of
+
+            the plan''s own step gates (written by another caller of the
+
+            workflow''s gate route). The resume neither approves, rejects
+
+            nor waits on them. Present on an approving resume that read
+
+            the workflow''s gate rows.
+
+            '
+        workflow_id:
+          type: string
+          description: 'WCP workflow id this plan is bound to. Surfaced here so
+
+            callers don''t need a separate /plans/{id} round-trip after
+
+            resume to learn the workflow id.
+
+            '
+    RollbackPlanResponse:
+      type: object
+      description: Response after rolling back a plan to a previous version
+      required:
+      - plan_id
+      - version
+      - previous_version
+      - status
+      properties:
+        plan_id:
+          type: string
+          description: Plan identifier
+          example: plan_1705312200_abc123
+        version:
+          type: integer
+          description: New version number after rollback
+          example: 4
+        previous_version:
+          type: integer
+          description: The version that was restored
+          example: 2
+        status:
+          type: string
+          description: Plan status after rollback
+          enum:
+          - pending
+          - executing
+          example: pending
+    PlanVersionEntry:
+      type: object
+      properties:
+        version:
+          type: integer
+        changed_at:
+          type: string
+          format: date-time
+        changed_by:
+          type: string
+        change_type:
+          type: string
+          enum:
+          - created
+          - updated
+          - rollback
+        change_summary:
+          type: string
+    PlanVersionsResponse:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanVersionEntry'
+    UpdatePlanRequest:
+      type: object
+      required:
+      - version
+      properties:
+        version:
+          type: integer
+          description: Expected current version (for optimistic locking)
+          example: 1
+        execution_mode:
+          type: string
+          enum:
+          - auto
+          - parallel
+          - sequential
+          - balanced
+          - confirm
+          - step
+          description: New execution mode
+        domain:
+          type: string
+          description: New domain
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata to set
+    ApprovalResponse:
+      type: object
+      description: 'Rich response returned by the WCP `/approve` and `/reject` endpoints
+
+        and by the MAP plan-scoped equivalents
+
+        (`/api/v1/plans/{id}/steps/{step_id}/approve|reject`). Both planes
+
+        project through the same helper — see ADR-046 (HITL response parity)
+
+        and ADR-045 (retry_context wire contract). A refused approval answers
+
+        the same status on both planes: 409 when the approval has expired
+
+        (`approval_expired`), 503 when its state cannot be read
+
+        (`approval_state_unreadable`).
+
+
+        `decision` resolves to `allow` on a successful approval (the step can
+
+        now proceed) or `block` on rejection (workflow aborted). `plan_id` is
+
+        populated only on MAP-plane responses; on WCP-plane responses it is
+
+        omitted. `retry_context` is always present and mirrors the StepGate
+
+        `retry_context` shape.
+
+        '
+      properties:
+        workflow_id:
+          type: string
+          description: Underlying WCP workflow identifier
+          example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+        plan_id:
+          type: string
+          description: 'MAP plan id — present on MAP-plane responses. Omitted on WCP-plane
+
+            responses (WCP has no plan concept).
+
+            '
+          example: plan-42
+        step_id:
+          type: string
+          description: Step that was approved or rejected
+          example: step-2
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          description: 'Flat string alias of `approval_status`. Both fields always carry
+
+            the same value — `status` is convenient for loggers, dashboards,
+
+            and clients that prefer a simple string; `approval_status` is the
+
+            typed source of truth. First-class on both the WCP and MAP
+
+            response shapes so existing clients reading either field keep
+
+            working without branching.
+
+            '
+          example: approved
+        decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+          description: 'Post-approval decision. Approved `require_approval` steps resolve
+
+            to `allow`; rejected to `block`. `require_approval` on an
+
+            approve/reject response means the step is still pending.
+
+            '
+          example: allow
+        reason:
+          type: string
+          description: 'Decision reason text. Approved / rejected responses prefix the
+
+            original policy reason with `Approved:` or `Rejected:`.
+
+            '
+          example: 'Approved: High-value transfer requires oversight'
+        approval_status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          description: 'Terminal approval status after the mutation landed. `expired` is an
+
+            auto-timeout (Evaluation-tier) — a terminal not-approved state that
+
+            blocks the step, kept distinct from a human `rejected`.
+
+            '
+          example: approved
+        approval_id:
+          type: string
+          format: uuid
+          description: 'HITL queue entry UUID of the hold this decision acted on: the
+
+            step''s pending hold, else its newest (hold 1 is UUID v5 over
+
+            `workflow_id + ":" + step_id`; hold n >= 2, a step held again
+
+            after an earlier hold was decided, is UUID v5 over
+
+            `workflow_id + ":" + step_id + "#" + n`). Matches the queue row
+
+            written by the WCP HITL adapter. With no hold for the step (a
+
+            step-gate row outside its hold ids is not a hold) it is the hold-1
+
+            id; empty on the legacy in-memory MAP flow, and omitted when the
+
+            queue could not be read.
+
+            '
+          example: 318a270f-7b42-5c56-a191-8dbd1bf2e1e4
+        approved_by:
+          type: string
+          description: Identity (X-User-ID, typically email) that approved the step
+          example: fraud.analyst@banking.example
+        approved_at:
+          type: string
+          format: date-time
+          description: Timestamp when the approval was persisted
+        rejected_by:
+          type: string
+          description: Identity that rejected the step (rejection path only)
+          example: fraud.analyst@banking.example
+        rejected_at:
+          type: string
+          format: date-time
+          description: Timestamp when the rejection was persisted
+        policies_matched:
+          type: array
+          description: Policies that triggered the original `require_approval` decision
+          items:
+            $ref: '#/components/schemas/PolicyMatch'
+        retry_context:
+          $ref: '#/components/schemas/RetryContext'
+        message:
+          type: string
+          description: Human-readable status summary
+          example: Step approved
+    PlanResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        plan_id:
+          type: string
+        version:
+          type: integer
+          description: Plan version number (for optimistic locking)
+          example: 1
+        steps:
+          type: array
+          description: Generated plan steps
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+              description:
+                type: string
+        workflow_execution_id:
+          type: string
+        result:
+          description: Final aggregated result
+        metadata:
+          type: object
+          properties:
+            tasks_executed:
+              type: integer
+            execution_mode:
+              type: string
+            execution_time_ms:
+              type: integer
+            tasks:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  status:
+                    type: string
+                  time_ms:
+                    type: integer
+        error:
+          type: string
+        policy_info:
+          description: Policy evaluation result for the plan execution (Issue
+          allOf:
+          - $ref: '#/components/schemas/PolicyEvaluationResult'
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'The engine that decided a refused plan: `anchored`, the ADR-065
+
+            decision plane (PRD v11 §1.1). Present on the policy refusal (HTTP
+
+            403) only, with the same meaning as on `/api/v1/process`.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the plan was decided for. The orchestrator
+
+            admits the client credential the agent''s proxy authentication
+
+            forwards, so it is `Client` on every edition. Omitted on a refusal
+
+            made before a subject was admitted, and wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided the plan. Omitted
+
+            wherever `subject_type` is.
+
+            '
+        verdict:
+          type: string
+          enum:
+          - blocked
+          description: '`blocked` on the policy refusal. Omitted wherever `engine` is.
+
+            '
+        complexity:
+          type: string
+          description: 'Plan complexity hint inferred from query characteristics
+
+            (e.g. simple/medium/complex). Surfaced from the planning
+
+            engine so callers can apply complexity-aware UI hints.
+
+            '
+          example: medium
+        domain:
+          type: string
+          description: 'Inferred query domain (e.g. travel, finance, healthcare).
+
+            Echoes the request''s `domain` field if provided, otherwise
+
+            populated by the planning engine''s domain classifier.
+
+            '
+          example: travel
+        parallel:
+          type: boolean
+          description: 'True when the planning engine produced steps that can
+
+            execute in parallel. Callers may choose to render
+
+            parallel-step UIs differently from sequential ones.
+
+            '
+        status:
+          type: string
+          description: 'Plan lifecycle status (e.g. created, in_progress, completed,
+
+            failed). Mirrors the WorkflowStatusResponse.status field for
+
+            plans the orchestrator returns synchronously alongside the
+
+            plan body.
+
+            '
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+        region:
+          type: string
+          description: User's region, read by geo-based routing policies.
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
+  responses:
+    StepRequestTooLargeFlat:
+      description: 'The request body is over 1 MiB (1,048,576 bytes), refused whole before
+
+        it is decoded, in this route''s `{success, error}` envelope: `error`
+
+        begins `request_too_large: `. Nothing is gated, planned or run (#4249).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'request_too_large: request body exceeds 1048576 bytes; nothing was gated or run'
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

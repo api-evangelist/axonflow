@@ -1,0 +1,521 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Simulation API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Simulation across 2 of this provider''s published API definitions: axonflow-policy-api.yaml, axonflow-policy-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (Agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local development (Agent single entry point)
+- url: http://localhost:8081
+  description: Orchestrator direct (internal only)
+tags:
+- name: Simulation
+  description: 'Policy simulation, impact reports, and conflict detection.
+
+    **Evaluation tier and above.**'
+paths:
+  /api/v1/policies/simulate:
+    post:
+      deprecated: true
+      tags:
+      - Simulation
+      summary: Simulate policies (dry run)
+      description: 'Run all active policies against the provided input as a dry run —
+
+        no audit writes and no policy actions are applied.
+
+
+        **Evaluation tier and above** — requires an Evaluation or Enterprise
+
+        license. Daily simulation quotas apply per tier (unlimited on
+
+        Enterprise); exceeding the quota returns 429.'
+      operationId: simulatePolicies
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulatePoliciesRequest'
+      responses:
+        '200':
+          description: Simulation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatePoliciesResponse'
+        '400':
+          description: Invalid request body or missing query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '401':
+          description: Missing tenant identification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '403':
+          description: Requires an Evaluation or Enterprise license
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '429':
+          description: Daily simulation limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/policies/impact-report:
+    post:
+      deprecated: true
+      tags:
+      - Simulation
+      summary: Generate a policy impact report
+      description: 'Test a single policy against multiple inputs and return aggregate
+
+        match/block statistics plus per-input results.
+
+
+        **Evaluation tier and above** — requires an Evaluation or Enterprise
+
+        license. The number of inputs per request is capped per tier.'
+      operationId: generateImpactReport
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImpactReportRequest'
+      responses:
+        '200':
+          description: Impact report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpactReportResponse'
+        '400':
+          description: Invalid request body, missing policy_id/inputs, or input limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '401':
+          description: Missing tenant identification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '403':
+          description: Requires an Evaluation or Enterprise license
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/policies/conflicts:
+    post:
+      deprecated: true
+      tags:
+      - Simulation
+      summary: Detect policy conflicts
+      description: 'Analyze the tenant''s active policies for contradictions, shadows, and
+
+        redundancies. Optionally scope the analysis to a single policy by
+
+        passing `policy_id` in the request body (the body may be omitted
+
+        entirely to check all policies).
+
+
+        **Evaluation tier and above** — requires an Evaluation or Enterprise
+
+        license. Counts against the daily simulation quota.'
+      operationId: detectPolicyConflicts
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyConflictRequest'
+      responses:
+        '200':
+          description: Conflict detection results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyConflictResponse'
+        '400':
+          description: Missing X-Tenant-ID header or invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '403':
+          description: Requires an Evaluation or Enterprise license
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '429':
+          description: Daily simulation limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+components:
+  schemas:
+    PolicyConflict:
+      type: object
+      description: A detected conflict between two policies
+      properties:
+        policy_a:
+          $ref: '#/components/schemas/PolicyConflictRef'
+        policy_b:
+          $ref: '#/components/schemas/PolicyConflictRef'
+        conflict_type:
+          type: string
+          enum:
+          - contradictory_action
+          - shadow
+          - redundant
+        description:
+          type: string
+        severity:
+          type: string
+          enum:
+          - high
+          - medium
+          - low
+        overlapping_field:
+          type: string
+          description: Condition field both policies evaluate
+    PolicyConflictRef:
+      type: object
+      description: Identifies a policy in a conflict pair
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+    PolicyConflictRequest:
+      type: object
+      properties:
+        policy_id:
+          type: string
+          description: 'Optional: check a specific policy against all others'
+    SimulatePoliciesRequest:
+      type: object
+      required:
+      - query
+      properties:
+        query:
+          type: string
+          description: Input to evaluate against all active policies
+        request_type:
+          type: string
+          description: Type of request being simulated (defaults to "simulation")
+        user:
+          $ref: '#/components/schemas/SimulationUserContext'
+        client:
+          $ref: '#/components/schemas/SimulationClientContext'
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for evaluation
+    ImpactReportInput:
+      type: object
+      required:
+      - query
+      properties:
+        query:
+          type: string
+        request_type:
+          type: string
+        user:
+          type: object
+          additionalProperties: true
+          description: User context for testing
+        context:
+          type: object
+          additionalProperties: true
+    SimulationUserContext:
+      type: object
+      description: User context for policy simulation and testing
+      properties:
+        id:
+          type: integer
+          description: Numeric user identifier
+        email:
+          type: string
+          example: analyst@company.com
+        role:
+          type: string
+          example: analyst
+        region:
+          type: string
+          description: User's region for geo-based routing policies
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organization for multi-tenant isolation
+    ImpactReportRequest:
+      type: object
+      required:
+      - policy_id
+      - inputs
+      properties:
+        policy_id:
+          type: string
+          description: Policy to test against the inputs
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImpactReportInput'
+          minItems: 1
+          description: Test inputs (per-tier maximum applies)
+    APIError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+              description: Field-level validation errors
+    ImpactReportResult:
+      type: object
+      properties:
+        input_index:
+          type: integer
+        matched:
+          type: boolean
+        blocked:
+          type: boolean
+        actions:
+          type: array
+          items:
+            type: string
+          description: Action types that would trigger for this input
+    SimulationClientContext:
+      type: object
+      description: Client context for policy simulation
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        org_id:
+          type: string
+          description: Organization ID for usage tracking
+        tenant_id:
+          type: string
+    PolicyConflictResponse:
+      type: object
+      properties:
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyConflict'
+        total_policies:
+          type: integer
+          description: Number of active policies analyzed
+        conflict_count:
+          type: integer
+        checked_at:
+          type: string
+          format: date-time
+        tier:
+          type: string
+    ImpactReportResponse:
+      type: object
+      properties:
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        total_inputs:
+          type: integer
+        matched:
+          type: integer
+          description: Number of inputs that matched the policy
+        blocked:
+          type: integer
+          description: Number of inputs that would be blocked
+        match_rate:
+          type: number
+          format: float
+        block_rate:
+          type: number
+          format: float
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImpactReportResult'
+        processing_time_ms:
+          type: integer
+          format: int64
+        generated_at:
+          type: string
+          format: date-time
+        tier:
+          type: string
+    SimulationError:
+      type: object
+      description: Flat error shape returned by the simulation endpoints
+      properties:
+        error:
+          type: string
+          description: Error code (duplicated in code)
+        code:
+          type: string
+        message:
+          type: string
+    SimulationDailyUsage:
+      type: object
+      description: Simulation quota usage (omitted on unlimited tiers)
+      properties:
+        used:
+          type: integer
+        limit:
+          type: integer
+          description: Daily limit (-1 = unlimited)
+    SimulatePoliciesResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the input would be allowed
+        applied_policies:
+          type: array
+          items:
+            type: string
+          description: Names of policies that matched
+        risk_score:
+          type: number
+          format: float
+        required_actions:
+          type: array
+          items:
+            type: string
+        processing_time_ms:
+          type: integer
+          format: int64
+        total_policies:
+          type: integer
+          description: 'Number of active policies visible to the calling tenant — its own
+
+            plus the shared global/default baseline.
+
+
+            CHANGED: this previously counted every active policy in the
+
+            deployment, across all tenants, which disclosed the deployment-wide
+
+            policy count to every caller. Integrations that treated this as a
+
+            deployment-level total will now see a smaller, tenant-scoped number.
+
+            '
+        dry_run:
+          type: boolean
+          description: Always true — no actions were applied
+        simulated_at:
+          type: string
+          format: date-time
+        tier:
+          type: string
+          description: License tier the simulation ran under
+        daily_usage:
+          $ref: '#/components/schemas/SimulationDailyUsage'
+  parameters:
+    TenantID:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier for multi-tenancy isolation. When calling through
+
+        the Agent (recommended), this header is stamped automatically from the
+
+        authenticated client — you do not set it yourself. Required only on
+
+        direct Orchestrator calls (internal deployments).
+
+        '
+      schema:
+        type: string
+        example: tenant_abc123
+  responses:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+x-refined-from:
+- axonflow-policy-api.yaml
+- axonflow-policy-openapi.yml

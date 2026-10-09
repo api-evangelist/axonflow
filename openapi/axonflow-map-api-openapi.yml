@@ -1,0 +1,296 @@
+openapi: 3.2.0
+info:
+  title: Axonflow MAP API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged MAP across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: MAP
+paths:
+  /api/v1/plans/approvals/pending:
+    get:
+      tags:
+      - MAP
+      summary: List pending approvals (MAP plane)
+      description: 'List steps currently awaiting human approval for MAP-backed workflows —
+
+        workflows whose metadata carries a `plan_id` (MAP confirm / step mode).
+
+        Every returned entry has `plan_id` populated; this is the intentional
+
+        asymmetry with the WCP-plane listing at
+
+        `/api/v1/workflows/approvals/pending`, mirroring the approve/reject
+
+        asymmetry established in Issue #1677 / ADR-046.
+
+
+        Reviewer integrators that need to render plan context can read
+
+        `plan_id` directly without a second lookup; clients that want a
+
+        plane-neutral view can use `/api/v1/hitl/queue` instead.
+
+
+        Reachable on Evaluation and above, the same resolve gate as the MAP
+
+        `/steps/{step_id}/approve` and `/steps/{step_id}/reject` endpoints.
+
+        Creating new approval entries requires Professional or above.'
+      operationId: listPendingPlanApprovals
+      parameters:
+      - name: plan_id
+        in: query
+        description: Filter to a single plan_id — returns only steps waiting on that plan.
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Maximum number of results to return
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      responses:
+        '200':
+          description: List of pending plan approvals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingApprovalsResponse'
+              example:
+                pending_approvals:
+                - workflow_id: wf_9c7d5e02-1a4b-4c68-b3f7-52e8d09a1b64
+                  workflow_name: map-confirm-plan-abc123
+                  plan_id: plan-abc123
+                  step_id: step_0_analyze
+                  step_index: 0
+                  step_name: Analyze customer transaction
+                  step_type: tool_call
+                  decision: require_approval
+                  decision_reason: High-value transaction requires review
+                  approval_status: pending
+                  created_at: '2026-04-22T10:00:00Z'
+                count: 1
+        '401':
+          description: 'Missing tenant or org identity. BOTH `X-Org-ID` and `X-Tenant-ID`
+
+            must be present and neither may be the unowned-row sentinel.
+
+
+            Documented as `400` until issue #3948, and the handler really did
+
+            answer `400`: it read `X-Tenant-ID` raw, never looked at
+
+            `X-Org-ID`, and accepted the sentinel, while the WCP endpoint this
+
+            one is documented as the counterpart of demanded both and refused
+
+            the sentinel. A reviewer UI got `200` from one and `401` from the
+
+            other for the same request. Both now bind the caller scope and both
+
+            answer `401`.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Missing tenant or org identity
+        '403':
+          description: 'License tier does not permit approval listing (Community;
+
+            Evaluation and above may list, approve and reject). Unlike the WCP
+
+            counterpart, this route is registered unconditionally and the tier
+
+            gate runs INSIDE the handler, so the refusal really is a `403`
+
+            here.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Workflow control plane unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    PendingApproval:
+      type: object
+      description: 'A workflow step awaiting human approval. Returned by both
+
+        `/api/v1/workflows/approvals/pending` (WCP plane) and
+
+        `/api/v1/plans/approvals/pending` (MAP plane). The `plan_id` field is
+
+        the one intentional asymmetry between the two planes — populated on
+
+        MAP-plane responses, omitted on WCP-plane responses.
+
+        '
+      properties:
+        workflow_id:
+          type: string
+          description: WCP workflow identifier.
+          example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+        workflow_name:
+          type: string
+          description: Human-readable workflow name.
+          example: code-review-pipeline
+        plan_id:
+          type: string
+          description: 'MAP plan identifier. Populated on the MAP-plane listing
+
+            (`/api/v1/plans/approvals/pending`); omitted (omitempty) on the
+
+            WCP-plane listing.
+
+            '
+          example: plan-abc123
+        step_id:
+          type: string
+          description: Step awaiting approval.
+          example: step-2
+        step_index:
+          type: integer
+          description: Zero-based index of the step within the workflow.
+          example: 1
+        step_name:
+          type: string
+          description: Human-readable step name.
+          example: Deploy to Production
+        step_type:
+          type: string
+          enum:
+          - llm_call
+          - tool_call
+          - connector_call
+          - human_task
+          - synthesis
+          - action
+          - gate
+          description: Type of step operation.
+          example: action
+        decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+          description: Gate decision that paused the step — always `require_approval` for pending entries.
+          example: require_approval
+        decision_reason:
+          type: string
+          description: Why approval is required.
+          example: Human approval required for deployment steps
+        policies_matched:
+          type: array
+          description: Policies that triggered the approval requirement.
+          items:
+            type: object
+        step_input:
+          type: object
+          description: Step input payload (may be redacted by PII rules).
+        approval_status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          description: Current approval state — `pending` for listed entries.
+          example: pending
+        created_at:
+          type: string
+          format: date-time
+          description: Time of the first /gate call that paused the step.
+    PendingApprovalsResponse:
+      type: object
+      description: List of pending approvals across workflows for the caller's tenant.
+      properties:
+        pending_approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingApproval'
+        count:
+          type: integer
+          description: Total number of pending approvals matching the scope.
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

@@ -1,0 +1,34 @@
+overlay: 1.0.0
+info:
+  title: AxonFlow AxonFlow Orchestrator API enhancements
+  version: 1.0.0
+extends: ../openapi/_original/axonflow-orchestrator-openapi.yml
+x-generated: '2026-10-09'
+x-method: generated
+x-source: Generated from openapi/axonflow-orchestrator-openapi.yml, mcp/axonflow-mcp.yml and https://docs.getaxonflow.com/llms.txt
+actions:
+- target: $.info
+  update:
+    x-provider: AxonFlow
+    x-docs: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+    x-llms-txt: https://docs.getaxonflow.com/llms.txt
+    x-deployment: Self-hosted in the customer environment; the agent defaults to http://localhost:8080 and the orchestrator to http://localhost:8081.
+      The *.getaxonflow.com servers listed in the spec returned NXDOMAIN on 2026-10-09.
+- target: $.paths['/api/v1/audit/tool-call'].post
+  update:
+    x-mcp-tool: audit_tool_call
+- target: $.paths['/api/v1/audit/search'].post
+  update:
+    x-mcp-tool: search_audit_events
+- target: $.paths['/api/v1/decisions/{id}/explain'].get
+  update:
+    x-mcp-tool: explain_decision
+- target: $.paths['/api/v1/overrides'].post
+  update:
+    x-mcp-tool: create_override
+- target: $.paths['/api/v1/overrides/{id}'].delete
+  update:
+    x-mcp-tool: delete_override
+- target: $.paths['/api/v1/overrides'].get
+  update:
+    x-mcp-tool: list_overrides

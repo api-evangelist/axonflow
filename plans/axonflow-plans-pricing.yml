@@ -1,0 +1,138 @@
+generated: '2026-10-09'
+method: searched
+source: https://getaxonflow.com/pricing/
+name: AxonFlow Plans and Pricing
+audience: business-product
+pricing_basis: tiered-subscription
+published: true
+currency: USD
+delivery:
+  delivery: open-core
+  evidence: 'Community : self-hosted local/dev usage, no license required'
+  evidence_source: https://docs.getaxonflow.com/docs/features/community-vs-enterprise/
+  free_edition: Community Edition
+  managed_tier: Managed SaaS Option
+note: The pricing page (HTTP 200, 2026-10-09) prices three families -- Self-Hosted / In-VPC Enterprise Plans (node-based annual contracts), a Managed SaaS Option (request-based), and Individual Developer Plugins against try.getaxonflow.com. The free self-hosted Community Edition and the free 90-day Evaluation License are described in the docs, not priced on this page. The GitHub repo reports its licence as "Other" (NOASSERTION), so no open-source licence is recorded.
+plan_count: 8
+plans:
+- name: Professional
+  family: Self-Hosted / In-VPC Enterprise Plans
+  description: Smaller production deployments where one platform or security team is governing the first set of AI agent workflows.
+  price_text: $20K
+  price_period_text: /month
+  billing_text: $240K billed annually
+  billing_period: month
+  features:
+  - 'Self-hosted in your AWS account, cloud, or datacenter'
+  - Policy enforcement, approval gates, and audit trails
+  - Enterprise SDKs, plugins, and Decision Mode API
+  - Standard support during business hours
+  - Annual contract
+  limits:
+  - 'Up to 10 nodes: agents, gateways, and orchestrators'
+  - About 3M governed requests/month capacity
+- name: Enterprise
+  family: Self-Hosted / In-VPC Enterprise Plans
+  description: Regulated production scale with larger agent fleets, more integrations, and dedicated support expectations.
+  price_text: $60K
+  price_period_text: /month
+  billing_text: $720K billed annually
+  billing_period: month
+  features:
+  - Custom integrations and deployment configuration
+  - Dedicated support engineer
+  - Priority response targets
+  - Quarterly architecture reviews
+  - Annual or quarterly billing
+  limits:
+  - 'Up to 50 nodes: agents, gateways, and orchestrators'
+  - About 15M governed requests/month capacity
+- name: Enterprise Plus
+  family: Self-Hosted / In-VPC Enterprise Plans
+  description: Air-gapped, multi-region, government, and very large enterprise deployments with custom procurement requirements.
+  price: Contact sales
+  price_text: Custom
+  features:
+  - Air-gapped and on-premises deployment support
+  - Multi-region architecture
+  - Custom SLAs and security review support
+  - AWS Marketplace billing available
+  - Dedicated success and engineering support
+  - Volume and multi-year terms
+  limits:
+  - Custom node and request capacity
+- name: Starter
+  family: Managed SaaS Option
+  description: Fast pilots and dev/test deployments on managed infrastructure.
+  price_text: $5K
+  price_period_text: /month
+  billing_text: $60K billed annually
+  overage_text: 'Overage: $0.10 per 1,000 requests'
+  billing_period: month
+  features:
+  - Email support
+  - Standard policy enforcement and audit logging
+  - Basic monitoring dashboard
+  limits:
+  - Up to 500K requests/month
+  - 5 users included
+- name: SaaS Professional
+  family: Managed SaaS Option
+  description: Mid-market production teams that want managed infrastructure.
+  price_text: $15K
+  price_period_text: /month
+  billing_text: $180K billed annually
+  overage_text: 'Overage: $0.03 per 1,000 requests'
+  billing_period: month
+  features:
+  - SSO integration
+  - Advanced policy management
+  - Customer observability dashboards
+  limits:
+  - Up to 3M requests/month
+  - 25 users included
+- name: SaaS Enterprise
+  family: Managed SaaS Option
+  description: Dedicated managed environments for larger teams with enterprise support requirements.
+  price_text: $50K
+  price_period_text: /month
+  billing_text: $600K billed annually
+  overage_text: 'Overage: $0.01 per 1,000 requests'
+  billing_period: month
+  features:
+  - Custom user capacity
+  - Dedicated environment
+  - Custom connectors
+  - Compliance evidence support
+  limits:
+  - Up to 10M requests/month
+- name: Free
+  family: Individual Developer Plugins
+  description: Basic hosted plugin use with short audit retention.
+  price: 0
+  price_text: $0
+  features:
+  - 3-day rolling audit retention
+  - 'Decision history: last 24 hours, 5 per page'
+  limits:
+  - 200 governed events per day
+  - 25 requests per minute burst limit
+  - 4 active custom tenant policies
+  - 2 HITL approvals per rolling 7 days
+- name: Plugin Pro
+  family: Individual Developer Plugins
+  description: One-time payment, no subscription, no auto-renewal.
+  price: 9.99
+  price_text: $9.99
+  price_period_text: USD / 90 days
+  features:
+  - 30-day rolling audit retention
+  - 'Decision history: last 30 days, 100 per page'
+  - LLM cost pre-flight
+  - Email support, 2 business-day response
+  - 14-day refund window
+  limits:
+  - 2,000 governed events per day
+  - 200 requests per minute burst limit
+  - Up to 50 custom tenant policies
+  - Up to 20 HITL approvals per rolling 7 days

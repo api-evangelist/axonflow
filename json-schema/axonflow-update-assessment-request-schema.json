@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-update-assessment-request-schema.json",
+  "title": "UpdateAssessmentRequest",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-masfeat-openapi.yml#/components/schemas/UpdateAssessmentRequest",
+  "type": "object",
+  "properties": {
+    "fairness_score": {
+      "type": "number",
+      "format": "double",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Fairness pillar score (0-100)"
+    },
+    "ethics_score": {
+      "type": "number",
+      "format": "double",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Ethics pillar score (0-100)"
+    },
+    "accountability_score": {
+      "type": "number",
+      "format": "double",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Accountability pillar score (0-100)"
+    },
+    "transparency_score": {
+      "type": "number",
+      "format": "double",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Transparency pillar score (0-100)"
+    },
+    "fairness_details": {
+      "$ref": "#/$defs/PillarAssessment"
+    },
+    "ethics_details": {
+      "$ref": "#/$defs/PillarAssessment"
+    },
+    "accountability_details": {
+      "$ref": "#/$defs/PillarAssessment"
+    },
+    "transparency_details": {
+      "$ref": "#/$defs/PillarAssessment"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Finding"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assessors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "CriterionAssessment": {
+      "type": "object",
+      "description": "Assessment of a specific FEAT criterion",
+      "properties": {
+        "criterion_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "met",
+            "partial",
+            "not_met",
+            "not_applicable"
+          ]
+        },
+        "evidence": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "EvidenceItem": {
+      "type": "object",
+      "description": "Evidence supporting FEAT assessment claims",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "document",
+            "test_result",
+            "audit_log",
+            "model_card"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "file_path": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "uploaded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "uploaded_by": {
+          "type": "string"
+        }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "description": "A FEAT assessment finding",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "pillar": {
+          "type": "string",
+          "enum": [
+            "fairness",
+            "ethics",
+            "accountability",
+            "transparency"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "major",
+            "minor",
+            "observation"
+          ]
+        },
+        "category": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "remediation": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "open",
+            "resolved",
+            "accepted"
+          ]
+        },
+        "due_date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "PillarAssessment": {
+      "type": "object",
+      "description": "Structured detail for a single FEAT pillar",
+      "properties": {
+        "score": {
+          "type": "number",
+          "format": "double",
+          "description": "Pillar score (0-100)"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "compliant",
+            "partial",
+            "non_compliant"
+          ]
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CriterionAssessment"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceItem"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

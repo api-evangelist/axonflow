@@ -1,0 +1,496 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Unified Executions API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Unified Executions across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Unified Executions
+  description: 'Unified execution tracking and real-time streaming for MAP plans and WCP workflows.
+
+    SSE streaming provides real-time status updates. Community: 5 concurrent connections
+
+    per tenant. Enterprise: Unlimited.'
+paths:
+  /api/v1/unified/executions:
+    get:
+      tags:
+      - Unified Executions
+      summary: List executions (MAP plans + WCP workflows)
+      description: 'Lists unified executions across both MAP plans and WCP workflows,
+
+        scoped to the tenant/org identified by the `X-Tenant-ID` and
+
+        `X-Org-ID` headers. The page size is capped by the license tier''s
+
+        execution-history limit (at most 100 per page); out-of-range `limit`
+
+        or `offset` values are silently ignored and the defaults used.'
+      operationId: listUnifiedExecutions
+      parameters:
+      - $ref: '#/components/parameters/TenantIDHeader'
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization identifier for scoping results
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Page size (default 20, max 100 or the tier history cap, whichever is lower)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        required: false
+        description: Number of records to skip
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: execution_type
+        in: query
+        required: false
+        description: Filter by execution type
+        schema:
+          type: string
+          enum:
+          - map_plan
+          - wcp_workflow
+      - name: status
+        in: query
+        required: false
+        description: Filter by execution status
+        schema:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - cancelled
+          - aborted
+          - expired
+      responses:
+        '200':
+          description: Execution list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedExecutionListResponse'
+        '401':
+          description: '`UNAUTHORIZED`: the request carried neither a tenant nor an org
+
+            key (#3367). Before v10.0.0 this shape fell through to an
+
+            unscoped `FROM execution_history WHERE 1=1` read of every
+
+            organisation''s executions and answered `200`. It is now refused
+
+            with `Tenant or org identity required`, which is the same status
+
+            the by-id half of this handler already returned for the same
+
+            input. The handler and the execution repository refuse the shape
+
+            independently, so a future caller reaching the repository by
+
+            another route cannot reinstate the unscoped read.
+
+            '
+        '500':
+          description: "The listing could not be served. Beyond an ordinary query\nfailure, one arm of this status is a deliberate refusal of the\norg-wide read (#3367), reachable only on the org-wide branch\nthat the trusted-hop `X-Axonflow-Tenancy-Scope` header selects:\n\n- **No BYPASSRLS admin pool.** A portal org-wide list on a\n  deployment running `axonflow_app_role` (the default since\n  v9.0.0) with no admin pool installed would be filtered to zero\n  rows by the tenant-keyed RLS predicate on `execution_history`,\n  and a `200` carrying a well-formed empty list is exactly the\n  confident-empty page this refusal exists to remove. **The\n  remedy is to set `AXONFLOW_DB_PLATFORM_ADMIN_URL`.** In\n  practice this arm is defence in depth rather than a shape a\n  running deployment reaches: the orchestrator carries a fatal\n  boot guard on exactly that combination, so a deployment with\n  the app-role posture enabled and this variable unset refuses\n  to boot rather than serving the route at all. The refusal\n  below the guard exists so that relaxing the guard could never\n  silently restore the confident-empty page.\n\n- **A sentinel org key.** The org-wide branch requires a\n  non-empty stamped `X-Org-ID`, but the handler does not check\n  it against the unowned-org sentinel, so a trusted-hop\n  request stamped with the sentinel value reaches the\n  repository's org-key validation and its refusal surfaces as\n  this 500. A real organisation id never takes this arm.\n\nThe execution repository carries two further org-wide refusals\n(an org key with leading or trailing whitespace, and an\norg-wide read that also carries a tenant narrowing), but\nneither is reachable through this endpoint: the handler trims\nthe org key once and clears the tenant narrowing before\nselecting the org-wide branch, so a padded `X-Org-ID` is\nserved after trimming, not refused. The EMPTY half of the\nrepository's org-key validation is also prevented by\nconstruction, because the org-wide branch requires a non-empty\nkey; the SENTINEL half is not, which is why it appears in the\ncause list above. The unreachable refusals stay in the\nrepository as defense in depth against a future caller that\nskips the handler's normalization; today this endpoint's\nhandler is the repository listing's only caller.\n"
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/unified/executions/{id}:
+    get:
+      tags:
+      - Unified Executions
+      summary: Get unified execution status
+      description: 'Returns the unified status record for a MAP plan or WCP workflow
+
+        execution. The id is resolved across both subsystems (direct
+
+        execution id, `plan_...` plan ids, `wf_`/`wcp_` workflow ids).
+
+        Requires both `X-Tenant-ID` and `X-Org-ID`; a tenant/org mismatch
+
+        returns 404 (not 403) to avoid a cross-tenant existence oracle.'
+      operationId: getUnifiedExecutionStatus
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution id (or plan_/wf_/wcp_ prefixed subsystem id)
+        schema:
+          type: string
+      - $ref: '#/components/parameters/TenantIDHeader'
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization identifier for scoping results
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Unified execution status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedExecutionStatus'
+        '400':
+          description: Missing execution id
+        '401':
+          description: Missing tenant or org identity headers
+        '404':
+          description: Execution not found (or belongs to another tenant/org)
+        '500':
+          description: Failed to resolve execution
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/unified/executions/{id}/cancel:
+    post:
+      tags:
+      - Unified Executions
+      summary: Cancel a unified execution
+      description: 'Cancels a running MAP plan or WCP workflow through the unified API.
+
+        The cancellation propagates to the owning subsystem (plan cancel or
+
+        workflow abort). Cancelling an execution already in a terminal state
+
+        returns 409.'
+      operationId: cancelUnifiedExecution
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution id (or plan_/wf_/wcp_ prefixed subsystem id)
+        schema:
+          type: string
+      - $ref: '#/components/parameters/TenantIDHeader'
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization identifier for scoping results
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Cancellation reason (defaults to "cancelled via unified API")
+      responses:
+        '200':
+          description: 'Execution cancelled; returns the refreshed unified status record
+
+            (or a `{execution_id, status: "cancelled", message}` fallback if
+
+            the post-cancel re-read fails).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedExecutionStatus'
+        '400':
+          description: Missing execution id or unknown execution type
+        '401':
+          description: Missing tenant or org identity headers
+        '404':
+          description: Execution not found (or belongs to another tenant/org)
+        '409':
+          description: Execution is already in a terminal state
+        '500':
+          description: Cancellation failed
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/unified/executions/{id}/stream:
+    get:
+      tags:
+      - Unified Executions
+      summary: Stream execution status via SSE
+      description: 'Server-Sent Events stream for real-time execution status updates.
+
+        Streams events for both MAP plan executions and WCP workflow executions.
+
+        Community: Limited to 5 concurrent connections per tenant.
+
+        Enterprise: Unlimited concurrent connections.'
+      operationId: streamExecutionStatus
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Tenant-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: 'Organization identifier. Like X-Tenant-ID, required by the
+
+          unified-execution tenant-ownership check; missing either header
+
+          is a 401.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: SSE stream of execution events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '429':
+          description: Too many concurrent connections (Community edition limit)
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  parameters:
+    TenantIDHeader:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier scoping the request. The AxonFlow Agent gateway
+
+        sets this header after authentication; the orchestrator fails closed
+
+        when it is absent (401 on audit/decision endpoints, 400 on others —
+
+        see each operation). Clients cannot widen their scope through it:
+
+        handlers force the tenant filter from this header, never from the
+
+        request body.
+
+        '
+      schema:
+        type: string
+      example: travel-us
+  schemas:
+    UnifiedStepStatus:
+      type: object
+      properties:
+        step_id:
+          type: string
+        step_index:
+          type: integer
+        step_name:
+          type: string
+        step_type:
+          type: string
+          enum:
+          - llm_call
+          - tool_call
+          - connector_call
+          - human_task
+          - synthesis
+          - action
+          - gate
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - skipped
+          - blocked
+          - approval
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+        duration:
+          type: string
+        decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+        decision_reason:
+          type: string
+        policies_matched:
+          type: array
+          items:
+            type: string
+        approval_status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+        approved_by:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+        rejected_by:
+          type: string
+        rejected_at:
+          type: string
+          format: date-time
+        model:
+          type: string
+        provider:
+          type: string
+        cost_usd:
+          type: number
+          format: double
+        tokens_in:
+          type: integer
+        tokens_out:
+          type: integer
+        input:
+          description: Raw step input (JSON)
+        output:
+          description: Raw step output (JSON)
+        result_summary:
+          type: string
+        error:
+          type: string
+    UnifiedExecutionStatus:
+      type: object
+      description: 'Unified status record covering both MAP plans and WCP workflows.
+
+        Distinct from the replay Execution schema and from the MAP
+
+        StepStatus schema.
+
+        '
+      properties:
+        execution_id:
+          type: string
+        execution_type:
+          type: string
+          enum:
+          - map_plan
+          - wcp_workflow
+        name:
+          type: string
+        source:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - cancelled
+          - aborted
+          - expired
+        current_step_index:
+          type: integer
+        total_steps:
+          type: integer
+        progress_percent:
+          type: number
+          format: double
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration:
+          type: string
+        estimated_cost_usd:
+          type: number
+          format: double
+        actual_cost_usd:
+          type: number
+          format: double
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnifiedStepStatus'
+        error:
+          type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+        user_id:
+          type: string
+        client_id:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UnifiedExecutionListResponse:
+      type: object
+      properties:
+        executions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnifiedExecutionStatus'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

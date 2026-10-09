@@ -1,0 +1,763 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Agents API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Agents across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Agents
+  description: 'Agent configuration management (MAP 0.8). **Enterprise only** — the
+
+    `/api/v1/agents` route family is registered only in Enterprise builds
+
+    with a database connection; Community returns 404.'
+paths:
+  /api/v1/agents:
+    get:
+      tags:
+      - Agents
+      summary: List all agents (Enterprise)
+      description: 'Returns a paginated list of all agents from the registry.
+
+        In hybrid mode, includes both file-based and database-backed agents.
+
+        Database agents take priority over file agents with the same name.
+
+
+        **Enterprise only.** The entire `/api/v1/agents` route family is
+
+        registered only in Enterprise builds with a database connection;
+
+        Community deployments return 404 for every `/api/v1/agents` path.'
+      operationId: listAgents
+      parameters:
+      - name: page
+        in: query
+        description: Page number (1-based)
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: page_size
+        in: query
+        description: Number of agents per page
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      - name: domain
+        in: query
+        description: Filter by domain
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+              example:
+                agents:
+                - id: travel/flight-booking
+                  name: flight-booking
+                  domain: travel
+                  description: Flight search and booking agent
+                  version: 1
+                  is_active: true
+                - id: healthcare/patient-assistant
+                  name: patient-assistant
+                  domain: healthcare
+                  description: Patient query assistant
+                  version: 2
+                  is_active: true
+                pagination:
+                  page: 1
+                  page_size: 20
+                  total: 2
+                  total_pages: 1
+    post:
+      tags:
+      - Agents
+      summary: Create new agent (Enterprise)
+      description: 'Create a new agent configuration in the database.
+
+        **Enterprise only** - requires database-backed storage.
+
+
+        The agent is created with version 1 and marked as active by default.
+
+        A version history entry is automatically created.'
+      operationId: createAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentRequest'
+            example:
+              name: travel-planner
+              domain: travel
+              description: Travel planning and booking assistant
+              is_active: true
+              config:
+                execution:
+                  default_mode: auto
+                  max_parallel_tasks: 5
+                  timeout_seconds: 300
+                agents:
+                - name: flight-search
+                  type: llm-call
+                  llm:
+                    provider: anthropic
+                    model: claude-sonnet-4
+                routing:
+                - pattern: flight|fly
+                  agent: flight-search
+                  priority: 10
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        '400':
+          description: Invalid request or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Agent with same name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/agents/{id}:
+    get:
+      tags:
+      - Agents
+      summary: Get agent by ID (Enterprise)
+      description: 'Returns detailed information about a specific agent.
+
+        The ID format is `domain/name` (e.g., `travel/flight-booking`).
+
+
+        **Enterprise only** - the `/api/v1/agents` family is not registered in Community.'
+      operationId: getAgent
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Agent ID in format domain/name
+        schema:
+          type: string
+        example: travel/flight-booking
+      responses:
+        '200':
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResource'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+      - Agents
+      summary: Update agent (Enterprise)
+      description: 'Update an existing agent configuration.
+
+        **Enterprise only** - requires database-backed storage.
+
+
+        Updates increment the version number automatically.
+
+        A version history entry is created for the change.'
+      operationId: updateAgent
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Agent ID (UUID)
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgentRequest'
+      responses:
+        '200':
+          description: Agent updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+      - Agents
+      summary: Delete agent (Enterprise)
+      description: 'Delete an agent configuration.
+
+        **Enterprise only** - requires database-backed storage.
+
+
+        The deletion is recorded in the version history before removal.'
+      operationId: deleteAgent
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Agent ID (UUID)
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Agent deleted
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/agents/validate:
+    post:
+      tags:
+      - Agents
+      summary: Validate agent configuration (Enterprise)
+      description: 'Validates an agent configuration without creating it.
+
+        Useful for dry-run validation before deployment.
+
+
+        **Enterprise only** - the `/api/v1/agents` family is not registered in Community.
+
+
+        Checks:
+
+        - Required fields present
+
+        - Name/domain format valid
+
+        - Agent types valid (llm-call, connector-call)
+
+        - LLM config complete for llm-call agents
+
+        - Routing rules reference defined agents'
+      operationId: validateAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateAgentRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: true
+                errors: []
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+              example:
+                valid: false
+                errors:
+                - field 'name' is required
+                - routing rule references undefined agent 'unknown-agent'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/agents/{id}/activate:
+    post:
+      tags:
+      - Agents
+      summary: Activate agent (Enterprise)
+      description: 'Activate a deactivated agent.
+
+        **Enterprise only** - requires database-backed storage.'
+      operationId: activateAgent
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Agent ID (UUID)
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Agent activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        '404':
+          description: Agent not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/agents/{id}/deactivate:
+    post:
+      tags:
+      - Agents
+      summary: Deactivate agent (Enterprise)
+      description: 'Deactivate an agent without deleting it.
+
+        **Enterprise only** - requires database-backed storage.'
+      operationId: deactivateAgent
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Agent ID (UUID)
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Agent deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+        '404':
+          description: Agent not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/agents/{id}/test:
+    post:
+      tags:
+      - Agents
+      summary: Test agent in sandbox (Enterprise)
+      description: 'Test an agent configuration in a sandbox environment.
+
+        **Enterprise only** - requires database-backed storage.
+
+
+        Executes a test query against the agent without affecting production.'
+      operationId: testAgent
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Agent ID (UUID)
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestAgentRequest'
+            example:
+              query: Search for flights from NYC to LAX
+              context:
+                departure_date: '2025-01-15'
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestAgentResponse'
+        '404':
+          description: Agent not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/agents/{id}/versions:
+    get:
+      tags:
+      - Agents
+      summary: Get agent version history (Enterprise)
+      description: 'Returns the version history for an agent.
+
+        **Enterprise only** - requires database-backed storage.
+
+
+        Includes all changes: create, update, delete, activate, deactivate.'
+      operationId: getAgentVersions
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Agent ID (UUID)
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        description: Maximum number of versions to return
+        schema:
+          type: integer
+          default: 50
+          maximum: 100
+      responses:
+        '200':
+          description: Version history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentVersionsResponse'
+              example:
+                versions:
+                - version: 2
+                  change_type: update
+                  changed_at: '2025-12-07T12:00:00Z'
+                  change_summary: Updated routing rules
+                - version: 1
+                  change_type: create
+                  changed_at: '2025-12-06T10:00:00Z'
+                  change_summary: Initial creation
+        '404':
+          description: Agent not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    AgentDefinition:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - llm-call
+          - connector-call
+        llm:
+          type: object
+          description: LLM config (required for llm-call type)
+          properties:
+            provider:
+              type: string
+            model:
+              type: string
+        connector:
+          type: object
+          description: Connector config (required for connector-call type)
+          properties:
+            name:
+              type: string
+            operation:
+              type: string
+    AgentVersionsResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              version:
+                type: integer
+              change_type:
+                type: string
+                enum:
+                - create
+                - update
+                - delete
+                - activate
+                - deactivate
+              changed_at:
+                type: string
+                format: date-time
+              changed_by:
+                type: string
+                format: uuid
+              change_summary:
+                type: string
+    TestAgentRequest:
+      type: object
+      required:
+      - query
+      properties:
+        query:
+          type: string
+          description: Test query to execute
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for the query
+    ValidateAgentRequest:
+      type: object
+      required:
+      - config
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+        config:
+          $ref: '#/components/schemas/AgentConfigSpec'
+    CreateAgentRequest:
+      type: object
+      required:
+      - name
+      - config
+      properties:
+        name:
+          type: string
+          description: Agent name (lowercase, alphanumeric, hyphens, underscores)
+        domain:
+          type: string
+          description: Agent domain
+        description:
+          type: string
+        is_active:
+          type: boolean
+          default: true
+        config:
+          $ref: '#/components/schemas/AgentConfigSpec'
+    AgentResource:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Qualified ID (domain/name)
+          example: travel/flight-booking
+        name:
+          type: string
+          description: Agent name
+          example: flight-booking
+        domain:
+          type: string
+          description: Agent domain
+          example: travel
+        description:
+          type: string
+          description: Agent description
+        version:
+          type: integer
+          description: Version number
+        is_active:
+          type: boolean
+          description: Whether agent is active
+        config:
+          $ref: '#/components/schemas/AgentConfigSpec'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AgentListResponse:
+      type: object
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentResource'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            page_size:
+              type: integer
+            total:
+              type: integer
+            total_pages:
+              type: integer
+    AgentConfigSpec:
+      type: object
+      description: Agent configuration specification
+      properties:
+        execution:
+          type: object
+          properties:
+            default_mode:
+              type: string
+              enum:
+              - auto
+              - parallel
+              - sequential
+            max_parallel_tasks:
+              type: integer
+            timeout_seconds:
+              type: integer
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentDefinition'
+        routing:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutingRule'
+    RoutingRule:
+      type: object
+      required:
+      - pattern
+      - agent
+      properties:
+        pattern:
+          type: string
+          description: Regex pattern to match
+        agent:
+          type: string
+          description: Target agent name
+        priority:
+          type: integer
+          description: Higher priority rules match first
+    UpdateAgentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+        config:
+          $ref: '#/components/schemas/AgentConfigSpec'
+    TestAgentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        result:
+          description: Test execution result
+        execution_time_ms:
+          type: integer
+        tasks_executed:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+    ValidationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    AgentResponse:
+      type: object
+      properties:
+        agent:
+          $ref: '#/components/schemas/AgentResource'
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

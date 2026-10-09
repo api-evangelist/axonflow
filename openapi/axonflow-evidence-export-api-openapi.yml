@@ -1,0 +1,180 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Evidence Export API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Evidence Export across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Evidence Export
+paths:
+  /api/v1/evidence/export:
+    post:
+      tags:
+      - Evidence Export
+      summary: Export evidence pack (Evaluation+)
+      description: 'Exports audit logs, workflow steps, and HITL approvals as a bundled JSON pack.
+
+        Evaluation tier exports include a "NOT FOR REGULATORY SUBMISSION" watermark.
+
+        Enterprise exports are clean (no watermark).'
+      operationId: exportEvidence
+      security:
+      - BearerAuth: []
+      - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - start_date
+              properties:
+                start_date:
+                  type: string
+                  description: Start date (YYYY-MM-DD or RFC3339)
+                end_date:
+                  type: string
+                  description: End date (defaults to now)
+                types:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - audit_logs
+                    - workflow_steps
+                    - hitl_approvals
+                  description: Evidence types to include (defaults to all)
+                limit:
+                  type: integer
+                  description: Maximum records (capped by tier limit)
+      responses:
+        '200':
+          description: Evidence export bundle
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  export_id:
+                    type: string
+                  tenant_id:
+                    type: string
+                  tier:
+                    type: string
+                  date_range:
+                    type: object
+                    properties:
+                      start:
+                        type: string
+                        format: date-time
+                      end:
+                        type: string
+                        format: date-time
+                  disclaimer:
+                    type: string
+                    description: Watermark for Evaluation tier exports
+                  record_count:
+                    type: integer
+                  audit_logs:
+                    type: array
+                    items:
+                      type: object
+                  workflow_steps:
+                    type: array
+                    items:
+                      type: object
+                  hitl_approvals:
+                    type: array
+                    items:
+                      type: object
+                  exported_at:
+                    type: string
+                    format: date-time
+                  daily_usage:
+                    type: object
+                    properties:
+                      used:
+                        type: integer
+                      limit:
+                        type: integer
+        '403':
+          description: Feature requires Evaluation or Enterprise license
+        '429':
+          description: Daily export limit exceeded
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/evidence/summary:
+    get:
+      tags:
+      - Evidence Export
+      summary: Get evidence summary (Evaluation+)
+      description: Returns counts of evidence records by type within the tier's lookback window.
+      operationId: getEvidenceSummary
+      security:
+      - BearerAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          description: Evidence summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenant_id:
+                    type: string
+                  tier:
+                    type: string
+                  window_days:
+                    type: integer
+                  counts:
+                    type: object
+                    properties:
+                      audit_logs:
+                        type: integer
+                      workflow_steps:
+                        type: integer
+                      hitl_approvals:
+                        type: integer
+                      total:
+                        type: integer
+                  generated_at:
+                    type: string
+                    format: date-time
+                  disclaimer:
+                    type: string
+        '403':
+          description: Feature requires Evaluation or Enterprise license
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

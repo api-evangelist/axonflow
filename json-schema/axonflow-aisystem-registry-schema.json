@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-aisystem-registry-schema.json",
+  "title": "AISystemRegistry",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-masfeat-openapi.yml#/components/schemas/AISystemRegistry",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Registry record ID"
+    },
+    "org_id": {
+      "type": "string"
+    },
+    "system_id": {
+      "type": "string",
+      "description": "Caller-chosen AI system identifier"
+    },
+    "system_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "use_case": {
+      "type": "string",
+      "enum": [
+        "credit_scoring",
+        "robo_advisory",
+        "insurance_underwriting",
+        "trading_algorithm",
+        "aml_cft",
+        "customer_service",
+        "fraud_detection",
+        "other"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "suspended",
+        "retired"
+      ]
+    },
+    "risk_rating_impact": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "risk_rating_complexity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "risk_rating_reliance": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "materiality_classification": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "description": "Materiality classification computed from the 3-dimensional risk rating\n(impact, complexity, reliance) per MAS AI Risk Management Guidelines 2025.\n"
+    },
+    "owner_team": {
+      "type": "string"
+    },
+    "owner_email": {
+      "type": "string"
+    },
+    "data_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model_type": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "deployment_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_assessment_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "next_assessment_due": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "updated_by": {
+      "type": "string"
+    }
+  }
+}

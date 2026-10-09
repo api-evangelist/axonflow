@@ -1,0 +1,999 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Auth ZEN API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged AuthZEN across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: Auth ZEN
+paths:
+  /api/v1/access/evaluation:
+    post:
+      tags:
+      - Auth ZEN
+      summary: AuthZEN-native authorization decision
+      description: 'The AuthZEN-native authorization surface (ADR-065 compatibility plan,
+
+        issue #3603).'
+      operationId: authzenEvaluation
+      parameters:
+      - $ref: '#/components/parameters/AxonflowClient'
+      - $ref: '#/components/parameters/AxonflowPEPHandshake'
+      - in: header
+        name: X-Axonflow-AuthZEN-Profile
+        description: 'The AxonFlow AuthZEN profile the caller can interpret. Send
+
+          `axonflow-authzen-profile-2026-08-29` to receive the `context`
+
+          payload. Absent or empty, the caller asked for AuthZEN 1.0 and the
+
+          response carries the boolean `decision` only -- EXCEPT that an
+
+          otherwise-allowed decision carrying a mandatory obligation is
+
+          answered `{"decision": false}`, because that obligation rides in the
+
+          `context` this caller does not receive and it must not be given a
+
+          permission whose precondition it will never see. Naming a version
+
+          this build does not emit is REFUSED with `406`, because answering it
+
+          with the bare boolean would report that the negotiation succeeded and
+
+          an enforcement point would proceed on an allow whose mandatory
+
+          obligation it never saw.
+
+          '
+        required: false
+        schema:
+          type: string
+          example: axonflow-authzen-profile-2026-08-29
+      - in: header
+        name: traceparent
+        description: 'W3C trace-context header. When present and valid the trace-id is
+
+          reused so multi-layer decisions correlate.
+
+          '
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthZENEnvelope'
+            examples:
+              singular:
+                summary: One evaluation
+                value:
+                  evaluation:
+                    subject:
+                      type: gateway
+                      id: llm-gateway-01
+                    action:
+                      name: llm.completion
+                    resource:
+                      type: llm
+                      id: llm
+                    context:
+                      args:
+                        query: summarise this ticket
+              plural:
+                summary: Two preconditions of one operation
+                value:
+                  evaluations:
+                    subject:
+                      type: gateway
+                      id: tool-gateway-01
+                    action:
+                      name: tool.call
+                    context:
+                      args:
+                        query: move SUP-42 to the LEGAL project
+                    evaluations:
+                    - resource:
+                        type: tool
+                        id: jira/move_issue
+                    - resource:
+                        type: tool
+                        id: jira/update_project
+      responses:
+        '200':
+          description: 'The decision. `decision` is true only for an ALLOW; every other
+
+            state collapses to false.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthZENResponse'
+              examples:
+                negotiated:
+                  summary: A negotiated caller receives the profile context
+                  value:
+                    decision: true
+                    context:
+                      profile: axonflow-authzen-profile-2026-08-29
+                      state: ALLOW
+                      category: allowed
+                      reason: permitted
+                      decision_id: 6f1c2f2e-64f7-4f3e-93a1-2b5f0b0d1a77
+                      schema_version: '2026-08-29'
+                unnegotiated:
+                  summary: A caller that did not negotiate receives the boolean alone (here false, either because policy denied or because the allow carried a mandatory obligation it cannot receive -- the two are deliberately indistinguishable to a bare AuthZEN 1.0 caller; negotiate the profile to tell them apart)
+                  value:
+                    decision: false
+        '400':
+          description: The body is not a well-formed AuthZEN envelope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthZENError'
+              example:
+                code: malformed_envelope
+                message: 'authzen: envelope must carry exactly one of "evaluation" or "evaluations", got neither'
+        '401':
+          description: 'Missing or invalid authentication. This is the ONE refusal on this
+
+            route that is NOT an `AuthZENError`: it is written by the platform''s
+
+            auth middleware before the AuthZEN handler runs, so it carries the
+
+            platform envelope (`ErrorResponse` / `JSONError`), not `code` +
+
+            `pointer`. A client must branch on the status, not on the body
+
+            shape, for this one case (#3637).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '406':
+          description: 'The `X-Axonflow-AuthZEN-Profile` header named a profile version this
+
+            build does not emit. The envelope is not at fault; the caller asked
+
+            for a representation that cannot be produced, and `supported` names
+
+            the version that can.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthZENError'
+              example:
+                code: unevaluable_attribute
+                message: the X-Axonflow-AuthZEN-Profile header names "axonflow-authzen-profile-2099-01-01", which this build does not emit.
+                supported:
+                - axonflow-authzen-profile-2026-08-29
+        '413':
+          description: 'The request is too large on either of two axes, each refused with a
+
+            typed AuthZENError before anything is evaluated: the body exceeds
+
+            1 MiB, or a plural envelope carries more than 64 entries. The entry
+
+            cap exists because the body cap bounds bytes, not evaluations — an
+
+            entry of `{}` is valid (it inherits subject, action, resource and
+
+            context from the shared base), so a 1 MiB body could otherwise
+
+            carry hundreds of thousands of full policy evaluations in one
+
+            request. The entries of a bulk envelope are the preconditions of a
+
+            single operation, not a batch API; the refusal''s `pointer` names
+
+            `/evaluations` and its `message` carries both the count sent and
+
+            the maximum.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthZENError'
+        '422':
+          description: 'The envelope was well formed but described something this surface
+
+            cannot evaluate. The `pointer` names the offending member.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthZENError'
+              example:
+                code: unevaluable_attribute
+                pointer: /evaluation/subject/properties
+                message: this surface cannot evaluate caller-supplied properties; accepting them would report that they were considered when they were not.
+        '500':
+          description: 'The per-entry verdicts could not be combined into one decision
+
+            (`meetStates` refused). A typed refusal, not a verdict: no
+
+            `decision` member is present, so "could not evaluate" stays
+
+            distinguishable from "denied". Retrying is meaningful only if the
+
+            cause was transient; the code is `evaluation_unavailable` for that
+
+            reason.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthZENError'
+              example:
+                code: evaluation_unavailable
+                message: 'authzen: cannot meet an empty state set'
+        '502':
+          description: The evaluator could not answer. Retrying is meaningful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthZENError'
+              example:
+                code: evaluation_unavailable
+                message: the evaluator did not return a verdict
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  schemas:
+    AuthZENObligation:
+      type: object
+      required:
+      - type
+      - mandatory
+      - source_policy
+      - schema_version
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum:
+          - approval_challenge
+          - field_remove
+          - field_redact
+          - field_hash
+          - field_mask
+          - field_annotate
+          - field_tokenize
+          - schema_transform
+          - response_filter
+          - route_restriction
+          - step_up_authentication
+          - quota_reservation
+          - immutable_audit
+          - notification
+        target:
+          type: string
+          description: The canonical field path for a disclosure transform; empty otherwise.
+        params:
+          type: object
+          additionalProperties:
+            type: string
+          description: "The type's own parameters. Two obligations of the same type and\ntarget with different params are INCOMPARABLE and deny rather than\nbeing merged, so a PEP never receives a parameter set no policy\nasked for.\n\nThe keys each family composes, and how:\n\n* `approval_challenge` — `quorum` (integer), `eligible`\n  (comma-separated group identifiers), `separation_of_duties`\n  (`true`/`false`; any other spelling is REFUSED rather than read\n  as `false`), and the optional `expiry_seconds`. Where several\n  policies carry an expiry the SHORTEST wins (a conjunction is\n  discharged only while all of it is live, and timeout is always\n  deny), and the carried value sets the window whether it is\n  shorter or longer than the deployment's window (#4249). An\n  approval no policy gives an expiry takes the deployment's window,\n  `AXONFLOW_APPROVAL_TTL_SECONDS` (15 minutes when unset). Only a\n  **mandatory** obligation's expiry is read: an advisory control\n  that could set the window would be deciding when the request\n  stops being able to proceed. Bounded to 60..604800 seconds,\n  refused rather than clamped at either end, for the parameter and\n  the deployment variable alike (an out-of-bounds variable refuses\n  the process's boot). The optional `severity` (`low`, `medium`,\n  `high` or `critical`; any other spelling is REFUSED) is the\n  severity the approval's queue row carries; the highest among the\n  mandatory obligations wins, an advisory one's is ignored, and with\n  none stated the queue derives it from the request's risk score\n  (#4249).\n* `route_restriction` — `allowed_destinations` (comma-separated),\n  intersected across policies; an empty intersection denies. Route\n  properties are namespaced `route.` (`route.tls`, `route.region`,\n  `route.method`); each value is the comma-separated set permitted\n  for that property, and they intersect per key under the same\n  rule. A parameter that is neither is REFUSED: without the\n  namespace an ordinary annotation on two policies intersects to an\n  empty set and denies a request neither said anything about\n  routing for.\n* `step_up_authentication` — `assurance` (`aal1`, `aal2`, `aal3`;\n  the maximum wins) and the optional `methods` (comma-separated,\n  intersected). An ABSENT `methods` means unconstrained, so a\n  policy may require a higher assurance without enumerating how it\n  is reached; a carried-but-empty value is refused. No other key.\n* `immutable_audit` and `notification` — `delivery`\n  (`best_effort`, `at_least_once`, `durable`; the strongest wins)\n  plus the sink's own keys, which form the merge identity: two\n  obligations agreeing on every key but `delivery` are ONE\n  instruction carrying the stronger guarantee.\n* `quota_reservation` — `counter`, `window`, `unit`, a positive\n  `limit`, and `amount_from`. THE QUANTITY IS A REFERENCE, NOT A\n  VALUE: `amount_from` names the request attribute carrying it, and\n  the reservation service resolves it per request, because a budget\n  that reserved a number the policy carried would not be measuring\n  the request at all. All five are required — a reservation that\n  names no counter is not a reservation, and the caller would\n  proceed believing capacity was held. It follows that composition\n  does not sum: there is no per-policy quantity to add, and adding\n  the `limit`s would loosen the caps rather than tighten them. Two\n  policies stating the same constraint deduplicate into one\n  instruction naming both; two stating different caps on one\n  counter are two constraints the reservation must each satisfy, so\n  the tighter binds.\n* disclosure transforms — the transform's own keys (`keep=last4`).\n"
+        mandatory:
+          type: boolean
+          description: A mandatory obligation that cannot be discharged denies.
+        source_policy:
+          type: string
+          minLength: 1
+        schema_version:
+          type: integer
+          minimum: 1
+    AuthZENApprovalClause:
+      type: object
+      required:
+      - quorum
+      - eligible
+      additionalProperties: false
+      properties:
+        quorum:
+          type: integer
+          minimum: 1
+        eligible:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AuthZENIdentifier'
+    AuthZENSubject:
+      type: object
+      description: 'The AuthZEN subject. `type` and `id` are canonical identifier
+
+        components; a display name, an email or a token claim is never one.
+
+        '
+      required:
+      - type
+      - id
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          minLength: 1
+          description: 'Only `gateway` can be evaluated today. An end-user subject would
+
+            have to be trusted from caller-supplied JSON -- an impersonation
+
+            surface -- or dropped, so it is refused by name until the identity
+
+            plane can bind it (v11).
+
+            '
+          example: gateway
+        id:
+          type: string
+          minLength: 1
+          example: llm-gateway-01
+        properties:
+          type: object
+          description: 'Caller-supplied subject attributes. REFUSED when non-empty: this
+
+            surface cannot evaluate them, and accepting them would report that
+
+            they were considered when they were not.
+
+            '
+    AuthZENResource:
+      type: object
+      required:
+      - type
+      - id
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          minLength: 1
+          enum:
+          - llm
+          - tool
+          - agent
+          description: 'Must describe the same operation as the action. An `llm.completion`
+
+            action against a `tool` resource is two different questions and is
+
+            refused rather than resolved.
+
+            '
+        id:
+          type: string
+          minLength: 1
+          description: '`server/tool` for a tool resource; the literal `llm` or `agent`
+
+            for those stages.
+
+
+            The asymmetry is measured, not stylistic: a tool resource''s server
+
+            and tool ARE read by the evaluation, whereas an llm provider and
+
+            model are read by NOTHING -- they reach neither policy, nor the
+
+            audit row, nor a human approver. Accepting `openai/gpt-4o` would
+
+            therefore report that the provider and model were considered when
+
+            they were not, so it is refused. A future release that teaches the
+
+            evaluator to read a model widens this, in that order.
+
+            '
+          example: llm
+        properties:
+          type: object
+          description: Caller-supplied resource attributes. Refused when non-empty.
+    AuthZENResponseContext:
+      type: object
+      description: 'The AxonFlow profile payload, returned only to a caller that negotiated
+
+        the profile version.
+
+
+        **`approval` is RESERVED and is not emitted by this route.** It is
+
+        declared so that a client generated from this document does not change
+
+        shape the day it starts being sent, and so a decoder written against the
+
+        AxonFlow profile is complete -- but it is always absent here. The reason
+
+        is structural rather than temporary: this route is an *adapter* over
+
+        `POST /api/v1/decide`, and that response names no eligible approver set,
+
+        no quorum and no challenge expiry, so there is no requirement to render
+
+        and synthesising one would hand your enforcement point a fabricated
+
+        approval policy to enforce. A decision awaiting approval arrives as
+
+        `state: CHALLENGE` with `decision: false`; hold, and obtain the
+
+        challenge itself from the human-approval surfaces.
+
+
+        (The note sits on this schema rather than on the `approval` member
+
+        because a `description` beside a `$ref` is ignored under OpenAPI 3.0.3.
+
+        Wrapping the `$ref` in an `allOf` to carry one is a generator-visible
+
+        shape change -- oasdiff reports the referenced schema''s required members
+
+        as removed -- so the prose moved instead of the shape.)
+
+        '
+      required:
+      - profile
+      - state
+      - category
+      - decision_id
+      - schema_version
+      additionalProperties: false
+      properties:
+        profile:
+          type: string
+          enum:
+          - axonflow-authzen-profile-2026-08-29
+        state:
+          type: string
+          enum:
+          - ALLOW
+          - DENY
+          - CHALLENGE
+          - ERROR
+          description: 'The four-valued operational state. `decision` is true for ALLOW and
+
+            false for every other value.
+
+            '
+        category:
+          type: string
+          enum:
+          - allowed
+          - not_permitted
+          - approval_required
+          - temporarily_unavailable
+          - invalid_request
+          description: The coarse outcome class safe to show a requester.
+        reason:
+          type: string
+          enum:
+          - permitted
+          - approval_required
+          - explicit_constraint
+          - no_matching_permission
+          - unknown_constraint
+          - unknown_permission
+          - unknown_requirement
+          - invalid_input
+          - evaluation_error
+          - unsupported_obligation
+          - obligation_conflict
+          - unknown_action
+          - unknown_realm
+          - schema_violation
+          - delegation_depth_exceeded
+          - budget_exhausted
+          - binding_mismatch
+          - approval_unsatisfiable
+          - approval_expired
+          - authoring_rejected
+        obligations:
+          type: array
+          description: 'Instructions the enforcement point must discharge. Carried on a
+
+            decision that PERMITS -- `ALLOW`, and `CHALLENGE`, which is a permit
+
+            with an approval outstanding. Not carried on `DENY` or `ERROR`: a
+
+            refused operation has nothing to discharge, and attaching
+
+            instructions to a refusal invites an enforcement point to perform
+
+            them and proceed.
+
+
+            On a `CHALLENGE` these tell you what you will additionally have to
+
+            discharge once the approval is granted. Do not act on them yet --
+
+            `decision` is `false` and the operation is not permitted.
+
+            '
+          items:
+            $ref: '#/components/schemas/AuthZENObligation'
+        approval:
+          $ref: '#/components/schemas/AuthZENApprovalRequirement'
+        decision_id:
+          type: string
+          minLength: 1
+        schema_version:
+          type: string
+          minLength: 1
+          example: '2026-08-29'
+    AuthZENEnvelope:
+      type: object
+      description: 'Exactly two members are defined and exactly one may be PRESENT.
+
+        Presence is decided on the key set, so a null beside a populated member
+
+        still counts as present and the envelope is malformed.
+
+        '
+      additionalProperties: false
+      oneOf:
+      - required:
+        - evaluation
+        not:
+          required:
+          - evaluations
+      - required:
+        - evaluations
+        not:
+          required:
+          - evaluation
+      properties:
+        evaluation:
+          allOf:
+          - $ref: '#/components/schemas/AuthZENRequest'
+          - required:
+            - subject
+            - action
+            - resource
+          description: 'The singular member. It has no shared base to inherit from, so it
+
+            must carry its own subject, action and resource.
+
+            '
+        evaluations:
+          $ref: '#/components/schemas/AuthZENBulk'
+    AuthZENBulk:
+      type: object
+      description: 'The plural envelope. The decision count is fixed by the mapping, never
+
+        by argument data, so an empty `evaluations` array is malformed rather
+
+        than a request for zero decisions.
+
+        '
+      required:
+      - evaluations
+      additionalProperties: false
+      properties:
+        subject:
+          $ref: '#/components/schemas/AuthZENSubject'
+        action:
+          $ref: '#/components/schemas/AuthZENAction'
+        resource:
+          $ref: '#/components/schemas/AuthZENResource'
+        context:
+          $ref: '#/components/schemas/AuthZENContext'
+        evaluations:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/AuthZENRequest'
+    AuthZENContext:
+      type: object
+      description: 'The evaluation context. Only `args` and `correlation` are understood;
+
+        any other member is refused by name.
+
+        '
+      additionalProperties: false
+      properties:
+        args:
+          type: object
+          additionalProperties: false
+          required:
+          - query
+          description: 'The content to evaluate. Only `query` is read; an argument beside
+
+            it is refused rather than silently ignored.
+
+            '
+          properties:
+            query:
+              type: string
+              minLength: 1
+        correlation:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Audit correlation keys. Values must be strings.
+
+            '
+    AuthZENRequest:
+      type: object
+      description: 'One evaluation. Every member is structurally optional because a plural
+
+        entry inherits what it omits from the shared base; the singular member
+
+        carries its own required set. Completeness of the MERGED entry is
+
+        enforced by the server, not by this schema.
+
+        '
+      additionalProperties: false
+      properties:
+        subject:
+          $ref: '#/components/schemas/AuthZENSubject'
+        action:
+          $ref: '#/components/schemas/AuthZENAction'
+        resource:
+          $ref: '#/components/schemas/AuthZENResource'
+        context:
+          $ref: '#/components/schemas/AuthZENContext'
+    AuthZENApprovalRequirement:
+      type: object
+      description: A conjunction of threshold clauses; clauses are never collapsed.
+      required:
+      - all_of
+      - separation_of_duties
+      - expires_at
+      additionalProperties: false
+      properties:
+        all_of:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AuthZENApprovalClause'
+        separation_of_duties:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          description: Timeout is always deny; a non-response never proves approval.
+    AuthZENResponse:
+      type: object
+      description: 'The AuthZEN reply. `decision` is true only for an ALLOW state; the
+
+        collapse is total in both directions.
+
+        '
+      required:
+      - decision
+      additionalProperties: false
+      properties:
+        decision:
+          type: boolean
+        context:
+          $ref: '#/components/schemas/AuthZENResponseContext'
+    AuthZENError:
+      type: object
+      description: 'A structured refusal. It is a DIFFERENT shape from a decision and
+
+        carries no `decision` member, because a request that was never
+
+        evaluated must not be indistinguishable from one that was evaluated
+
+        and denied.
+
+        '
+      required:
+      - code
+      - message
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          enum:
+          - malformed_envelope
+          - incomplete_evaluation
+          - unsupported_subject
+          - unsupported_action
+          - unsupported_resource
+          - unevaluable_attribute
+          - missing_evaluable_content
+          - evaluation_unavailable
+          description: 'Only `evaluation_unavailable` is retryable; every other code names
+
+            something about the request that will not change on a retry.
+
+            '
+        pointer:
+          type: string
+          description: 'RFC 6901 JSON Pointer naming the member that could not be
+
+            evaluated. A refusal without it sends the caller to the docs.
+
+            '
+          example: /evaluation/subject/properties
+        message:
+          type: string
+          minLength: 1
+        supported:
+          type: array
+          items:
+            type: string
+          description: What would have been accepted at `pointer`, when the set is closed.
+        request_id:
+          type: string
+    AuthZENAction:
+      type: object
+      required:
+      - name
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          enum:
+          - llm.completion
+          - tool.call
+          - agent.invoke
+          description: The evaluable action set. Anything else is refused.
+        properties:
+          type: object
+          description: Caller-supplied action attributes. Refused when non-empty.
+    AuthZENIdentifier:
+      type: object
+      required:
+      - kind
+      - type
+      - local
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+          - organization
+          - principal
+          - group
+          - resource
+          - action
+          - tool
+          - client
+          - session
+        type:
+          type: string
+        qualifier:
+          type: string
+        local:
+          type: string
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+  parameters:
+    AxonflowPEPHandshake:
+      name: X-Axonflow-PEP-Handshake
+      in: header
+      required: false
+      description: 'The ADR-065 **PEP capability handshake**: base64url of a compact JSON
+
+        document in which an external enforcement point declares what it is and
+
+        which obligations it can discharge. See `PEPHandshake` for the document.
+
+
+        **Absent is the default and changes nothing.** A caller that omits the
+
+        header takes byte-for-byte the path it took before this header existed.
+
+
+        **What an absent header means for a redaction depends on the plane, by
+
+        design (PRD v11 section 1 item 16, #4257).** The MCP passes discharge a
+
+        redaction of the content they hand back: the request pass
+
+        (`check-input`, `check_policy`) masks the statement, and a redaction
+
+        that masks nothing in the statement is refused `unsupported_obligation`
+
+        to every caller, and one that masks a request parameter to every caller
+
+        that has not declared `field_redact` at version 2 (on Community, to
+
+        every caller) (#4264);
+
+        the response passes (`check-output`, the MCP server''s `check_output`)
+
+        mask the rows or the message. `/api/v1/decide` and the gateway
+
+        pre-check return a decision rather than content, so a required
+
+        redaction is a `field_redact` obligation for the enforcement point, and
+
+        a caller that has not declared `field_redact` is refused
+
+        `unsupported_obligation`. A caller that declares NO redaction
+
+        (`capabilities: []`) is refused on each of these planes; on
+
+        Community the MCP passes still return a checksum validator''s masked
+
+        content to it (reachable only through a directly inserted
+
+        `detection_action_overrides` row) until #4122.
+
+
+        A header that is PRESENT and cannot be read is **refused**, never
+
+        treated as absent: degrading a malformed declaration to "legacy caller"
+
+        would go on handing an enforcement point obligations it had just said it
+
+        cannot discharge. The refusal is `400` and its message names this header,
+
+        which matters on `/api/v1/access/evaluation` where the refusal is
+
+        rendered through that surface''s existing `incomplete_evaluation` code and
+
+        the message is the only thing distinguishing a malformed HEADER from a
+
+        malformed body ENVELOPE.
+
+
+        Present more than once is refused: RFC 7230 permits an intermediary to
+
+        join repeated field lines with a comma, and a comma is outside the
+
+        base64 alphabet, so a joined pair can only decode to malformed. That is
+
+        why the document is base64 rather than raw JSON, which would join into
+
+        something a lenient parser might accept.
+
+
+        When a decision carries a **mandatory** obligation the declared set does
+
+        not cover, the request is answered `200` with `verdict: deny` and the
+
+        reason `unsupported_obligation` (ADR-065 invariant 8) - a decision about
+
+        the request, not a transport error. That holds on every edition. An
+
+        Enterprise deployment adds a second reason beginning
+
+        `pep_capability_unsupported` naming the gap, and refuses a checksum
+
+        validator''s mask on the MCP passes; a Community deployment hands that
+
+        masked content over (#4257 split 2, #4122).
+
+        '
+      schema:
+        type: string
+        maxLength: 4096
+        description: base64url (padding optional) of the PEPHandshake document.
+    AxonflowClient:
+      name: X-Axonflow-Client
+      in: header
+      required: false
+      description: 'Optional client-version telemetry header (`<client>/<version>`,
+
+        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
+
+        deployments with the `client_version_telemetry` capability count
+
+        validated values in the `axonflow_client_version_requests_total`
+
+        metric on the decide and MCP check-output planes. Telemetry only —
+
+        never used for authentication or authorization; invalid values are
+
+        ignored.
+
+        '
+      schema:
+        type: string
+        example: mcp-proxy/0.3.1
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

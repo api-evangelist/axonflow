@@ -1,0 +1,1517 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Static Policies API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Static Policies across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: Static Policies
+  description: 'DEPRECATED spelling of System Policies, served at
+
+    `/api/v1/static-policies`.'
+paths:
+  /api/v1/static-policies:
+    get:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: List static policies
+      description: 'Returns static policies with three-tier hierarchy resolution:
+
+        1. **System policies** - Managed by AxonFlow, immutable base
+
+        2. **Organization policies** - Enterprise tier, organization-wide (Enterprise only)
+
+        3. **Tenant policies** - Per-tenant customizations
+
+
+        **v2.0.0 Categories** (semantic naming):
+
+        - `security-sqli` - SQL injection detection (was: sql_injection)
+
+        - `security-admin` - Admin access protection (was: admin_access)
+
+        - `pii-global` - Global PII patterns (was: pii_detection)
+
+        - `pii-us` - US-specific PII (SSN, etc.)
+
+        - `pii-eu` - EU-specific PII (GDPR)
+
+        - `pii-india` - India-specific PII (Aadhaar, PAN)
+
+        - `custom` - Tenant-created policies
+
+
+        Legacy category names are still accepted and automatically mapped.
+
+
+        Part of ADR-019: Unified Policy Management System.'
+      operationId: listStaticPolicies
+      parameters:
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: Page number (1-indexed)
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: page_size
+        in: query
+        description: Number of policies per page
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      - name: category
+        in: query
+        description: 'Filter by policy category. New categories use semantic naming.
+
+          Legacy names (sql_injection, pii_detection, etc.) are still accepted.
+
+          '
+        schema:
+          type: string
+          enum:
+          - security-sqli
+          - security-admin
+          - pii-global
+          - pii-us
+          - pii-eu
+          - pii-india
+          - custom
+          - sql_injection
+          - pii_detection
+          - dangerous_queries
+          - admin_access
+      - name: tier
+        in: query
+        description: Filter by policy tier
+        schema:
+          type: string
+          enum:
+          - system
+          - organization
+          - tenant
+      - name: severity
+        in: query
+        description: Filter by severity level
+        schema:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+      - name: enabled
+        in: query
+        description: Filter by enabled status
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: List of static policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPoliciesListResponse'
+        '400':
+          description: Invalid request body or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Create static policy
+      description: 'Creates a new static policy for the tenant.
+
+
+        **Tier restrictions:**
+
+        - `system` tier: Cannot be created via API (managed by AxonFlow)
+
+        - `organization` tier: Requires Enterprise license
+
+        - `tenant` tier: Default, limited to 20 policies in Community mode
+
+
+        Part of ADR-019: Unified Policy Management System.
+
+
+        **v11:** on a deployment whose database connection cannot write
+
+        `static_policies` (`migrations/core/172`), this route answers
+
+        `409 LEGACY_POLICY_WRITE_FROZEN` before the request body is read,
+
+        whatever it contains, naming the typed authoring route. An
+
+        owner-role deployment still creates.'
+      operationId: createStaticPolicy
+      parameters:
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      - name: X-User-ID
+        in: header
+        required: false
+        description: User ID for audit trail
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStaticPolicyRequest'
+            examples:
+              customPII:
+                summary: Create custom PII detection policy
+                value:
+                  name: Custom Employee ID Detection
+                  description: Detects internal employee ID format
+                  category: custom
+                  tier: tenant
+                  pattern: EMP-[0-9]{6}
+                  action: warn
+                  severity: medium
+                  enabled: true
+                  tags:
+                  - custom
+                  - pii
+                  - employee
+      responses:
+        '201':
+          description: Policy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPolicy'
+        '400':
+          description: Invalid request body or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Operation forbidden (e.g., system tier creation, license required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/static-policies/effective:
+    get:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Get effective policies
+      description: 'Returns all effective policies for a tenant with overrides applied.
+
+
+        This endpoint resolves the three-tier hierarchy:
+
+        1. System policies (base)
+
+        2. Organization overrides (if any)
+
+        3. Tenant overrides (if any)
+
+
+        Used by the Customer Portal for the unified policy view.'
+      operationId: getEffectivePolicies
+      parameters:
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Effective policies with overrides applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectivePoliciesResponse'
+        '400':
+          description: Invalid request body or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/static-policies/test:
+    post:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Test regex pattern
+      description: 'Tests a regex pattern against input strings without creating a policy.
+
+
+        Useful for validating patterns before creating policies.
+
+        Has a 5-second timeout to prevent ReDoS attacks.
+
+
+        The pattern is compiled as written. The engine compiles a stored
+
+        pattern in the SQL-injection and destructive-command categories
+
+        case-insensitively, so for those categories prefix `(?i)` to test
+
+        what the engine matches.'
+      operationId: testStaticPolicyPattern
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestPatternRequest'
+            examples:
+              singleInput:
+                summary: Test against single input
+                value:
+                  pattern: \b[0-9]{3}-[0-9]{2}-[0-9]{4}\b
+                  input: My SSN is 123-45-6789
+              multipleInputs:
+                summary: Test against multiple inputs
+                value:
+                  pattern: \b[0-9]{3}-[0-9]{2}-[0-9]{4}\b
+                  inputs:
+                  - My SSN is 123-45-6789
+                  - No SSN here
+                  - 'Another SSN: 987-65-4321'
+      responses:
+        '200':
+          description: Pattern test results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestPatternResponse'
+        '400':
+          description: Invalid request body or pattern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/static-policies/overrides:
+    get:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: List policy overrides
+      description: 'Lists all policy overrides for a tenant.
+
+
+        Overrides allow Enterprise customers to modify system policy behavior
+
+        (action, enabled status) without changing the underlying pattern.'
+      operationId: listStaticPolicyOverrides
+      parameters:
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      - name: include_expired
+        in: query
+        required: false
+        description: Include expired overrides in results
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: List of policy overrides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyOverridesListResponse'
+        '400':
+          description: Invalid request body or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/static-policies/{id}:
+    get:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Get static policy by ID
+      description: 'Returns a single static policy by its UUID.
+
+
+        The policy ID is the `id` field from the static_policies table,
+
+        not the `policy_id` (human-readable identifier like ''sql_injection_union'').'
+      operationId: getStaticPolicy
+      parameters:
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Static policy UUID
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Static policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPolicy'
+        '400':
+          description: Invalid request body or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Policy not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Update static policy
+      description: 'Updates an existing static policy.
+
+
+        **Restrictions:**
+
+        - System-tier policies cannot be modified (use overrides instead)
+
+        - Pattern changes trigger version increment
+
+
+        **v11:** on a deployment whose database connection cannot write
+
+        `static_policies` (`migrations/core/172`), this route answers
+
+        `409 LEGACY_POLICY_WRITE_FROZEN` before the request body is read and
+
+        before the policy is looked up, whatever it contains, naming the
+
+        typed authoring route. An owner-role deployment still updates.'
+      operationId: updateStaticPolicy
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Static policy UUID
+        schema:
+          type: string
+          format: uuid
+      - name: X-User-ID
+        in: header
+        required: false
+        description: User ID for audit trail
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStaticPolicyRequest'
+      responses:
+        '200':
+          description: Policy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPolicy'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: System policies cannot be modified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Policy not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+    delete:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Delete static policy
+      description: 'Soft-deletes a static policy (sets deleted_at timestamp).
+
+
+        **Restrictions:**
+
+        - System-tier policies cannot be deleted'
+      operationId: deleteStaticPolicy
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Static policy UUID
+        schema:
+          type: string
+          format: uuid
+      - name: X-User-ID
+        in: header
+        required: false
+        description: User ID for audit trail
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Policy deleted successfully
+        '403':
+          description: System policies cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Policy not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+    patch:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Toggle policy enabled status
+      description: 'Toggles the enabled status of a policy.
+
+
+        **Restrictions:**
+
+        - System-tier policies cannot be disabled via this endpoint (use overrides)
+
+
+        **v11:** on a deployment whose database connection cannot write
+
+        `static_policies` (`migrations/core/172`), this route answers
+
+        `409 LEGACY_POLICY_WRITE_FROZEN` before the request body is read and
+
+        before the policy is looked up, whatever it contains, naming the
+
+        typed authoring route. An owner-role deployment still toggles.'
+      operationId: toggleStaticPolicy
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Static policy UUID
+        schema:
+          type: string
+          format: uuid
+      - name: X-User-ID
+        in: header
+        required: false
+        description: User ID for audit trail
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - enabled
+              properties:
+                enabled:
+                  type: boolean
+                  description: New enabled status
+      responses:
+        '200':
+          description: Policy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPolicy'
+        '403':
+          description: System policies cannot be disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Policy not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/static-policies/{id}/versions:
+    get:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Get policy version history
+      description: 'Returns the version history for a policy.
+
+
+        **Edition limits:**
+
+        - Community: Last 5 versions
+
+        - Enterprise: Unlimited history'
+      operationId: getStaticPolicyVersions
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Static policy UUID
+        schema:
+          type: string
+          format: uuid
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Version history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionsResponse'
+        '404':
+          description: Policy not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/static-policies/{id}/override:
+    get:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Get active override for a policy
+      description: 'Returns the active override for a single policy (404 when none).
+
+        `{id}` may be the policy UUID or the human-readable slug - slugs
+
+        are resolved to the canonical UUID before lookup.'
+      operationId: getStaticPolicyOverride
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The active override
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyOverride'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No override exists for this policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+    post:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Create policy override
+      description: 'Retired in v11 (PRD v11 §1.5): a system control is enabled, disabled
+
+        or re-actioned in the organization''s typed document, in its
+
+        `system_controls` section, through `/api/v1/typed-policies`. This
+
+        route writes nothing and does not read a body: it answers `409
+
+        LEGACY_POLICY_WRITE_FROZEN` to every authenticated caller, in every
+
+        edition. The ADR-044 session override writes answer the same refusal
+
+        since v11.0.0 (#4252); the override reads are unaffected.'
+      operationId: createStaticPolicyOverride
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Static policy UUID to override
+        schema:
+          type: string
+          format: uuid
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      - name: X-User-ID
+        in: header
+        required: false
+        description: User ID for audit trail
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOverrideRequest'
+            examples:
+              disablePolicy:
+                summary: Disable a system policy
+                value:
+                  enabled_override: false
+                  override_reason: False positive rate too high for this tenant
+                  expires_at: '2025-06-01T00:00:00Z'
+              changeAction:
+                summary: Change action from block to warn
+                value:
+                  action_override: warn
+                  override_reason: Regulatory requirement to warn instead of block
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/PerPolicyOverrideRetired'
+    delete:
+      deprecated: true
+      tags:
+      - Static Policies
+      summary: Delete policy override
+      description: 'Retired in v11 (PRD v11 §1.5): a system control is enabled, disabled
+
+        or re-actioned in the organization''s typed document, in its
+
+        `system_controls` section, through `/api/v1/typed-policies`. This
+
+        route writes nothing and does not read a body: it answers `409
+
+        LEGACY_POLICY_WRITE_FROZEN` to every authenticated caller, in every
+
+        edition. The ADR-044 session override writes answer the same refusal
+
+        since v11.0.0 (#4252); the override reads are unaffected.'
+      operationId: deleteStaticPolicyOverride
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Static policy UUID
+        schema:
+          type: string
+          format: uuid
+      - name: Authorization
+        in: header
+        required: false
+        description: 'Basic auth credentials: Basic base64(clientId:clientSecret). Required in evaluation/enterprise mode. Optional in community mode (defaults to community tenant).'
+        schema:
+          type: string
+      - name: X-User-ID
+        in: header
+        required: false
+        description: User ID for audit trail
+        schema:
+          type: string
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/PerPolicyOverrideRetired'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  schemas:
+    EffectivePoliciesResponse:
+      type: object
+      description: Effective policies with overrides resolved
+      properties:
+        static:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaticPolicy'
+          description: Static policies with overrides applied
+        tenant_id:
+          type: string
+        organization_id:
+          type: string
+          description: 'The organisation these effective policies were computed for,
+
+            alongside `tenant_id` and `computed_at`. It is metadata about the
+
+            resolution, not an owner of any one policy in the list.
+
+
+            This is the current wire field name and it is not deprecated: it is
+
+            unrelated to a database column of the same name that was retired in
+
+            an earlier release. The two share a name and nothing else.
+
+            '
+        computed_at:
+          type: string
+          format: date-time
+          description: When the effective policies were computed
+    PolicyVersionsResponse:
+      type: object
+      description: Version history for a policy
+      properties:
+        policy_id:
+          type: string
+          description: Policy UUID
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyVersion'
+        count:
+          type: integer
+          description: Number of versions returned
+    PolicyVersion:
+      type: object
+      description: A version snapshot of a policy
+      properties:
+        id:
+          type: string
+          format: uuid
+        policy_id:
+          type: string
+        version:
+          type: integer
+        snapshot:
+          type: object
+          description: Complete policy state at this version
+        change_type:
+          type: string
+          enum:
+          - created
+          - updated
+          - deleted
+          - enabled
+          - disabled
+        change_summary:
+          type: string
+        changed_by:
+          type: string
+        changed_at:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+    PolicyOverridesListResponse:
+      type: object
+      description: List of policy overrides
+      properties:
+        overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyOverride'
+        count:
+          type: integer
+          description: Total number of overrides
+    StaticPolicyPagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+        page_size:
+          type: integer
+          description: Number of items per page
+        total:
+          type: integer
+          description: Total number of policies
+        total_pages:
+          type: integer
+          description: Total number of pages
+    PolicyOverride:
+      type: object
+      description: Override configuration for system policies (Enterprise only)
+      properties:
+        id:
+          type: string
+          description: Override identifier
+        policy_id:
+          type: string
+          description: ID of the policy being overridden
+        policy_type:
+          type: string
+          enum:
+          - static
+          - dynamic
+          description: Type of policy being overridden
+        tenant_id:
+          type: string
+          description: Tenant ID for tenant-level overrides
+        enabled_override:
+          type: boolean
+          description: Override enabled status (null = no override)
+        action_override:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+          description: Override action (must be more restrictive). require_approval triggers HITL queue.
+        override_reason:
+          type: string
+          description: Reason for the override (required for audit)
+        expires_at:
+          type: string
+          format: date-time
+          description: When the override automatically expires
+        created_by:
+          type: string
+          description: User who created the override
+        created_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+          description: User who last updated the override
+        updated_at:
+          type: string
+          format: date-time
+    StaticPolicy:
+      type: object
+      description: 'A static policy with three-tier hierarchy support (v2.0.0).
+
+        System policies are immutable; Organization/Tenant policies can be customized.
+
+        '
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique policy UUID
+        policy_id:
+          type: string
+          description: Human-readable policy identifier (e.g., sys_sqli_union_select)
+          example: sys_sqli_union_select
+        name:
+          type: string
+          description: Display name of the policy
+          example: UNION SELECT Detection
+        description:
+          type: string
+          description: Detailed policy description
+          example: Detects SQL injection attempts using UNION SELECT
+        category:
+          type: string
+          enum:
+          - security-sqli
+          - security-admin
+          - pii-global
+          - pii-us
+          - pii-eu
+          - pii-india
+          - custom
+          description: Policy category (v2.0.0 semantic naming)
+        tier:
+          type: string
+          enum:
+          - system
+          - organization
+          - tenant
+          description: Policy tier in the hierarchy
+          example: system
+        pattern:
+          type: string
+          description: Regex pattern for detection
+          example: (?i)\bUNION\s+(ALL\s+)?SELECT\b
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          description: Policy severity level
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+          description: Action to take when pattern matches. require_approval triggers HITL queue for human oversight.
+        enabled:
+          type: boolean
+          description: Whether policy is active
+        priority:
+          type: integer
+          description: Evaluation priority (higher = evaluated first)
+          example: 1000
+        version:
+          type: integer
+          description: Policy version number
+          example: 1
+        has_override:
+          type: boolean
+          description: Whether this policy has an override (Enterprise only)
+        override:
+          $ref: '#/components/schemas/PolicyOverride'
+        tenant_id:
+          type: string
+          description: Tenant ID (for tenant-tier policies)
+        created_at:
+          type: string
+          format: date-time
+          description: When policy was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When policy was last modified
+      required:
+      - id
+      - policy_id
+      - name
+      - category
+      - pattern
+      - severity
+      - action
+      - enabled
+      - tenant_id
+      - created_at
+      - updated_at
+    CreateOverrideRequest:
+      type: object
+      description: Request body for creating a policy override
+      required:
+      - override_reason
+      properties:
+        action_override:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+          description: Override the policy action
+        enabled_override:
+          type: boolean
+          description: Override the enabled status
+        override_reason:
+          type: string
+          description: Required explanation for audit trail
+        expires_at:
+          type: string
+          format: date-time
+          description: Optional expiration for the override
+    StaticPoliciesListResponse:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaticPolicy'
+          description: List of static policies
+        pagination:
+          $ref: '#/components/schemas/StaticPolicyPagination'
+    UpdateStaticPolicyRequest:
+      type: object
+      description: Request body for updating a static policy (all fields optional)
+      properties:
+        name:
+          type: string
+          description: Display name of the policy
+        description:
+          type: string
+          description: Detailed policy description
+        pattern:
+          type: string
+          description: Regex pattern (only for non-system policies)
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        category:
+          type: string
+          description: 'Policy category. Updates can re-categorise non-system
+
+            policies; system policies stay pinned to their seeded
+
+            category.
+
+            '
+          enum:
+          - security-sqli
+          - security-admin
+          - pii-global
+          - pii-us
+          - pii-eu
+          - pii-india
+          - custom
+        tags:
+          type: array
+          items:
+            type: string
+    CreateStaticPolicyRequest:
+      type: object
+      description: Request body for creating a static policy
+      required:
+      - name
+      - pattern
+      - category
+      - action
+      properties:
+        name:
+          type: string
+          description: Display name of the policy
+          example: Custom Employee ID Detection
+        description:
+          type: string
+          description: Detailed policy description
+        category:
+          type: string
+          enum:
+          - security-sqli
+          - security-admin
+          - pii-global
+          - pii-us
+          - pii-eu
+          - pii-india
+          - custom
+          description: Policy category
+        tier:
+          type: string
+          enum:
+          - organization
+          - tenant
+          description: Policy tier (system not allowed via API). Default is tenant.
+          default: tenant
+        pattern:
+          type: string
+          description: Regex pattern for detection
+          example: EMP-[0-9]{6}
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+          description: Action to take when pattern matches
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          description: Severity level
+        priority:
+          type: integer
+          description: Priority order (lower = higher priority)
+          default: 100
+        enabled:
+          type: boolean
+          description: Whether the policy is active
+          default: true
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+    TestPatternResponse:
+      type: object
+      description: Response from pattern testing
+      properties:
+        valid:
+          type: boolean
+          description: Whether the pattern is valid regex
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              input:
+                type: string
+                description: The input that was tested
+              matched:
+                type: boolean
+                description: Whether the pattern matched
+              matches:
+                type: array
+                items:
+                  type: string
+                description: Captured match groups
+        error:
+          type: string
+          description: Error message if pattern is invalid
+    JSONError:
+      type: object
+      description: 'Middleware-written error envelope (auth middleware 401s, static
+
+        policy API errors). Source of truth:
+
+        `platform/agent/static_policy_api_handlers.go` (writeJSONError).
+
+        One exception on the system-policy routes: the v11 legacy policy
+
+        freeze answers with the same two keys and a STRING code - see the
+
+        `LegacyPolicyWriteFrozen` response.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: HTTP status code
+            message:
+              type: string
+    TestPatternRequest:
+      type: object
+      description: Request body for testing a regex pattern
+      required:
+      - pattern
+      properties:
+        pattern:
+          type: string
+          description: Regex pattern to test
+        input:
+          type: string
+          description: Single input string to test (for backward compatibility)
+        inputs:
+          type: array
+          items:
+            type: string
+          description: Multiple input strings to test
+  responses:
+    PerPolicyOverrideRetired:
+      description: 'Per-policy overrides of system controls are retired in v11 (PRD v11
+
+        §1.5). A system control is enabled, disabled or re-actioned in the
+
+        organization''s typed document, in its `system_controls` section,
+
+        through the typed authoring route (`/api/v1/typed-policies`, in
+
+        `orchestrator-api.yaml`). The route stays registered so a caller is
+
+        told where the write went. It writes nothing, and it answers this in
+
+        every edition and on every database role: `policy_overrides` is not
+
+        revoked by core/172, and no route writes it in v11 (the session
+
+        override writes answer the same refusal since #4252), so the refusal
+
+        is the handler''s. The body is the
+
+        `LegacyPolicyWriteFrozen` envelope: `JSONError` with `code` the string
+
+        `LEGACY_POLICY_WRITE_FROZEN`.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    enum:
+                    - LEGACY_POLICY_WRITE_FROZEN
+                  message:
+                    type: string
+          example:
+            error:
+              code: LEGACY_POLICY_WRITE_FROZEN
+              message: 'Policy overrides are retired in v11: a policy is enabled, disabled or re-actioned in the organization''s typed document (a shipped system control in its system_controls section) through the typed authoring route at /api/v1/typed-policies. Reads on this endpoint are unaffected.'
+    LegacyPolicyWriteFrozen:
+      description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
+
+        INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` from the
+
+        application roles, and this endpoint writes it, so the write is
+
+        refused permanently rather than transiently. It is not an entitlement
+
+        fact: no licence, edition or upgrade changes it. Author policies
+
+        through the typed authoring route (`/api/v1/typed-policies`, in
+
+        `orchestrator-api.yaml`) instead. Reads are unaffected. A deployment
+
+        whose connection may still write the table (the database owner; a
+
+        property of the connection, not of `AXONFLOW_DB_USE_APP_ROLE` alone)
+
+        is not bound by the revoke and does not receive this response. The body
+
+        is the `JSONError` envelope with `code` as the string
+
+        `LEGACY_POLICY_WRITE_FROZEN` rather than the numeric status.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    enum:
+                    - LEGACY_POLICY_WRITE_FROZEN
+                  message:
+                    type: string
+          example:
+            error:
+              code: LEGACY_POLICY_WRITE_FROZEN
+              message: 'The legacy policy tables are read-only in v11: migrations/core/172 revoked write access from the application role, and this endpoint writes them. Author policies through the typed authoring route at /api/v1/typed-policies instead. Reads on this endpoint are unaffected.'
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+  parameters:
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

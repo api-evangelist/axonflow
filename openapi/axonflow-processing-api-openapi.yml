@@ -1,0 +1,745 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Processing API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Processing across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Processing
+  description: Main request processing pipeline
+paths:
+  /api/v1/process:
+    post:
+      tags:
+      - Processing
+      summary: Process orchestrator request
+      description: 'Main processing endpoint. Handles:
+
+        1. Request plane: the anchored engine decides the request; a withheld request answers 403 (see `engine` and `verdict`)
+
+        2. LLM provider routing
+
+        3. Response plane: the anchored engine decides the LLM response (see `engine` and `verdict`)
+
+        4. Audit logging
+
+        5. Metrics collection
+
+
+        **Note**: This endpoint is typically called by the Agent, not directly by clients.
+
+        For MCP queries (`request_type: mcp-query`), routes to the Agent MCP handler.'
+      operationId: processRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrchestratorRequest'
+            examples:
+              llmChat:
+                summary: LLM chat request
+                value:
+                  request_id: req_12345
+                  query: Summarize the quarterly report
+                  request_type: llm_chat
+                  user:
+                    id: 123
+                    email: analyst@company.com
+                    role: analyst
+                    permissions:
+                    - query
+                    - llm_chat
+                    tenant_id: tenant-abc
+                  client:
+                    id: analytics-app
+                    name: Analytics Dashboard
+                    org_id: org-123
+                    tenant_id: tenant-abc
+                  context:
+                    provider: openai
+                    strict_provider: false
+                    model_preference: gpt-4
+                  timestamp: '2025-01-15T10:30:00Z'
+              skipLLM:
+                summary: Skip LLM (testing)
+                value:
+                  request_id: test_001
+                  query: Test query
+                  request_type: llm_chat
+                  skip_llm: true
+                  user:
+                    id: 1
+                    email: test@test.com
+                    role: tester
+                    tenant_id: test-tenant
+                  client:
+                    id: test-client
+                    name: Test
+                    tenant_id: test-tenant
+                  timestamp: '2025-01-15T10:30:00Z'
+      responses:
+        '200':
+          description: Request processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestratorResponse'
+              example:
+                request_id: req_12345
+                success: true
+                data: Here is the quarterly report summary...
+                redacted: false
+                policy_info:
+                  allowed: true
+                  applied_policies:
+                  - rate-limit
+                  - content-filter
+                  risk_score: 0.15
+                  processing_time_ms: 5
+                provider_info:
+                  provider: openai
+                  model: gpt-4
+                  response_time_ms: 1250
+                  tokens_used: 350
+                  cost: 0.021
+                processing_time: 1.3s
+                engine: anchored
+                subject_type: Client
+                policy_bundle: sha256:<the digest of the bundle that decided the response>
+                verdict: allowed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: 'Blocked by policy. When media was submitted the refusal carries
+
+            `media_analysis` (per item `has_pii`, `pii_types`, `scanned`,
+
+            never the extracted text), so a caller can tell a refusal on a
+
+            finding (for example `has_pii: true` beside `scanned` containing
+
+            `pii`) from one on a signal nothing measured (its capability
+
+            absent from `scanned`, `unknown_constraint` in
+
+            `policy_info.required_actions`). Before #4300 a refusal carried
+
+            no `media_analysis`.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestratorResponse'
+              example:
+                request_id: req_12345
+                success: false
+                error: Request blocked by policy
+                policy_info:
+                  allowed: false
+                  applied_policies:
+                  - corpus:dynamic_policies:sys__dyn__debug__restrict
+                  risk_score: 0
+                  required_actions:
+                  - 'blocked: explicit_constraint'
+                processing_time: 8ms
+                engine: anchored
+                subject_type: Client
+                policy_bundle: sha256:<the digest of the bundle that decided the request>
+                verdict: blocked
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    PolicyEvaluationResult:
+      type: object
+      description: 'The policy verdict carried on every orchestrator response. Its property
+
+        SET is held equal to the Go type''s JSON members by
+
+        `TestThePublishedSchemasMatchTheTypesThePlatformMarshals`, which
+
+        compares the two by reflection, so a field added to one and not the
+
+        other fails CI rather than reaching a spec-generated client (#3724).
+
+        The properties are also written in the Go type''s declaration order as a
+
+        courtesy to a reader diffing the two; nothing enforces that, and order
+
+        is not part of the contract.
+
+        '
+      properties:
+        allowed:
+          type: boolean
+        applied_policies:
+          type: array
+          items:
+            type: string
+        risk_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          description: Highest severity among the matched policies.
+        severity_policy_id:
+          type: string
+          description: The policy that contributed `severity`.
+        required_actions:
+          type: array
+          items:
+            type: string
+        processing_time_ms:
+          type: integer
+        database_accessed:
+          type: boolean
+        evaluation_error:
+          type: boolean
+          description: 'Distinguishes **could not govern** from **a policy said block**,
+
+            and is the only signal that does. True when the engine could NOT
+
+            complete evaluation because governance-segment resolution failed
+
+            (a resolver or storage error -- never "the caller belongs to zero
+
+            segments"). `allowed` is always false when this is set, because the
+
+            engine fails CLOSED on that error, so a consumer reading only
+
+            `allowed` still behaves safely; a consumer that audits or alerts
+
+            MUST read this field to tell an availability failure apart from a
+
+            genuine policy match. Before it existed the only signal was the
+
+            magic string `applied_policies: ["segment_resolution_failed"]`.
+
+            '
+        segments_resolved:
+          type: boolean
+          description: 'True only when a resolved, non-empty governance-segment set was
+
+            actually factored into this verdict. False covers every legitimate
+
+            organisation-only case -- no identity supplied, no resolver wired
+
+            (community, or no SCIM), or the caller belongs to zero segments --
+
+            as well as the `evaluation_error` case. None of those are failures:
+
+            the flag exists so a reader of a policy-simulation preview does not
+
+            mistake a legitimate org-only allow for a segment-aware one.
+
+            '
+        applied_policies_detail:
+          type: array
+          description: 'Structured mirror of `applied_policies` carrying each matched
+
+            policy''s risk level and allow_override metadata, without a second
+
+            query. No session override is applied to a result in v11 (#4252).
+
+            '
+          items:
+            $ref: '#/components/schemas/AppliedPolicyDetail'
+        preferred_provider:
+          type: string
+          description: 'LLM provider a matched routing policy prefers. When more than one
+
+            applying route row names one, the LAST applying row in evaluation
+
+            order wins it and the routing reason: rows are walked by priority,
+
+            highest first, then newest first, so the winner is the
+
+            lowest-priority applying row (#4249).
+
+            '
+        allowed_providers:
+          type: array
+          items:
+            type: string
+          description: 'Strict provider allow-list for compliance routing. Failover stays
+
+            within this list. It is the intersection of every applying route
+
+            row''s list, whatever their order; an empty intersection refuses the
+
+            request (`no_compliant_provider`).
+
+            '
+        routing_reason:
+          type: string
+          description: Why routing was changed.
+    ClientContext:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        org_id:
+          type: string
+        tenant_id:
+          type: string
+    ProviderInfo:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum:
+          - openai
+          - azure-openai
+          - anthropic
+          - bedrock
+          - ollama
+          - gemini
+          - mock
+        model:
+          type: string
+        response_time_ms:
+          type: integer
+        tokens_used:
+          type: integer
+        cost:
+          type: number
+    MediaContentRequest:
+      type: object
+      required:
+      - source
+      - mime_type
+      properties:
+        source:
+          type: string
+          enum:
+          - base64
+          - url
+          description: How the media is provided
+        base64_data:
+          type: string
+          description: Base64-encoded image data (required when source=base64)
+        url:
+          type: string
+          format: uri
+          description: URL to image (required when source=url)
+        mime_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - image/gif
+          - image/webp
+          description: Media content type
+    AppliedPolicyDetail:
+      type: object
+      description: 'One structured per-policy match inside `PolicyEvaluationResult`.
+
+        '
+      properties:
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        description:
+          type: string
+        action:
+          type: string
+        risk_level:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+        allow_override:
+          type: boolean
+          description: False if and only if the policy forbids a session override.
+        matched_rule:
+          type: string
+        segment_id:
+          type: string
+          description: 'The governance segment this policy is scoped to, or absent when it
+
+            is not segment-scoped. ATTRIBUTION AND AUDIT ONLY -- it is not an
+
+            override-eligibility signal anywhere: a segment-scoped policy uses
+
+            the same `allow_override` contract as a tenant policy.
+
+            '
+    MediaAnalysisResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaAnalysisItemResponse'
+        total_cost_usd:
+          type: number
+          format: double
+          description: Total cost of media analysis across all items
+        analysis_time_ms:
+          type: integer
+          format: int64
+          description: Total analysis time in milliseconds
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+        region:
+          type: string
+          description: User's region, read by geo-based routing policies.
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
+    OrchestratorResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+        success:
+          type: boolean
+        data:
+          description: Response data
+        error:
+          type: string
+        redacted:
+          type: boolean
+        redacted_fields:
+          type: array
+          items:
+            type: string
+        policy_info:
+          $ref: '#/components/schemas/PolicyEvaluationResult'
+        provider_info:
+          $ref: '#/components/schemas/ProviderInfo'
+        processing_time:
+          type: string
+        media_analysis:
+          description: Media governance analysis results (present when media was submitted and analysed, on an allowed response and on a policy refusal)
+          allOf:
+          - $ref: '#/components/schemas/MediaAnalysisResponse'
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'The engine that decided: `anchored`, the ADR-065 decision plane
+
+            (PRD v11 §1.1). On a request the request plane withholds (403,
+
+            `error` "Request blocked by policy") it names that decision; otherwise
+
+            it names the response plane''s verdict on the LLM response, decided
+
+            over the shared engine''s detector facts. Omitted on an answer no
+
+            anchored decision covers.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the request or response was decided for.
+
+            The orchestrator admits the client credential the agent''s proxy
+
+            authentication forwards, so it is `Client` on every edition.
+
+            Omitted on an answer withheld before a subject was admitted, and
+
+            wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided the request or the
+
+            response. Omitted wherever `subject_type` is.
+
+            '
+        verdict:
+          type: string
+          enum:
+          - allowed
+          - redacted
+          - blocked
+          description: 'The verdict `engine` names: `allowed` (released as the provider
+
+            sent it), `redacted` (released masked, as a `field_redact`
+
+            obligation required; `data` carries the masked content) or
+
+            `blocked` (withheld: `success` is false and `error` says so; a
+
+            request the request plane withholds is always `blocked`). A request
+
+            or response that could not be decided is withheld, never released.
+
+            Omitted wherever `engine` is.
+
+            '
+    OrchestratorRequest:
+      type: object
+      required:
+      - query
+      - user
+      - client
+      properties:
+        request_id:
+          type: string
+          description: Unique request identifier
+        query:
+          type: string
+          description: Query to process
+        request_type:
+          type: string
+          description: Type of request
+        skip_llm:
+          type: boolean
+          default: false
+          description: Skip LLM calls (for testing)
+        user:
+          $ref: '#/components/schemas/UserContext'
+        client:
+          $ref: '#/components/schemas/ClientContext'
+        context:
+          type: object
+          description: "Free-form request metadata. Routing controls:\n- `provider` (string): preferred provider\n- `strict_provider` (boolean, optional): when true, hard-pins `provider` and disables fallback\n  for this request. Default is false unless server env `LLM_STRICT_PROVIDER_DEFAULT=true`.\n"
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaContentRequest'
+          maxItems: 10
+          description: Optional media content (images) for multimodal governance analysis
+    MediaAnalysisItemResponse:
+      type: object
+      properties:
+        media_index:
+          type: integer
+          description: Index of the media item in the request
+        sha256_hash:
+          type: string
+          description: SHA-256 hash of the image data
+        has_faces:
+          type: boolean
+          description: Whether faces were detected
+        face_count:
+          type: integer
+          description: Number of faces detected
+        has_biometric_data:
+          type: boolean
+          description: Whether biometric data was detected (GDPR Art. 9)
+        nsfw_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: NSFW content score (0.0-1.0)
+        violence_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Violence content score (0.0-1.0)
+        content_safe:
+          type: boolean
+          description: Aggregated content safety flag
+        document_type:
+          type: string
+          description: Classified document type (e.g., id_card, passport, bank_statement)
+        is_sensitive_document:
+          type: boolean
+          description: Whether the document is classified as sensitive
+        has_pii:
+          type: boolean
+          description: 'Whether the platform''s PII detectors found PII in text extracted
+
+            from the image. A finding only when `scanned` contains `pii`;
+
+            without it the text was not scanned and `false` says nothing.
+
+            '
+        pii_types:
+          type: array
+          items:
+            type: string
+          description: 'The detectors that found PII, named by their policy id (e.g.
+
+            `sys_pii_ssn`, `sys_pii_email`). Meaningful only when `scanned`
+
+            contains `pii`.
+
+            '
+        has_extracted_text:
+          type: boolean
+          description: Whether text was extracted from the image via OCR (a finding only when `scanned` contains `text`)
+        extracted_text_length:
+          type: integer
+          description: Length of extracted text in characters (0 if none; meaningful only when `scanned` contains `text`)
+        scanned:
+          type: array
+          items:
+            type: string
+            enum:
+            - content_safety
+            - document
+            - faces
+            - pii
+            - text
+          description: 'The analysis capabilities that RAN on this item, sorted. Each
+
+            signal above is a finding only when its capability is listed:
+
+            `content_safety` for `nsfw_score`, `violence_score` and
+
+            `content_safe`; `faces` for `has_faces`, `face_count` and
+
+            `has_biometric_data`; `document` for `document_type` and
+
+            `is_sensitive_document`; `pii` for `has_pii` and `pii_types`;
+
+            `text` for `has_extracted_text` and `extracted_text_length`. A
+
+            signal whose capability is not listed is reported at a default
+
+            that was not measured (`content_safe` as `true`, the others at
+
+            zero); the policy decision reads it as unknown. Empty when no analyzer produced a result for the item.
+
+            '
+          example:
+          - pii
+          - text
+        estimated_cost_usd:
+          type: number
+          format: double
+          description: Estimated analysis cost for this media item
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Governance warnings for this media item
+        structured_warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: Warning code identifier
+              message:
+                type: string
+                description: Human-readable warning message
+          description: Structured governance warnings with codes
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Internal server error
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

@@ -1,0 +1,1506 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Decision Mode API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Decision Mode across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: Decision Mode
+  description: 'Synchronous policy decision endpoint (ADR-056). Called by an
+
+    infrastructure gateway acting as a Policy Enforcement Point (PEP);
+
+    AxonFlow returns a verdict (`allow` or `deny`) and
+
+    the PEP enforces it. Same shared-policy engine as Gateway Mode
+
+    pre-check; difference is the caller.'
+paths:
+  /api/v1/policy-packs/summary:
+    get:
+      tags:
+      - Decision Mode
+      summary: What this agent enforces on an organization, installed policy packs counted…
+      description: 'The count of the policies in force on the decide scope, taken from the
+
+        activation this agent enforces on the organization: its active typed
+
+        document, its recorded detection overrides and the policy packs this
+
+        process installed (#4249). The agent is the only process that loads a
+
+        deployment''s packs, so the orchestrator''s and the customer portal''s
+
+        `GET /api/v1/typed-policies/active/summary` read this to count them.
+
+
+        `packs_counted` is always true here: this process knows which packs
+
+        are installed, so a deployment that installed none, every Community
+
+        one included, answers `pack` 0, a counted zero.
+
+
+        INTERNAL BY ITS CREDENTIAL, NOT ITS PATH. Only the internal-service
+
+        credential (`X-Internal-Service-ID` + `X-Internal-Service-Token`) is
+
+        answered; any other caller, a tenant''s included, gets 401. The
+
+        organization is the one the internal caller names in `X-Org-ID`. The
+
+        route is deliberately not under `/api/v1/typed-policies`, which the
+
+        agent forwards whole to the orchestrator: there it would either shadow
+
+        the tenant summary route with a 401, or send the orchestrator''s read
+
+        back to the orchestrator, which would count no packs and say nothing.'
+      operationId: getPolicyPackSummary
+      security:
+      - InternalServiceID: []
+        InternalServiceToken: []
+      parameters:
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: The organization whose summary is read.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The count of the policies in force, installed packs counted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - success
+                - scope
+                - shipped
+                - organization
+                - pack
+                - packs_counted
+                - disabled
+                - total
+                properties:
+                  success:
+                    type: boolean
+                  scope:
+                    type: string
+                    enum:
+                    - decide
+                  shipped:
+                    type: integer
+                  organization:
+                    type: integer
+                  pack:
+                    type: integer
+                  packs_counted:
+                    type: boolean
+                  disabled:
+                    type: integer
+                  total:
+                    type: integer
+                  not_bound_here:
+                    type: array
+                    items:
+                      type: string
+                  detector_not_run_here:
+                    type: array
+                    description: 'Per control, the registry detector this scope does not
+
+                      run and the planes that do. Every id here is also in
+
+                      `not_bound_here`. Omitted when there are none.
+
+                      '
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        detector:
+                          type: string
+                        runs_on:
+                          type: array
+                          items:
+                            type: string
+        '400':
+          description: Missing X-Org-ID header
+        '401':
+          description: Not the internal-service credential
+        '503':
+          description: What this agent enforces could not be counted; `reason` names the cause (`decision_enforcement_unavailable`, `active_document_unreadable`, `detection_overrides_unreadable`, `summary_unavailable`, or the activation's cause)
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/decide:
+    post:
+      tags:
+      - Decision Mode
+      summary: Policy decision for an infrastructure gateway (PEP)
+      description: 'Decision Mode endpoint (ADR-056 / epic #2426). The customer''s
+
+        infrastructure gateway (Policy Enforcement Point) calls this
+
+        endpoint per request to get a verdict (`allow` or `deny`) and
+
+        enforces the result. AxonFlow is consulted,
+
+        never on the traffic path.
+
+
+        The shared-policy engine behind this endpoint is the same engine
+
+        that backs Gateway Mode''s `POST /api/policy/pre-check`. The
+
+        difference is the caller: Gateway Mode is called by application
+
+        code; Decision Mode is called by an infrastructure gateway.
+
+
+        **M1 scope: static policies only** (PII detection, SQL injection,
+
+        dangerous patterns, RBI India PII, compliance categories) to keep
+
+        the inline RPC budget in single-digit milliseconds. Dynamic/custom
+
+        policy support is M2 scope per the epic.
+
+
+        **OTel trace correlation:** the response carries a W3C-compatible
+
+        32-hex `trace_id`. When the caller passes a `traceparent` header,
+
+        its trace-id is reused so multi-gateway-layer decisions stitch
+
+        into one end-to-end trace. Each decision also emits an OpenTelemetry
+
+        span on the `axonflow.agent.decision` tracer.
+
+
+        **Available at all tiers** (Community through Enterprise) — the
+
+        policy engine is the same one Gateway Mode uses.'
+      operationId: decide
+      parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+      - $ref: '#/components/parameters/AxonflowClient'
+      - $ref: '#/components/parameters/AxonflowPEPHandshake'
+      - in: header
+        name: traceparent
+        description: 'W3C trace-context header. When present and valid, the trace-id
+
+          is reused in the response so multi-layer decisions correlate
+
+          into one end-to-end trace.
+
+          '
+        required: false
+        schema:
+          type: string
+          example: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideRequest'
+            examples:
+              llmStage:
+                summary: LLM-stage decision (most common)
+                value:
+                  stage: llm
+                  caller_identity:
+                    gateway_id: llm-gateway-01
+                    tenant_id: acme-prod
+                  target:
+                    type: llm
+                    model: gpt-4o
+                    provider: openai
+                  query: What is the customer's order status?
+              toolStage:
+                summary: Tool-stage decision (MCP gateway)
+                value:
+                  stage: tool
+                  caller_identity:
+                    gateway_id: mcp-gateway-01
+                    tenant_id: acme-prod
+                  target:
+                    type: tool
+                    tool: postgres.query
+                  query: SELECT name, email FROM customers LIMIT 10
+      responses:
+        '200':
+          description: Decision verdict (allow / deny)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecideResponse'
+              examples:
+                allow:
+                  summary: Verdict allow
+                  value:
+                    verdict: allow
+                    decision_id: f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+                    trace_id: 0af7651916cd43dd8448eb211c80319c
+                    stage: llm
+                    reasons: []
+                    obligations: []
+                    evaluated_policies: []
+                    expires_at: '2026-05-23T10:35:00Z'
+                deny:
+                  summary: Verdict deny (SQLi triggered)
+                  value:
+                    verdict: deny
+                    decision_id: a73e5b1c-2b48-4f2e-a3c4-2e8a3b9f8d1e
+                    trace_id: 0af7651916cd43dd8448eb211c80319c
+                    stage: tool
+                    reasons:
+                    - SQL injection pattern matched
+                    obligations: []
+                    evaluated_policies:
+                    - sys_sqli_union
+                    expires_at: '2026-05-23T10:35:00Z'
+                allowWithRedaction:
+                  summary: Verdict allow with redact obligation
+                  value:
+                    verdict: allow
+                    decision_id: c4e8f1a2-9d3b-4c7e-b8f1-7a2c3d4e5f6a
+                    trace_id: 0af7651916cd43dd8448eb211c80319c
+                    stage: llm
+                    reasons: []
+                    obligations:
+                    - type: redact_pii
+                      detail: SSN detected in query
+                    evaluated_policies:
+                    - sys_pii_ssn
+                    expires_at: '2026-05-23T10:35:00Z'
+                denyUnknownConstraint:
+                  summary: Verdict deny, a constraint that could not be evaluated
+                  value:
+                    verdict: deny
+                    decision_id: 5b1e9c2d-8f4a-4e7b-9c3d-1a2b3c4d5e6f
+                    trace_id: 0af7651916cd43dd8448eb211c80319c
+                    stage: tool
+                    reasons:
+                    - unknown_constraint
+                    - 'ceiling.finance_tools (organization, document version 3) could not be evaluated: no value was supplied for principal.department, which the document requires'
+                    obligations: []
+                    evaluated_policies:
+                    - ceiling.finance_tools
+                    expires_at: '2026-05-23T10:35:00Z'
+        '400':
+          description: Request malformed (invalid JSON or missing required fields).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecideErrorResponse'
+        '401':
+          description: "Authentication failed. THREE distinct causes, and the audit row\ndistinguishes them even though the status code does not.\n\n1. **Credentials.** In non-community mode the `Authorization`\n   header is required and credentials must resolve to a valid\n   client.\n2. **`user_token_rejected`** -- a `user_token` WAS supplied in the\n   request body and failed to validate (malformed, expired, wrong\n   algorithm, bad signature, or revoked by `jti`). The attempt is\n   audited as a blocked decision rather than being refused\n   invisibly. Independent of any org posture.\n3. **`user_token_required`** (#3476) -- NO `user_token` was\n   supplied and the caller's organisation requires one. Off by\n   default: this cause cannot occur unless an operator has set\n   `organizations.require_user_token` for that organisation, or\n   the deployment-wide `AXONFLOW_REQUIRE_USER_TOKEN` default. With\n   the posture off, a token-less enterprise caller is served under\n   a synthetic service identity exactly as before, which is the\n   correct answer for an infrastructure gateway acting as a PEP\n   with no end-user token to forward.\n\nCauses 2 and 3 are recorded as reserved identifiers in the audit\nrow's policy ids and MUST NOT be collapsed into one: they have\nopposite operator remedies (repair the caller's token, versus\nprovision one at all). Query them with JSONB containment against\n`policy_details->'policy_ids'`, never with `LIKE` -- `_` is a\nsingle-character wildcard, so a `%user_token_required%` pattern\nalso matches unrelated prose in the same row.\n\nA per-user token is read from the `user_token` field of the\nrequest body on this endpoint. It is not read from the\n`X-User-Token` header here; that header belongs to a different\nenvelope.\n"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecideErrorResponse'
+        '403':
+          description: '**Tenant assertion mismatch** -- `caller_identity.tenant_id` or
+
+            `caller_identity.org_id` in the body did not match the
+
+            authenticated identity (non-community mode only).
+
+
+            **Token tenant mismatch** -- the tenant of the resolved per-user
+
+            token differs from the client''s tenant. The canonical row records
+
+            it with `security_event` `tenant_mismatch`.
+
+
+            **`segment_resolution_failed` is no longer a cause** (it was one
+
+            from #3456). No segment gate stands here any more. It resolved the
+
+            caller''s governance segments and refused the request when that
+
+            failed, on behalf of an organization''s segment-scoped static rows,
+
+            and those rows no longer decide: the anchored engine authors this
+
+            verdict and reads no segments (PRD v11 §1.1, §1.2).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecideErrorResponse'
+        '429':
+          description: 'Community SaaS tenants past the daily request cap. Only
+
+            emitted on the SaaS surface; self-hosted Community and
+
+            Enterprise deployments do not return 429. The 429 is written
+
+            by the auth middleware **before** the decide handler runs, so
+
+            the body is the shared rate-limit envelope — NOT the
+
+            DecideErrorResponse shape.
+
+            '
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until the daily quota window resets.
+            X-Axonflow-Tier-Limit:
+              schema:
+                type: string
+              description: The tier limit that was hit.
+            X-Axonflow-Upgrade-URL:
+              schema:
+                type: string
+              description: Where to compare/upgrade tiers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitEnvelope'
+        '503':
+          description: 'Circuit breaker is open. The body carries
+
+            `verdict: "deny"` as the fail-closed default; a fail-open
+
+            PEP adapter should treat 5xx as "PDP degraded" and apply
+
+            its configured posture per ADR-056 §Failure posture.
+
+            A `Retry-After` header is included when the breaker has
+
+            a scheduled expiration.
+
+            '
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until the breaker is scheduled to close.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecideErrorResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  parameters:
+    ApprovalId:
+      name: X-Axonflow-Approval-Id
+      in: header
+      required: false
+      description: 'The approval a retry spends (#4370). A call held for a person''s
+
+        approval is answered a `pending_approval` naming an id; once a
+
+        person approves it in the portal, the caller retries the SAME call
+
+        naming that id here (or in the body''s `approval_id` field, for a
+
+        client that cannot set headers - a header and a field naming
+
+        different ids are refused `approval_not_found`).
+
+
+        The retry is decided exactly as the first call was. Only when it is
+
+        again held for approval, and the approval is approved by a person
+
+        who is not the caller, before its expiry, unspent, and granted for
+
+        this very call (the same input, tool, route, requester and
+
+        requirement), does it pass - and the approval is spent: it admits
+
+        exactly one call. A call that is allowed anyway spends nothing; no
+
+        approval lifts a deny. Every other outcome is refused with one of
+
+        the `ApprovalHoldReason` codes. Enterprise; the Community build has
+
+        no approval queue and ignores the header.
+
+
+        WHAT "THE SAME CALL" MEANS. On the MCP routes: the connector, the
+
+        tool, the operation, the statement and its parameters (and the row
+
+        limit on `/mcp/resources/query`). On `/api/v1/decide`: the WHOLE
+
+        request the engine decided - `stage`, `target`, `query` AND
+
+        `context`. A retry that changes any of it is refused
+
+        `bound_input_changed`: resend the same `context`, and carry
+
+        per-request values (request ids, timestamps) in headers, never in
+
+        `context` - the correlation id is a header.
+
+        '
+      schema:
+        type: string
+        format: uuid
+    AxonflowPEPHandshake:
+      name: X-Axonflow-PEP-Handshake
+      in: header
+      required: false
+      description: 'The ADR-065 **PEP capability handshake**: base64url of a compact JSON
+
+        document in which an external enforcement point declares what it is and
+
+        which obligations it can discharge. See `PEPHandshake` for the document.
+
+
+        **Absent is the default and changes nothing.** A caller that omits the
+
+        header takes byte-for-byte the path it took before this header existed.
+
+
+        **What an absent header means for a redaction depends on the plane, by
+
+        design (PRD v11 section 1 item 16, #4257).** The MCP passes discharge a
+
+        redaction of the content they hand back: the request pass
+
+        (`check-input`, `check_policy`) masks the statement, and a redaction
+
+        that masks nothing in the statement is refused `unsupported_obligation`
+
+        to every caller, and one that masks a request parameter to every caller
+
+        that has not declared `field_redact` at version 2 (on Community, to
+
+        every caller) (#4264);
+
+        the response passes (`check-output`, the MCP server''s `check_output`)
+
+        mask the rows or the message. `/api/v1/decide` and the gateway
+
+        pre-check return a decision rather than content, so a required
+
+        redaction is a `field_redact` obligation for the enforcement point, and
+
+        a caller that has not declared `field_redact` is refused
+
+        `unsupported_obligation`. A caller that declares NO redaction
+
+        (`capabilities: []`) is refused on each of these planes; on
+
+        Community the MCP passes still return a checksum validator''s masked
+
+        content to it (reachable only through a directly inserted
+
+        `detection_action_overrides` row) until #4122.
+
+
+        A header that is PRESENT and cannot be read is **refused**, never
+
+        treated as absent: degrading a malformed declaration to "legacy caller"
+
+        would go on handing an enforcement point obligations it had just said it
+
+        cannot discharge. The refusal is `400` and its message names this header,
+
+        which matters on `/api/v1/access/evaluation` where the refusal is
+
+        rendered through that surface''s existing `incomplete_evaluation` code and
+
+        the message is the only thing distinguishing a malformed HEADER from a
+
+        malformed body ENVELOPE.
+
+
+        Present more than once is refused: RFC 7230 permits an intermediary to
+
+        join repeated field lines with a comma, and a comma is outside the
+
+        base64 alphabet, so a joined pair can only decode to malformed. That is
+
+        why the document is base64 rather than raw JSON, which would join into
+
+        something a lenient parser might accept.
+
+
+        When a decision carries a **mandatory** obligation the declared set does
+
+        not cover, the request is answered `200` with `verdict: deny` and the
+
+        reason `unsupported_obligation` (ADR-065 invariant 8) - a decision about
+
+        the request, not a transport error. That holds on every edition. An
+
+        Enterprise deployment adds a second reason beginning
+
+        `pep_capability_unsupported` naming the gap, and refuses a checksum
+
+        validator''s mask on the MCP passes; a Community deployment hands that
+
+        masked content over (#4257 split 2, #4122).
+
+        '
+      schema:
+        type: string
+        maxLength: 4096
+        description: base64url (padding optional) of the PEPHandshake document.
+    AxonflowClient:
+      name: X-Axonflow-Client
+      in: header
+      required: false
+      description: 'Optional client-version telemetry header (`<client>/<version>`,
+
+        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
+
+        deployments with the `client_version_telemetry` capability count
+
+        validated values in the `axonflow_client_version_requests_total`
+
+        metric on the decide and MCP check-output planes. Telemetry only —
+
+        never used for authentication or authorization; invalid values are
+
+        ignored.
+
+        '
+      schema:
+        type: string
+        example: mcp-proxy/0.3.1
+  schemas:
+    DecisionObligation:
+      type: object
+      required:
+      - type
+      description: 'A PEP-side requirement attached to an `allow` verdict. Obligations are
+
+        SELF-DESCRIBING and ENGINE-FULFILLABLE (ADR-056 / ADR-057, #2563):
+
+        `/decide` is a pure PDP and never mutates content, so a `redact_pii`
+
+        obligation is not "redact this yourself with your own patterns" — it is
+
+        "call the AxonFlow engine endpoint named in `fulfillment` to obtain
+
+        engine-redacted content." Client-side redaction is forbidden; the
+
+        blessed client path is `platform/shared/pep`.
+
+        '
+      properties:
+        type:
+          type: string
+          description: 'Obligation kind. Currently emitted: `redact_pii`. Future
+
+            obligations will be added here as needed by PEP adapters.
+
+            '
+          example: redact_pii
+        detail:
+          type: string
+          description: Human-readable detail for audit logs.
+        fulfillment:
+          $ref: '#/components/schemas/ObligationFulfillment'
+    ObligationFulfillment:
+      type: object
+      description: 'Names the engine call a PEP makes to discharge an obligation (since
+
+        8.6.0). Fulfillment is a property of the contract, not of PEP-author
+
+        discipline: a conforming PEP POSTs the obligation''s source content to
+
+        `endpoint` and forwards the engine-redacted content the endpoint
+
+        returns. There is no other blessed way to satisfy a `redact_pii`
+
+        obligation. A PEP holding content of a type NOT in `content_types`
+
+        (e.g. an image awaiting OCR-PII redaction) MUST fail closed rather than
+
+        forward it unredacted.
+
+        '
+      required:
+      - endpoint
+      - method
+      - phase
+      properties:
+        endpoint:
+          type: string
+          description: 'Engine path the PEP POSTs to in order to discharge the obligation.
+
+            For a request-phase `redact_pii` obligation this is
+
+            `/api/v1/mcp/check-input`; the response-phase counterpart is
+
+            `/api/v1/mcp/check-output`. `/decide` runs pre-call, so it only
+
+            ever emits request-phase obligations.
+
+            '
+          example: /api/v1/mcp/check-input
+        method:
+          type: string
+          description: HTTP method to use against `endpoint`.
+          example: POST
+        phase:
+          type: string
+          enum:
+          - request
+          - response
+          description: 'Which content the PEP submits. `request` = the PEP redacts the
+
+            request it is about to forward (the `query` it asked `/decide`
+
+            about); `response` = the PEP redacts a backend response before
+
+            returning it. `/decide` emits only `request` obligations; the
+
+            `response` value is part of the contract for PEP helpers that fan
+
+            out to both phases.
+
+            '
+        content_types:
+          type: array
+          items:
+            type: string
+          description: 'The mime-types `endpoint`''s redaction detectors can handle today
+
+            (e.g. `text/plain`). Deliberately content-type-agnostic: adding a
+
+            modality is a server-side detector registration plus a new entry
+
+            here, not a redesign of this shape.
+
+            '
+          example:
+          - text/plain
+    RateLimitEnvelope:
+      type: object
+      description: 'Shared tier rate-limit envelope written by the Community SaaS
+
+        limiter for daily-quota 429s (the same shape is used with 403 for
+
+        Pro-only feature limits). On the REST routes, per-minute 429s use
+
+        a plain `{"error": "..."}` body with only a Retry-After header —
+
+        not this envelope. On `/api/v1/mcp-server` both limits use it
+
+        (`per_minute` and `daily_quota`, 429, #4261), and so do the
+
+        `tools/call` tier gates (403, #4274) and the tier admission
+
+        refusals on every method (403, or 429 while the admission ledger
+
+        cannot be reached; #4249 row 5682255301), wrapped in a JSON-RPC
+
+        result.
+
+        Accompanied by the `X-Axonflow-Tier-Limit` and
+
+        `X-Axonflow-Upgrade-URL` headers, and by `Retry-After` when the
+
+        limit has a reset time (not for `feature_pro_only`). Source of truth:
+
+        `platform/agent/community_saas_ratelimit_response.go`
+
+        (rateLimitEnvelope).
+
+        '
+      properties:
+        error:
+          type: string
+        limit_type:
+          type: string
+          description: 'Which limiter fired: `daily_quota`, `per_minute` (MCP server
+
+            only), `hitl_approvals_window`,
+
+            `feature_pro_only`, or the refused admission dimension
+
+            (`service_principal` / `human_principal`, MCP server only).
+
+            '
+        tier:
+          type: string
+        limit:
+          type: integer
+        remaining:
+          type: integer
+        window:
+          type: string
+        resets_at:
+          type: string
+          format: date-time
+        upgrade:
+          type: object
+          properties:
+            tier:
+              type: string
+            wording:
+              type: string
+            compare_url:
+              type: string
+            buy_url:
+              type: string
+              description: 'Empty on a tier admission refusal: the V1 buy link is
+
+                Plugin Pro''s, which lifts no edition ceiling.
+
+                '
+        code:
+          type: string
+          description: 'The refusal''s machine-readable code where it has one: a tier
+
+            admission refusal''s `ERR_TIER_LIMIT_<DIMENSION>` (MCP server).
+
+            Omitted on every other limit.
+
+            '
+    DecideErrorResponse:
+      type: object
+      required:
+      - error
+      - verdict
+      properties:
+        error:
+          type: string
+          description: Human-readable error message.
+        verdict:
+          type: string
+          enum:
+          - deny
+          description: 'Always `deny` on error responses. PEP code can treat the
+
+            envelope as a deny verdict for fail-closed enforcement, or
+
+            inspect the HTTP status code to apply a different posture
+
+            (e.g. fail-open on 503).
+
+            '
+        decision_id:
+          type: string
+          format: uuid
+          description: 'Decision ID for the request. Since #2643 the agent mints
+
+            decision_id and trace_id BEFORE decoding the body, so in
+
+            practice both fields are present on every error the decide
+
+            handler writes, including 400s. The fields remain optional
+
+            in the schema (omitted-when-empty on the wire).
+
+            '
+        trace_id:
+          type: string
+          minLength: 32
+          maxLength: 32
+          pattern: ^[0-9a-f]{32}$
+          description: 'W3C trace-id for the request. Minted before body decode
+
+            (see decision_id note) — present on every handler-written
+
+            error in practice; optional in the schema.
+
+            '
+    PolicyIdentity:
+      type: object
+      description: 'One policy a decision matched, as `policy_identities` names it (PRD
+
+        v11 §1.14). An identifier is never presented as a name.
+
+        '
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          description: The policy id, as `evaluated_policies` carries it.
+        name:
+          type: string
+          description: 'The policy''s own display name. Omitted when it declares none.
+
+            '
+        source:
+          type: string
+          enum:
+          - shipped
+          - organization
+          - pack
+          description: 'Whose the policy is: a control the release ships (the system
+
+            corpus, the organization template, the deployment''s baseline
+
+            permission pack, or a recorded override''s replacement of a
+
+            shipped control), the organization''s own published document, or
+
+            an installed policy pack. Omitted for an id the engine did not
+
+            activate - a checksum validator''s (`legacy_validators`).
+
+            '
+        version:
+          type: integer
+          description: 'The version an organization''s own policy (its document''s) or a
+
+            pack''s control (the pack''s) was published at. Omitted for a
+
+            shipped control.
+
+            '
+    DecideResponse:
+      type: object
+      required:
+      - verdict
+      - decision_id
+      - trace_id
+      - obligations
+      - evaluated_policies
+      - expires_at
+      properties:
+        pending_approval:
+          $ref: '#/components/schemas/PendingApproval'
+          description: Set when the call is held for a person's approval (#4370); the verdict is `needs_approval` and nothing may run.
+        approval_id:
+          type: string
+          format: uuid
+          description: On an allow, the approval that admitted this call (#4370).
+        verdict:
+          type: string
+          enum:
+          - allow
+          - deny
+          - needs_approval
+          description: 'The PEP MUST enforce this verdict. `allow` = forward;
+
+            `deny` = block; `needs_approval` = block, and the call is held
+
+            for a person''s approval: `pending_approval` names it and the
+
+            retry spends it (#4370, PRD v11 §1.13). A PEP forwards only on
+
+            `allow`. On an Enterprise deployment with the approval queue
+
+            wired, an anchored CHALLENGE answers `needs_approval`; on the
+
+            Community build, or when no approval could be queued, it is a
+
+            `deny` whose first reason is `approval_required`.
+
+            '
+        decision_id:
+          type: string
+          format: uuid
+          description: 'Fresh UUID per decision. Stable handle for audit-log
+
+            correlation, follow-up explain calls, and PEP-side logging.
+
+            '
+        trace_id:
+          type: string
+          minLength: 32
+          maxLength: 32
+          pattern: ^[0-9a-f]{32}$
+          description: 'W3C trace-context trace-id (32 lowercase hex). When the
+
+            request carried a `traceparent` header, the trace-id is
+
+            reused so multi-gateway-layer decisions stitch into one
+
+            end-to-end trace. Otherwise a fresh trace-id is minted.
+
+            '
+        stage:
+          type: string
+          enum:
+          - llm
+          - tool
+          - agent
+          description: Echo of the request stage, for audit dashboards.
+        reasons:
+          type: array
+          items:
+            type: string
+          description: 'Human-readable reason strings backing the verdict. Empty on
+
+            verdict=allow with no obligations. A deny with reason
+
+            `unknown_constraint` keeps that code as its first entry and
+
+            adds one entry per constraint that could not be evaluated,
+
+            the binding one first:
+
+            `<policy id> (<source>[, document version N]) could not be
+
+            evaluated: <why>`, where the reason names the attributes it
+
+            could not establish.
+
+            The version is `version N` for an installed pack''s policy,
+
+            and a shipped control carries none. An id the activation did
+
+            not activate carries no parentheses, and a constraint whose
+
+            unknown attribute was not recorded says `an attribute it reads`
+
+            in place of the attribute.
+
+            '
+        obligations:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionObligation'
+          description: 'PEP-side requirements that accompany an `allow` verdict
+
+            (e.g. redact PII before forwarding). Always a non-nil array
+
+            so PEP code can iterate without a nil-check.
+
+            '
+        evaluated_policies:
+          type: array
+          items:
+            type: string
+          description: 'Policy IDs that MATCHED during evaluation (not the total
+
+            number of policies considered). Empty when no policy matched,
+
+            except on an indeterminate deny (below). On `deny`, the first
+
+            entry is the blocking policy; the rest (if any) are
+
+            non-blocking matches recorded for audit. On an
+
+            indeterminate deny (reason `unknown_constraint`), the
+
+            constraints that could not be evaluated are the policies that
+
+            decided it: they come first, the binding one first, then
+
+            what matched.
+
+            On `allow` with obligations, the entries are the policies
+
+            that produced the obligation. The full evaluation count
+
+            will be surfaced separately when the explain endpoint
+
+            (`/api/v1/decisions/{id}/explain`) lands.
+
+            '
+        expires_at:
+          type: string
+          format: date-time
+          description: 'When the decision expires. PEPs that cache decisions MUST
+
+            re-call by this timestamp.
+
+            '
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'Which policy engine authored this verdict: the ADR-065 decision
+
+            plane, the only author on this route (PRD v11 §1.1). Omitted
+
+            on a refusal no engine decided - an authentication failure, or a
+
+            request refused before the policy pass ran.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
+
+            `User` for a verified user token, `Client` when the request
+
+            presented no user identity and its client credential is the
+
+            principal. Omitted wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided: the system corpus''s
+
+            restriction for this route and the organization root - the
+
+            organization''s active typed document composed with the
+
+            deployment''s baseline permission pack, or, while it has published
+
+            nothing, the implicit bundle of that pack and the organization
+
+            template. A rollback reinstates an earlier digest. Omitted wherever
+
+            `engine` is.
+
+            '
+        policy_packs:
+          type: array
+          items:
+            type: string
+          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
+
+            into `policy_bundle` on this route, each as `<pack id>@<digest of
+
+            the pack document the deployment instantiated>`, sorted. Omitted
+
+            when the deployment installs no pack or none binds on this route.
+
+            '
+        policy_identities:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyIdentity'
+          description: 'Each entry of `evaluated_policies`, in the same order, named (PRD
+
+            v11 §1.14): the policy''s own display name where it has one, whose
+
+            it is, and for an organization''s own policy or an installed pack''s
+
+            the version it was published at. A shipped control carries no
+
+            version: `policy_bundle` identifies it. Additive:
+
+            `evaluated_policies` stays a list of ids. Omitted when
+
+            `evaluated_policies` is empty.
+
+            '
+        document_version:
+          type: integer
+          description: 'The published version of the organization''s active typed
+
+            document (PRD v11 §1.14). Omitted while the organization has
+
+            published nothing: `policy_bundle` names that implicit bundle by
+
+            digest.
+
+            '
+        legacy_validators:
+          type: array
+          description: 'A checksum validator that acted BEFORE the anchored engine decided
+
+            (#4122): under an organization''s recorded `pii=block` or
+
+            `pii=redact` detection override, the Indonesia or India validator
+
+            blocked the request or masked the response ahead of the decision
+
+            plane. Omitted when none did, which is every request without
+
+            such an override.
+
+            '
+          items:
+            type: object
+            required:
+            - validator
+            - action
+            properties:
+              validator:
+                type: string
+                enum:
+                - indonesia_pii
+                - india_pii
+              action:
+                type: string
+                enum:
+                - blocked
+                - masked
+    DecisionTarget:
+      type: object
+      description: What the gateway is about to call.
+      properties:
+        type:
+          type: string
+          description: 'What kind of thing is being called: `llm`, `tool`, `agent`, or
+
+            `http` (an LLM-shaped target under the transport name the ext_proc
+
+            and ext_authz seams send).
+
+
+            `tool` IS LOAD-BEARING, not descriptive. It is the only value for
+
+            which the platform records `server` and `tool` as the decision''s
+
+            tool attribution -- onto the audit row (`policy_details.tool_server`
+
+            / `.tool_name`) and into the descriptor a human approver sees on a
+
+            HITL queue entry. A tool call sent under any other value is decided
+
+            and enforced exactly the same way, and its audit row carries neither
+
+            field: a complete-looking record that does not say which tool it was
+
+            about. Matching is case-insensitive, so `TOOL` and `Tool` are the
+
+            same value; there is no second accepted WORD and no alias (#3717).
+
+
+            Capability-scoped policy evaluation is a separate question and is
+
+            NOT offered for every tool target. A target that also names a
+
+            `server` describes a call the caller routes to a backend it does not
+
+            itself execute, so its `tool` is not used to relax evaluation --
+
+            those requests always get full evaluation.
+
+
+            SO SETTING `server` IS A TRADE, AND IT IS THE SAFE DIRECTION OF ONE:
+
+            it is what puts `tool_server` on the audit row, and it also opts the
+
+            request out of any evaluation relaxation. It cannot weaken
+
+            enforcement. What it costs is false positives on prose that looks
+
+            like a statement, and the ADR-065 shadow comparison''s tool label,
+
+            which follows the scoping key and is empty for these requests. Audit
+
+            attribution, the HITL descriptor and the FinCrime scoring context
+
+            all still carry the tool name.
+
+            '
+        model:
+          type: string
+          description: Model identifier when type is llm.
+          example: gpt-4o
+        provider:
+          type: string
+          description: Provider identifier when type is llm.
+          example: openai
+        server:
+          type: string
+          description: Server/connector identifier when type is tool (#2904).
+          example: postgres
+        tool:
+          type: string
+          description: Tool identifier when type is tool.
+          example: query
+    DecisionCallerIdentity:
+      type: object
+      description: 'Gateway-asserted caller identity. `org_id` and `tenant_id` are
+
+        OPTIONAL in the body -- the auth-derived identity from
+
+        `apiAuthMiddleware` is authoritative. In non-community mode,
+
+        body-supplied values MUST match the authenticated identity or
+
+        the request is rejected with HTTP 403.
+
+        '
+      properties:
+        gateway_id:
+          type: string
+          description: Identifier of the calling gateway (PEP), for audit trail.
+        org_id:
+          type: string
+          description: 'Org scope for the decision. In non-community mode, must match
+
+            the authenticated identity if supplied.
+
+            '
+        tenant_id:
+          type: string
+          description: 'Tenant scope for the decision. In non-community mode, must
+
+            match the authenticated identity if supplied.
+
+            '
+    DecideRequest:
+      type: object
+      required:
+      - stage
+      - query
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: 'The approval a retry spends (#4370), for a client that cannot set
+
+            the `X-Axonflow-Approval-Id` header (see that parameter). Never
+
+            part of what the approval binds.
+
+            '
+        stage:
+          type: string
+          enum:
+          - llm
+          - tool
+          - agent
+          description: 'Which gateway layer is calling. Maps to ADR-056''s three-layer
+
+            reference architecture (agent / MCP / LLM).
+
+            '
+        caller_identity:
+          $ref: '#/components/schemas/DecisionCallerIdentity'
+        target:
+          $ref: '#/components/schemas/DecisionTarget'
+        query:
+          type: string
+          minLength: 1
+          description: The request body / prompt / statement being decided on.
+        user_token:
+          type: string
+          description: 'Optional end-user JWT for audit identity. PEP gateways are
+
+            typically services and may omit this field -- in enterprise
+
+            mode the platform synthesizes a service identity for the
+
+            audit row when no token is supplied. Supplying a token gets
+
+            the validated-user record on the audit row instead.
+
+            '
+        context:
+          type: object
+          additionalProperties: true
+          description: 'Part of what an approval binds (#4370): a retry naming an
+
+            approval must send the same `context`, or it is refused
+
+            `bound_input_changed` - keep per-request values (request ids,
+
+            timestamps) in headers.
+
+
+            Optional caller-supplied context (string values) that AxonFlow
+
+            propagates end-to-end into the decision audit record + the OTel
+
+            decision span, so a SIEM can correlate the decision with upstream
+
+            logs (e.g. by session_id). Intended for infrastructure-gateway
+
+            audit headers such as `X-AI-Agent`, `X-Session-ID`,
+
+            `X-Leader-Identity`, and a tenant-scoped header family.
+
+
+            Only keys matching the server''s allowlist
+
+            (`AXONFLOW_DECISION_CONTEXT_ALLOWLIST`; the default covers common
+
+            agent / session / leader identity headers plus a tenant-scoped
+
+            header family, where a trailing `*` is a prefix match) are
+
+            persisted; all other keys are
+
+            silently dropped. Surviving keys are canonicalized to
+
+            lower_snake_case (`X-AI-Agent` → `x_ai_agent`) so joins are
+
+            deterministic regardless of header casing. Non-string values are
+
+            dropped; values are capped at 256 bytes and the map at 10 keys
+
+            (surplus dropped, flagged `context_truncated`). The persisted map
+
+            is returned (full) by `GET /api/v1/decisions/{id}/explain` and
+
+            (truncated to 5 keys) by `GET /api/v1/decisions`.
+
+            '
+        fulfillment_capabilities:
+          type: array
+          items:
+            type: string
+            enum:
+            - request_body_redaction
+            - request_header_mutation
+          description: "What this PEP's **seam** can mechanically do to a request before\nforwarding it. A different axis from the capability handshake, which\ndeclares which OBLIGATIONS the enforcement point can discharge:\n`request_header_mutation` has no obligation type at all, and\n`immutable_audit` has no seam mechanic, so neither list is derivable\nfrom the other.\n\nThree wire states, three meanings:\n\n* **member omitted** - a legacy (pre-9.11.0) caller. Obligations are\n  emitted exactly as before.\n* **`[]`** - still a **legacy caller**, deliberately. These bytes\n  have always been acceptable to the server and any non-Go client\n  could send them, so giving them a new meaning would move an\n  unchanged caller from \"obligation emitted, the PEP fails closed\"\n  to \"obligation suppressed, organization fallback posture\" - default\n  `log`, i.e. allowed without the redaction. Since v10.4.0 the state\n  is representable in the Go client and distinguishable in the type;\n  its reading is unchanged.\n* **non-empty** - only the obligations these capabilities can\n  discharge are emitted; the organization's obligation-fallback\n  posture decides what happens to any the platform suppresses.\n\nUnknown values are ignored, never an error and never a block, so an\nolder platform meeting a newer PEP's vocabulary degrades instead of\nfailing.\n"
+    PendingApproval:
+      type: object
+      description: 'A call held for a person''s approval (#4370, PRD v11 §1.13). Pending
+
+        is NOT allow: nothing ran, and the enforcement point must not
+
+        forward. An approver approves the queue entry in the portal
+
+        (Approvals), and the caller retries the same call naming
+
+        `approval_id` (see the `X-Axonflow-Approval-Id` parameter).
+
+
+        The approval expires at `expires_at`: the approval requirement''s
+
+        own deadline, which the engine stamps 15 minutes after the decision
+
+        on v11. It is never extended; a retry after it is refused
+
+        `approval_expired`.
+
+        '
+      required:
+      - approval_id
+      - status
+      - plane
+      - retry
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: The queue entry's id; the retry names it.
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          description: '`pending`: nobody has decided it yet. `approved`: a person
+
+            approved it and it is waiting for this caller''s retry, which
+
+            must name the id.
+
+            '
+        plane:
+          type: string
+          enum:
+          - mcp:request
+          - decide
+        expires_at:
+          type: string
+          format: date-time
+          description: When the approval lapses. Omitted on a retry of a still-pending approval.
+        retry:
+          type: object
+          required:
+          - header
+          properties:
+            header:
+              type: string
+              enum:
+              - X-Axonflow-Approval-Id
+            argument:
+              type: string
+              enum:
+              - approval_id
+              description: The MCP tool argument / MCP route body field that carries the id.
+            body_field:
+              type: string
+              enum:
+              - approval_id
+              description: The decide request field that carries the id.
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

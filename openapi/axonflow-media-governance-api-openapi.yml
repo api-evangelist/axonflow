@@ -1,0 +1,384 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Media Governance API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Media Governance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Media Governance
+  description: 'Multimodal image governance for LLM requests.
+
+    Analyzes images for PII (via OCR), content safety, face/biometric detection, and document classification.
+
+    Community tier provides fail-open governance with audit trail.
+
+    Enterprise tier adds configurable enforcement and cloud analyzers.'
+paths:
+  /api/v1/media-governance/config:
+    get:
+      tags:
+      - Media Governance
+      summary: Get media governance configuration
+      description: Returns the media governance configuration for the current tenant.
+      operationId: getMediaGovernanceConfig
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Media governance configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaGovernanceConfig'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '500':
+          $ref: '#/components/responses/CodedInternalError'
+    put:
+      tags:
+      - Media Governance
+      summary: Update media governance configuration
+      description: 'Updates media governance configuration. Enterprise tier only.
+
+        Community and Evaluation tiers receive a 403 TIER_RESTRICTED response.
+
+        System media policies are stored in the legacy `dynamic_policies`
+
+        table. Before v11 they were toggled on or off, on every tier, through
+
+        the Tenant Policy API (`/api/v1/tenant-policies`, deprecated spelling
+
+        `/api/v1/dynamic-policies`); in v11 that write answers
+
+        `409 LEGACY_POLICY_WRITE_FROZEN`, because `migrations/core/172` made the
+
+        table read-only to the application roles.'
+      operationId: updateMediaGovernanceConfig
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaGovernanceConfigUpdate'
+      responses:
+        '200':
+          description: Updated configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaGovernanceConfig'
+        '400':
+          $ref: '#/components/responses/CodedBadRequest'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '403':
+          $ref: '#/components/responses/CodedForbidden'
+        '500':
+          $ref: '#/components/responses/CodedInternalError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/media-governance/status:
+    get:
+      tags:
+      - Media Governance
+      summary: Get media governance feature status
+      description: Returns the media governance feature availability for the current license tier.
+      operationId: getMediaGovernanceStatus
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Media governance status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaGovernanceStatus'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '500':
+          $ref: '#/components/responses/CodedInternalError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/media-governance/audit/export:
+    get:
+      tags:
+      - Media Governance
+      summary: Export media governance audit trail (Enterprise)
+      description: 'Exports the media governance audit trail (image analyses, policy
+
+        actions, block decisions) for the tenant as JSON or CSV.
+
+
+        **Enterprise only** — non-paid tiers receive 403
+
+        (`ENTERPRISE_REQUIRED`). Tenant scope comes from the `X-Tenant-ID`
+
+        header. The export is capped at 10,000 rows, newest first.'
+      operationId: exportMediaGovernanceAudit
+      parameters:
+      - $ref: '#/components/parameters/TenantIDHeader'
+      - name: from
+        in: query
+        required: false
+        description: Window start (RFC3339). Defaults to 7 days ago.
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        description: Window end (RFC3339). Defaults to now.
+        schema:
+          type: string
+          format: date-time
+      - name: format
+        in: query
+        required: false
+        description: Export format
+        schema:
+          type: string
+          enum:
+          - json
+          - csv
+          default: json
+      responses:
+        '200':
+          description: 'Audit export. CSV columns: request_id, tenant_id, timestamp,
+
+            media_type, blocked, policy_actions (JSON-encoded array).
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaAuditRecord'
+                  tenant_id:
+                    type: string
+                  from:
+                    type: string
+                    format: date-time
+                  to:
+                    type: string
+                    format: date-time
+                  count:
+                    type: integer
+            text/csv:
+              schema:
+                type: string
+        '400':
+          description: Missing X-Tenant-ID (MISSING_TENANT_ID) or invalid from/to/format
+        '403':
+          description: Requires Enterprise license (ENTERPRISE_REQUIRED)
+        '500':
+          description: Query failure (QUERY_ERROR)
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  responses:
+    CodedInternalError:
+      description: Internal server error (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Internal server error
+    CodedUnauthorized:
+      description: Unauthorized - missing or invalid organization scope (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Organization ID required
+    CodedForbidden:
+      description: Forbidden - insufficient permissions or enterprise license required (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Enterprise license required
+    CodedBadRequest:
+      description: Invalid request (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: INVALID_INPUT
+              message: connector_name is required
+  parameters:
+    TenantIDHeader:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier scoping the request. The AxonFlow Agent gateway
+
+        sets this header after authentication; the orchestrator fails closed
+
+        when it is absent (401 on audit/decision endpoints, 400 on others —
+
+        see each operation). Clients cannot widen their scope through it:
+
+        handlers force the tenant filter from this header, never from the
+
+        request body.
+
+        '
+      schema:
+        type: string
+      example: travel-us
+  schemas:
+    MediaGovernanceConfigUpdate:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Enable or disable media governance
+        allowed_analyzers:
+          type: array
+          items:
+            type: string
+          description: Restrict to specific analyzer types
+    MediaGovernanceStatus:
+      type: object
+      properties:
+        available:
+          type: boolean
+          description: Whether media governance is available for the current tier
+        enabled_by_default:
+          type: boolean
+          description: Whether media governance is enabled by default for the current tier
+        per_tenant_control:
+          type: boolean
+          description: Whether per-tenant configuration is available
+        tier:
+          type: string
+          description: Current license tier
+    CodedErrorResponse:
+      type: object
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+
+        screaming-snake string enum. This is what the per-handler `writeError`
+
+        methods emit across the policy API, the LLM provider API, the agents,
+
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
+
+
+        It is one of TWO error SHAPES this document describes. `code` is a
+
+        STRING on this envelope; it is never an HTTP status integer.
+
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+
+        the five values the LLM-provider handlers emit.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
+    MediaAuditRecord:
+      type: object
+      description: One media-governance audit row
+      properties:
+        request_id:
+          type: string
+        tenant_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        media_type:
+          type: string
+        analysis_results:
+          type: object
+          additionalProperties: true
+        policy_actions:
+          type: array
+          items:
+            type: string
+        blocked:
+          type: boolean
+    MediaGovernanceConfig:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          description: Tenant identifier
+        enabled:
+          type: boolean
+          description: Whether media governance is enabled for this tenant
+        allowed_analyzers:
+          type: array
+          items:
+            type: string
+          description: List of allowed analyzer types (empty means all available)
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        updated_by:
+          type: string
+          description: User who last updated the configuration
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

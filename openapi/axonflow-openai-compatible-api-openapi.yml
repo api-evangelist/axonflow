@@ -1,0 +1,486 @@
+openapi: 3.2.0
+info:
+  title: Axonflow OpenAI Compatible API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged OpenAI Compatible across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: OpenAI Compatible
+  description: 'OpenAI-compatible gateway endpoint (Issue #2351). Accepts standard
+
+    OpenAI Chat Completions requests, runs AxonFlow policy checks, forwards
+
+    to the upstream provider, records audit, and returns an OpenAI-compatible
+
+    response. Customers change only `baseURL` in their OpenAI SDK setup.'
+paths:
+  /v1/chat/completions:
+    post:
+      tags:
+      - OpenAI Compatible
+      summary: OpenAI-compatible chat completions with policy enforcement
+      description: 'Accepts a standard OpenAI Chat Completions request, decides it with
+
+        the ADR-065 decision plane (PRD v11 §1.1; #4092) - the shared policy
+
+        engine''s detectors are its input - forwards an allowed request to the
+
+        upstream provider, records audit (tokens, cost, latency, policy
+
+        decision), and returns an OpenAI-compatible response.
+
+
+        The route carries no per-user identity, so every request is decided
+
+        for its client credential (`Client`). OpenAI''s `user` request member
+
+        is NOT honoured as an identity: it is free text the caller chooses,
+
+        and a principal is never taken from it.
+
+
+        The caller passes their upstream provider API key via the
+
+        `X-Provider-Key` header. AxonFlow auth (Basic Auth or community
+
+        mode) is handled by the same `apiAuthMiddleware` as all other
+
+        agent endpoints.
+
+
+        Streaming (`stream: true`) is not supported in this release and
+
+        returns HTTP 400 with a clear error.'
+      operationId: chatCompletionsOpenAICompat
+      parameters:
+      - name: X-Provider-Key
+        in: header
+        required: true
+        description: Upstream LLM provider API key (e.g. OpenAI API key)
+        schema:
+          type: string
+      - name: traceparent
+        in: header
+        required: false
+        description: W3C traceparent header for trace correlation
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+            example:
+              model: gpt-4o
+              messages:
+              - role: user
+                content: What is 2+2?
+              temperature: 0.7
+              max_tokens: 100
+      responses:
+        '200':
+          description: Successful completion
+          headers:
+            X-AxonFlow-Decision-Id:
+              description: UUID correlating this request in audit logs
+              schema:
+                type: string
+                format: uuid
+            X-AxonFlow-Trace-Id:
+              description: W3C-compatible 32-hex trace ID for OTel correlation
+              schema:
+                type: string
+                pattern: ^[0-9a-f]{32}$
+            X-AxonFlow-Engine:
+              description: The engine that decided - `anchored`, the ADR-065 decision plane. Absent when no engine decided.
+              schema:
+                type: string
+                enum:
+                - anchored
+            X-AxonFlow-Subject-Type:
+              description: The type of principal decided for - `Client`, the client credential this route evaluates.
+              schema:
+                type: string
+            X-AxonFlow-Policy-Bundle:
+              description: The digest of the policy set that decided (see `DecideResponse.policy_bundle`).
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+        '400':
+          description: 'Request validation error or policy denial. Policy denials
+
+            use `type: "policy_violation"` and `code: "policy_denied"`.
+
+            The OpenAI SDK parses this as `openai.BadRequestError`.
+
+            '
+          headers:
+            X-AxonFlow-Decision-Id:
+              description: UUID correlating this request in audit logs
+              schema:
+                type: string
+                format: uuid
+            X-AxonFlow-Trace-Id:
+              description: W3C-compatible 32-hex trace ID
+              schema:
+                type: string
+            X-AxonFlow-Engine:
+              description: The engine that decided - `anchored`, the ADR-065 decision plane. Absent when no engine decided.
+              schema:
+                type: string
+                enum:
+                - anchored
+            X-AxonFlow-Subject-Type:
+              description: The type of principal decided for - `Client`, the client credential this route evaluates.
+              schema:
+                type: string
+            X-AxonFlow-Policy-Bundle:
+              description: The digest of the policy set that decided (see `DecideResponse.policy_bundle`).
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAIErrorResponse'
+              examples:
+                policy_denied:
+                  summary: Policy violation (PII detected)
+                  value:
+                    error:
+                      message: 'Request blocked by policy: PII detected'
+                      type: policy_violation
+                      code: policy_denied
+                stream_not_supported:
+                  summary: Streaming not supported
+                  value:
+                    error:
+                      message: 'Streaming is not supported in this release. Remove stream: true.'
+                      type: invalid_request_error
+                      code: stream_not_supported
+                missing_provider_key:
+                  summary: Missing provider key
+                  value:
+                    error:
+                      message: X-Provider-Key header is required.
+                      type: invalid_request_error
+                      code: missing_provider_key
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: 'No engine could decide the request: no enforcer is wired, the
+
+            organization''s policy document cannot be read or activated, or the
+
+            identity plane cannot establish the request''s subject. The request
+
+            is refused, never forwarded ungoverned, and the body is an OpenAI
+
+            error.
+
+            '
+          headers:
+            X-AxonFlow-Decision-Id:
+              description: UUID correlating this request in audit logs
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAIErrorResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+  schemas:
+    OpenAIErrorResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - message
+          - type
+          properties:
+            message:
+              type: string
+              description: Human-readable error message.
+            type:
+              type: string
+              description: Error type (policy_violation, invalid_request_error, etc.).
+              enum:
+              - policy_violation
+              - invalid_request_error
+              - authentication_error
+              - server_error
+            param:
+              type:
+              - string
+              - 'null'
+            code:
+              type: string
+              description: Machine-readable error code.
+              example: policy_denied
+    ChatCompletionRequest:
+      type: object
+      required:
+      - model
+      - messages
+      properties:
+        model:
+          type: string
+          description: ID of the model to use (e.g. gpt-4o, gpt-4o-mini).
+          example: gpt-4o
+        messages:
+          type: array
+          items:
+            type: object
+            required:
+            - role
+            - content
+            properties:
+              role:
+                type: string
+                enum:
+                - system
+                - user
+                - assistant
+                - tool
+              content:
+                description: Message content (string or array for multimodal).
+              name:
+                type: string
+              tool_calls:
+                type: array
+                items:
+                  type: object
+              tool_call_id:
+                type: string
+          minItems: 1
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+        top_p:
+          type: number
+        max_tokens:
+          type: integer
+        max_completion_tokens:
+          type: integer
+        stream:
+          type: boolean
+          description: 'Must be false or omitted. Streaming is not supported in this
+
+            release; setting stream=true returns HTTP 400.
+
+            '
+        stop:
+          description: Up to 4 stop sequences.
+        presence_penalty:
+          type: number
+        frequency_penalty:
+          type: number
+        user:
+          type: string
+        response_format:
+          type: object
+        seed:
+          type: integer
+        tools:
+          type: array
+          items:
+            type: object
+        tool_choice:
+          description: Tool choice configuration.
+    ChatCompletionResponse:
+      type: object
+      required:
+      - id
+      - object
+      - created
+      - model
+      - choices
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the completion.
+          example: chatcmpl-abc123
+        object:
+          type: string
+          enum:
+          - chat.completion
+        created:
+          type: integer
+          description: Unix timestamp of creation.
+        model:
+          type: string
+          description: Model used for the completion.
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              message:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  content:
+                    type:
+                    - string
+                    - 'null'
+                  tool_calls:
+                    type: array
+                    items:
+                      type: object
+              finish_reason:
+                type:
+                - string
+                - 'null'
+                enum:
+                - stop
+                - length
+                - tool_calls
+                - content_filter
+                - null
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            completion_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+        system_fingerprint:
+          type: string
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

@@ -1,0 +1,1509 @@
+openapi: 3.2.0
+info:
+  title: Axonflow RBI Compliance API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged RBI Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: RBI Compliance
+  description: 'RBI FREE-AI Framework compliance for Indian banking institutions.
+
+    Enterprise feature providing AI System Registry, Model Validation,
+
+    Incident Management, Kill Switch, Board Reporting, and Audit Export.'
+paths:
+  /api/v1/rbi/dashboard:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get RBI compliance dashboard
+      description: Returns RBI FREE-AI Framework compliance dashboard with module health status.
+      operationId: getRBIDashboard
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  module:
+                    type: string
+                  components:
+                    type: object
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/ai-systems:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List AI systems
+      description: 'List all registered AI systems for the organization.
+
+        Per RBI FREE-AI: All AI systems must be registered with board approval.'
+      operationId: listAISystems
+      parameters:
+      - name: risk_category
+        in: query
+        schema:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+      - name: deployment_status
+        in: query
+        schema:
+          type: string
+          enum:
+          - development
+          - sandbox
+          - canary
+          - production
+          - deprecated
+      responses:
+        '200':
+          description: List of AI systems
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RBIAISystem'
+    post:
+      tags:
+      - RBI Compliance
+      summary: Register AI system
+      description: Register a new AI system in the RBI compliance registry.
+      operationId: createAISystem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RBIAISystemCreate'
+      responses:
+        '201':
+          description: AI system created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBIAISystem'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/ai-systems/{id}:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get AI system
+      operationId: getAISystem
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: AI system details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBIAISystem'
+    patch:
+      tags:
+      - RBI Compliance
+      summary: Update AI system
+      description: 'Partial update: only the members present in the body are applied.
+
+
+        PATCH, not PUT. Until #3935 this operation was documented as PUT and
+
+        registered as PUT, and the handler implemented only PATCH - so the
+
+        published contract and the router agreed with each other, both
+
+        disagreed with the code, and every update answered 405.'
+      operationId: updateAISystem
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: The AI system's identifier.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RBIAISystemCreate'
+      responses:
+        '200':
+          description: AI system updated
+    delete:
+      tags:
+      - RBI Compliance
+      summary: Delete AI system
+      operationId: deleteAISystem
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: AI system deleted
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/validations:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List model validations
+      description: List model validation records per RBI FREE-AI Section 3.2.
+      operationId: listValidations
+      responses:
+        '200':
+          description: List of validations
+    post:
+      tags:
+      - RBI Compliance
+      summary: Create validation record
+      operationId: createValidation
+      responses:
+        '201':
+          description: Validation created
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/incidents:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List AI incidents
+      description: List AI incidents per RBI FREE-AI incident management requirements.
+      operationId: listIncidents
+      responses:
+        '200':
+          description: List of incidents
+    post:
+      tags:
+      - RBI Compliance
+      summary: Report AI incident
+      operationId: createIncident
+      responses:
+        '201':
+          description: Incident created
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/killswitches:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List kill switches
+      description: List active and inactive kill switches for emergency AI disable.
+      operationId: listKillSwitches
+      responses:
+        '200':
+          description: List of kill switches
+    post:
+      tags:
+      - RBI Compliance
+      summary: Activate kill switch
+      description: 'Emergency kill switch activation per RBI FREE-AI guidelines.
+
+        Immediately halts all AI operations for specified scope.'
+      operationId: activateKillSwitch
+      responses:
+        '201':
+          description: Kill switch activated
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/killswitches/{id}/deactivate:
+    post:
+      tags:
+      - RBI Compliance
+      summary: Deactivate kill switch
+      operationId: deactivateKillSwitch
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Kill switch deactivated
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/reports:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List board reports
+      description: List board reports per RBI FREE-AI Section 6.1 requirements.
+      operationId: listBoardReports
+      responses:
+        '200':
+          description: List of reports
+    post:
+      tags:
+      - RBI Compliance
+      summary: Generate board report
+      operationId: createBoardReport
+      responses:
+        '201':
+          description: Report generation started
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/audit-exports:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List audit exports
+      description: List audit exports with retention per RBI FREE-AI requirements.
+      operationId: listAuditExports
+      parameters:
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: 'Organization scope for this request. Stamped by the AxonFlow Agent
+
+          gateway from the cryptographically validated client credential
+
+          (Set, not Add, so any client-supplied value is overwritten), so it
+
+          is not client-selectable and carries no cross-org override
+
+          capability on this route. The orchestrator fails closed with 401
+
+          when it is absent or blank; there is no query-string equivalent.
+
+          '
+        schema:
+          type: string
+        example: travel-us
+      - $ref: '#/components/parameters/LimitParam'
+      - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: List of exports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RBIAuditExport'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+    post:
+      tags:
+      - RBI Compliance
+      summary: Create audit export
+      description: 'Create a new RBI audit export. Supports full or incremental exports in JSON, CSV, or XML format.
+
+        When cloud storage is configured, exports are uploaded to S3/GCS/Azure and a presigned download URL is generated.'
+      operationId: createAuditExport
+      parameters:
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: 'Organization scope for this request. Stamped by the AxonFlow Agent
+
+          gateway from the cryptographically validated client credential
+
+          (Set, not Add, so any client-supplied value is overwritten), so it
+
+          is not client-selectable and carries no cross-org override
+
+          capability on this route. The orchestrator fails closed with 401
+
+          when it is absent or blank; there is no query-string equivalent.
+
+          '
+        schema:
+          type: string
+        example: travel-us
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RBIAuditExportRequest'
+            example:
+              export_type: full
+              format: json
+              requested_by: compliance-officer
+              purpose: Quarterly RBI audit
+      responses:
+        '201':
+          description: Export created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  export:
+                    $ref: '#/components/schemas/RBIAuditExport'
+        '400':
+          $ref: '#/components/responses/CodedBadRequest'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/audit-exports/{export_id}:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get audit export status
+      description: Get the status and details of a specific audit export.
+      operationId: getAuditExport
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: 'Organization scope for this request. Stamped by the AxonFlow Agent
+
+          gateway from the cryptographically validated client credential
+
+          (Set, not Add, so any client-supplied value is overwritten), so it
+
+          is not client-selectable and carries no cross-org override
+
+          capability on this route. The orchestrator fails closed with 401
+
+          when it is absent or blank; there is no query-string equivalent.
+
+          '
+        schema:
+          type: string
+        example: travel-us
+      responses:
+        '200':
+          description: Export details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  export:
+                    $ref: '#/components/schemas/RBIAuditExport'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    delete:
+      tags:
+      - RBI Compliance
+      summary: Delete audit export
+      description: Delete an audit export and its associated cloud storage object.
+      operationId: deleteAuditExport
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: 'Organization scope for this request. Stamped by the AxonFlow Agent
+
+          gateway from the cryptographically validated client credential
+
+          (Set, not Add, so any client-supplied value is overwritten), so it
+
+          is not client-selectable and carries no cross-org override
+
+          capability on this route. The orchestrator fails closed with 401
+
+          when it is absent or blank; there is no query-string equivalent.
+
+          '
+        schema:
+          type: string
+        example: travel-us
+      responses:
+        '204':
+          description: Export deleted
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/audit-exports/{export_id}/process:
+    post:
+      tags:
+      - RBI Compliance
+      summary: Process audit export
+      description: 'Trigger processing of a pending audit export. Generates the export file,
+
+        uploads to cloud storage (if configured), and generates a presigned download URL.'
+      operationId: processAuditExport
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: 'Organization scope for this request. Stamped by the AxonFlow Agent
+
+          gateway from the cryptographically validated client credential
+
+          (Set, not Add, so any client-supplied value is overwritten), so it
+
+          is not client-selectable and carries no cross-org override
+
+          capability on this route. The orchestrator fails closed with 401
+
+          when it is absent or blank; there is no query-string equivalent.
+
+          '
+        schema:
+          type: string
+        example: travel-us
+      responses:
+        '200':
+          description: Export processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  export:
+                    $ref: '#/components/schemas/RBIAuditExport'
+        '400':
+          $ref: '#/components/responses/CodedBadRequest'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/policies/templates:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List RBI policy templates
+      description: List pre-built RBI FREE-AI compliance policy templates.
+      operationId: listRBIPolicyTemplates
+      responses:
+        '200':
+          description: List of policy templates
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/ai-systems/summary:
+    get:
+      tags:
+      - RBI Compliance
+      summary: AI system registry summary
+      operationId: getRBIAISystemSummary
+      parameters:
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization scope. The orchestrator fails closed with 401 when it is absent or blank.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Registry summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBIAISystemSummary'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '500':
+          $ref: '#/components/responses/CodedInternalError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/validations/{id}:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get a model validation
+      description: Reads one RBI FREE-AI model validation record by its identifier.
+      operationId: getRBIValidation
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The model validation
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 'RBI model validation record. The full member set is large and
+
+                  evolves with the RBI FREE-AI schedule; it is not enumerated
+
+                  here.
+
+                  '
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    patch:
+      tags:
+      - RBI Compliance
+      summary: Update a model validation
+      description: 'Partial update: only the members present in the body are applied.
+
+
+        PATCH, not PUT. Until #3935 this path registered PUT, which no handler
+
+        implements, so every update answered 405 and this operation was
+
+        unreachable by any verb.'
+      operationId: updateRBIValidation
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: The model validation's identifier.
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization scope. The orchestrator fails closed with 401 when it is absent or blank.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 'Members of the validation record to change. Absent members are
+
+                left as they are.
+
+                '
+              additionalProperties: true
+      responses:
+        '200':
+          description: The updated model validation
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/CodedBadRequest'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/incidents/{id}:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get an AI incident
+      description: Reads one RBI FREE-AI incident record by its identifier.
+      operationId: getRBIIncident
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The AI incident
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    patch:
+      tags:
+      - RBI Compliance
+      summary: Update an AI incident
+      description: 'Partial update: only the members present in the body are applied.
+
+
+        This operation does NOT change the incident''s status. Status is a
+
+        lifecycle transition rather than a field edit; the terminal one is
+
+        `POST /api/v1/rbi/incidents/{id}/resolve`.
+
+
+        PATCH, not PUT — see the note on `PATCH /api/v1/rbi/validations/{id}`.'
+      operationId: updateRBIIncident
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: The incident's identifier.
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization scope. The orchestrator fails closed with 401 when it is absent or blank.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 'Members of the incident record to change. Absent members are
+
+                left as they are.
+
+                '
+              additionalProperties: true
+      responses:
+        '200':
+          description: The updated AI incident
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/CodedBadRequest'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/incidents/{id}/resolve:
+    post:
+      tags:
+      - RBI Compliance
+      summary: Resolve an AI incident
+      description: 'Moves the incident to `resolved`, stamps `resolved_at`, and records the
+
+        resolution summary.
+
+
+        `resolution` is required. This operation is the only writer of
+
+        `resolution_summary` on an incident record — `PATCH
+
+        /api/v1/rbi/incidents/{id}` does not carry the field — so an incident
+
+        resolved without one could never acquire it afterwards.
+
+
+        Registered since the module''s first release and unserved until #3935:
+
+        the handler''s sub-route switch had no case for `resolve`, so every
+
+        request answered 405.'
+      operationId: resolveRBIIncident
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: The incident's identifier.
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization scope. The orchestrator fails closed with 401 when it is absent or blank.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - resolution
+              properties:
+                resolution:
+                  type: string
+                  minLength: 1
+                  description: How the incident was resolved. Stored as `resolution_summary`.
+      responses:
+        '200':
+          description: The resolved AI incident
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/CodedBadRequest'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/killswitches/{id}:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get a kill switch
+      operationId: getRBIKillSwitch
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The kill switch
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/reports/{id}:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get a board report
+      description: 'Only GET is served on this path, and that is the whole of it.
+
+
+        There is no update-report operation here under any verb: a board
+
+        report''s mutations are the `/submit`, `/approve` and `/reject`
+
+        sub-routes. Deletion is implemented in the handler and deliberately not
+
+        registered — whether an RBI FREE-AI board report may be destroyed over
+
+        the API is a retention decision, tracked separately.'
+      operationId: getRBIBoardReport
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The board report
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/reports/{id}/submit:
+    post:
+      tags:
+      - RBI Compliance
+      summary: Submit a board report for approval
+      operationId: submitRBIBoardReport
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: The submitted board report
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          $ref: '#/components/responses/CodedBadRequest'
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/audit-exports/{export_id}/download:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Download an RBI audit export
+      description: 'TWO MUTUALLY EXCLUSIVE OUTCOMES, and a client must handle both. When
+
+        cloud storage is configured the response is a 307 redirect to a
+
+        presigned URL; otherwise the file bytes are streamed inline with a
+
+        `Content-Disposition: attachment` header. Unlike the compliance-report
+
+        download, the redirect here does NOT set `Cache-Control: no-store`.'
+      operationId: downloadRBIAuditExport
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The export file, streamed inline
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="export.json"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '307':
+          description: Redirect to the presigned export URL
+          headers:
+            Location:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/CodedUnauthorized'
+        '404':
+          $ref: '#/components/responses/CodedNotFound'
+        '500':
+          $ref: '#/components/responses/CodedInternalError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/policies/templates/{id}:
+    get:
+      tags:
+      - RBI Compliance
+      summary: Get an RBI policy template
+      description: 'Static, compiled-in template data. This route requires NO organization
+
+        scope, and its errors are `text/plain` rather than either JSON envelope
+
+        - it is one of only two routes in the RBI module that use http.Error.'
+      operationId: getRBIPolicyTemplate
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The policy template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RBIPolicyTemplate'
+        '400':
+          description: Template ID required
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Template not found
+          content:
+            text/plain:
+              schema:
+                type: string
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/rbi/policies/categories:
+    get:
+      tags:
+      - RBI Compliance
+      summary: List RBI policy template categories
+      description: 'Static, compiled-in category data with the templates nested under each
+
+        category. Requires no organization scope; errors are `text/plain`.'
+      operationId: listRBIPolicyCategories
+      responses:
+        '200':
+          description: The categories, each carrying its templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RBIPolicyTemplateCategory'
+        '405':
+          description: Method not allowed
+          content:
+            text/plain:
+              schema:
+                type: string
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  responses:
+    CodedInternalError:
+      description: Internal server error (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Internal server error
+    CodedNotFound:
+      description: Resource not found (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+    CodedUnauthorized:
+      description: Unauthorized - missing or invalid organization scope (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Organization ID required
+    CodedBadRequest:
+      description: Invalid request (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: INVALID_INPUT
+              message: connector_name is required
+  schemas:
+    RBIPolicyTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        severity:
+          type: string
+        priority:
+          type: integer
+          description: Higher is evaluated first.
+        enabled:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RBIPolicyCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RBIPolicyAction'
+        regulatory_reference:
+          type: string
+          description: The RBI circular this template implements.
+        applicable_risk_levels:
+          type: array
+          items:
+            type: string
+        requires_board_approval:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RBIAuditExport:
+      type: object
+      description: RBI audit export record
+      properties:
+        id:
+          type: string
+          description: Unique export identifier
+        org_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - processing
+          - completed
+          - failed
+          description: Export status
+        export_type:
+          type: string
+          enum:
+          - full
+          - incremental
+        format:
+          type: string
+          enum:
+          - json
+          - csv
+          - xml
+        requested_by:
+          type: string
+        purpose:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        download_url:
+          type:
+          - string
+          - 'null'
+          description: Presigned URL for cloud storage downloads
+        storage_type:
+          type: string
+          enum:
+          - local
+          - s3
+          - gcs
+          - azure
+          description: Storage backend used for this export
+        storage_key:
+          type:
+          - string
+          - 'null'
+          description: Cloud storage object key
+        file_path:
+          type:
+          - string
+          - 'null'
+          description: Local file path (when storage_type is local)
+        file_size_bytes:
+          type: integer
+          description: Size of export file in bytes
+        file_checksum:
+          type: string
+          description: SHA-256 checksum of the export file
+        record_count:
+          type: integer
+          description: Number of records in the export
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details if export failed
+    RBIAuditExportRequest:
+      type: object
+      description: Request to create an RBI audit export
+      required:
+      - export_type
+      - format
+      properties:
+        export_type:
+          type: string
+          enum:
+          - full
+          - incremental
+          description: Type of audit export
+        format:
+          type: string
+          enum:
+          - json
+          - csv
+          - xml
+          description: Export file format
+        start_date:
+          type: string
+          format: date-time
+          description: Start of date range (for incremental exports)
+        end_date:
+          type: string
+          format: date-time
+          description: End of date range (for incremental exports)
+        requested_by:
+          type: string
+          description: User or service requesting the export
+        purpose:
+          type: string
+          description: Purpose of the export (for audit trail)
+    CodedErrorResponse:
+      type: object
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+
+        screaming-snake string enum. This is what the per-handler `writeError`
+
+        methods emit across the policy API, the LLM provider API, the agents,
+
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
+
+
+        It is one of TWO error SHAPES this document describes. `code` is a
+
+        STRING on this envelope; it is never an HTTP status integer.
+
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+
+        the five values the LLM-provider handlers emit.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
+    RBIAISystemSummary:
+      type: object
+      properties:
+        total_systems:
+          type: integer
+        systems_by_risk:
+          type: object
+          additionalProperties:
+            type: integer
+        systems_by_status:
+          type: object
+          additionalProperties:
+            type: integer
+        systems_pending_approval:
+          type: integer
+        systems_overdue_validation:
+          type: integer
+    RBIAISystem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        system_id:
+          type: string
+        system_name:
+          type: string
+        system_version:
+          type: string
+        description:
+          type: string
+        risk_category:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+        deployment_status:
+          type: string
+          enum:
+          - development
+          - sandbox
+          - canary
+          - production
+          - deprecated
+        model_type:
+          type: string
+        model_provider:
+          type: string
+        use_case:
+          type: string
+        board_approval_required:
+          type: boolean
+        board_approval_status:
+          type: string
+          enum:
+          - not_required
+          - pending
+          - approved
+          - rejected
+          - revoked
+        last_validation_date:
+          type: string
+          format: date
+        next_validation_due:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RBIPolicyTemplateCategory:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/RBIPolicyTemplate'
+    RBIPolicyAction:
+      type: object
+      properties:
+        type:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+    RBIAISystemCreate:
+      type: object
+      required:
+      - system_id
+      - system_name
+      - risk_category
+      properties:
+        system_id:
+          type: string
+        risk_mitigation:
+          type: object
+        recommendations:
+          type: array
+          items:
+            type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        submitted_at:
+          type: string
+          format: date-time
+        submitted_by:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+        approved_by:
+          type: string
+        rejected_at:
+          type: string
+          format: date-time
+        rejected_by:
+          type: string
+        rejection_reason:
+          type: string
+    RBIPolicyCondition:
+      type: object
+      properties:
+        field:
+          type: string
+        operator:
+          type: string
+        value: {}
+  parameters:
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: 'Maximum number of records to return. Defaults vary by
+
+        endpoint; see per-endpoint description for the cap.
+
+        '
+      schema:
+        type: integer
+        minimum: 1
+        default: 100
+    OffsetParam:
+      name: offset
+      in: query
+      required: false
+      description: 'Number of records to skip from the start of the result set.
+
+        Pair with `limit` to walk multi-page reads.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

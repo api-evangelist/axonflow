@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-decide-response-schema.json",
+  "title": "DecideResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-agent-openapi.yml#/components/schemas/DecideResponse",
+  "type": "object",
+  "required": [
+    "verdict",
+    "decision_id",
+    "trace_id",
+    "obligations",
+    "evaluated_policies",
+    "expires_at"
+  ],
+  "properties": {
+    "pending_approval": {
+      "$ref": "#/$defs/PendingApproval",
+      "description": "Set when the call is held for a person's approval (#4370); the verdict is `needs_approval` and nothing may run."
+    },
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "On an allow, the approval that admitted this call (#4370)."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny",
+        "needs_approval"
+      ],
+      "description": "The PEP MUST enforce this verdict. `allow` = forward;\n`deny` = block; `needs_approval` = block, and the call is held\nfor a person's approval: `pending_approval` names it and the\nretry spends it (#4370, PRD v11 §1.13). A PEP forwards only on\n`allow`. On an Enterprise deployment with the approval queue\nwired, an anchored CHALLENGE answers `needs_approval`; on the\nCommunity build, or when no approval could be queued, it is a\n`deny` whose first reason is `approval_required`.\n"
+    },
+    "decision_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Fresh UUID per decision. Stable handle for audit-log\ncorrelation, follow-up explain calls, and PEP-side logging.\n"
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 32,
+      "pattern": "^[0-9a-f]{32}$",
+      "description": "W3C trace-context trace-id (32 lowercase hex). When the\nrequest carried a `traceparent` header, the trace-id is\nreused so multi-gateway-layer decisions stitch into one\nend-to-end trace. Otherwise a fresh trace-id is minted.\n"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "llm",
+        "tool",
+        "agent"
+      ],
+      "description": "Echo of the request stage, for audit dashboards."
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Human-readable reason strings backing the verdict. Empty on\nverdict=allow with no obligations. A deny with reason\n`unknown_constraint` keeps that code as its first entry and\nadds one entry per constraint that could not be evaluated,\nthe binding one first:\n`<policy id> (<source>[, document version N]) could not be\nevaluated: <why>`, where the reason names the attributes it\ncould not establish.\nThe version is `version N` for an installed pack's policy,\nand a shipped control carries none. An id the activation did\nnot activate carries no parentheses, and a constraint whose\nunknown attribute was not recorded says `an attribute it reads`\nin place of the attribute.\n"
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DecisionObligation"
+      },
+      "description": "PEP-side requirements that accompany an `allow` verdict\n(e.g. redact PII before forwarding). Always a non-nil array\nso PEP code can iterate without a nil-check.\n"
+    },
+    "evaluated_policies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Policy IDs that MATCHED during evaluation (not the total\nnumber of policies considered). Empty when no policy matched,\nexcept on an indeterminate deny (below). On `deny`, the first\nentry is the blocking policy; the rest (if any) are\nnon-blocking matches recorded for audit. On an\nindeterminate deny (reason `unknown_constraint`), the\nconstraints that could not be evaluated are the policies that\ndecided it: they come first, the binding one first, then\nwhat matched.\nOn `allow` with obligations, the entries are the policies\nthat produced the obligation. The full evaluation count\nwill be surfaced separately when the explain endpoint\n(`/api/v1/decisions/{id}/explain`) lands.\n"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the decision expires. PEPs that cache decisions MUST\nre-call by this timestamp.\n"
+    },
+    "engine": {
+      "type": "string",
+      "enum": [
+        "anchored"
+      ],
+      "description": "Which policy engine authored this verdict: the ADR-065 decision\nplane, the only author on this route (PRD v11 §1.1). Omitted\non a refusal no engine decided - an authentication failure, or a\nrequest refused before the policy pass ran.\n"
+    },
+    "subject_type": {
+      "type": "string",
+      "description": "The type of principal the verdict was decided for (PRD v11 §1.6):\n`User` for a verified user token, `Client` when the request\npresented no user identity and its client credential is the\nprincipal. Omitted wherever `engine` is.\n"
+    },
+    "policy_bundle": {
+      "type": "string",
+      "description": "The digest of the policy set that decided: the system corpus's\nrestriction for this route and the organization root - the\norganization's active typed document composed with the\ndeployment's baseline permission pack, or, while it has published\nnothing, the implicit bundle of that pack and the organization\ntemplate. A rollback reinstates an earlier digest. Omitted wherever\n`engine` is.\n"
+    },
+    "policy_packs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The add-on policy packs (PRD v11 §1.9) whose controls composed\ninto `policy_bundle` on this route, each as `<pack id>@<digest of\nthe pack document the deployment instantiated>`, sorted. Omitted\nwhen the deployment installs no pack or none binds on this route.\n"
+    },
+    "policy_identities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PolicyIdentity"
+      },
+      "description": "Each entry of `evaluated_policies`, in the same order, named (PRD\nv11 §1.14): the policy's own display name where it has one, whose\nit is, and for an organization's own policy or an installed pack's\nthe version it was published at. A shipped control carries no\nversion: `policy_bundle` identifies it. Additive:\n`evaluated_policies` stays a list of ids. Omitted when\n`evaluated_policies` is empty.\n"
+    },
+    "document_version": {
+      "type": "integer",
+      "description": "The published version of the organization's active typed\ndocument (PRD v11 §1.14). Omitted while the organization has\npublished nothing: `policy_bundle` names that implicit bundle by\ndigest.\n"
+    },
+    "legacy_validators": {
+      "type": "array",
+      "description": "A checksum validator that acted BEFORE the anchored engine decided\n(#4122): under an organization's recorded `pii=block` or\n`pii=redact` detection override, the Indonesia or India validator\nblocked the request or masked the response ahead of the decision\nplane. Omitted when none did, which is every request without\nsuch an override.\n",
+      "items": {
+        "type": "object",
+        "required": [
+          "validator",
+          "action"
+        ],
+        "properties": {
+          "validator": {
+            "type": "string",
+            "enum": [
+              "indonesia_pii",
+              "india_pii"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "masked"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "DecisionObligation": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "description": "A PEP-side requirement attached to an `allow` verdict. Obligations are\nSELF-DESCRIBING and ENGINE-FULFILLABLE (ADR-056 / ADR-057, #2563):\n`/decide` is a pure PDP and never mutates content, so a `redact_pii`\nobligation is not \"redact this yourself with your own patterns\" — it is\n\"call the AxonFlow engine endpoint named in `fulfillment` to obtain\nengine-redacted content.\" Client-side redaction is forbidden; the\nblessed client path is `platform/shared/pep`.\n",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Obligation kind. Currently emitted: `redact_pii`. Future\nobligations will be added here as needed by PEP adapters.\n"
+        },
+        "detail": {
+          "type": "string",
+          "description": "Human-readable detail for audit logs."
+        },
+        "fulfillment": {
+          "$ref": "#/$defs/ObligationFulfillment"
+        }
+      }
+    },
+    "ObligationFulfillment": {
+      "type": "object",
+      "description": "Names the engine call a PEP makes to discharge an obligation (since\n8.6.0). Fulfillment is a property of the contract, not of PEP-author\ndiscipline: a conforming PEP POSTs the obligation's source content to\n`endpoint` and forwards the engine-redacted content the endpoint\nreturns. There is no other blessed way to satisfy a `redact_pii`\nobligation. A PEP holding content of a type NOT in `content_types`\n(e.g. an image awaiting OCR-PII redaction) MUST fail closed rather than\nforward it unredacted.\n",
+      "required": [
+        "endpoint",
+        "method",
+        "phase"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "Engine path the PEP POSTs to in order to discharge the obligation.\nFor a request-phase `redact_pii` obligation this is\n`/api/v1/mcp/check-input`; the response-phase counterpart is\n`/api/v1/mcp/check-output`. `/decide` runs pre-call, so it only\never emits request-phase obligations.\n"
+        },
+        "method": {
+          "type": "string",
+          "description": "HTTP method to use against `endpoint`."
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "request",
+            "response"
+          ],
+          "description": "Which content the PEP submits. `request` = the PEP redacts the\nrequest it is about to forward (the `query` it asked `/decide`\nabout); `response` = the PEP redacts a backend response before\nreturning it. `/decide` emits only `request` obligations; the\n`response` value is part of the contract for PEP helpers that fan\nout to both phases.\n"
+        },
+        "content_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The mime-types `endpoint`'s redaction detectors can handle today\n(e.g. `text/plain`). Deliberately content-type-agnostic: adding a\nmodality is a server-side detector registration plus a new entry\nhere, not a redesign of this shape.\n"
+        }
+      }
+    },
+    "PendingApproval": {
+      "type": "object",
+      "description": "A call held for a person's approval (#4370, PRD v11 §1.13). Pending\nis NOT allow: nothing ran, and the enforcement point must not\nforward. An approver approves the queue entry in the portal\n(Approvals), and the caller retries the same call naming\n`approval_id` (see the `X-Axonflow-Approval-Id` parameter).\n\nThe approval expires at `expires_at`: the approval requirement's\nown deadline, which the engine stamps 15 minutes after the decision\non v11. It is never extended; a retry after it is refused\n`approval_expired`.\n",
+      "required": [
+        "approval_id",
+        "status",
+        "plane",
+        "retry"
+      ],
+      "properties": {
+        "approval_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The queue entry's id; the retry names it."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved"
+          ],
+          "description": "`pending`: nobody has decided it yet. `approved`: a person\napproved it and it is waiting for this caller's retry, which\nmust name the id.\n"
+        },
+        "plane": {
+          "type": "string",
+          "enum": [
+            "mcp:request",
+            "decide"
+          ]
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the approval lapses. Omitted on a retry of a still-pending approval."
+        },
+        "retry": {
+          "type": "object",
+          "required": [
+            "header"
+          ],
+          "properties": {
+            "header": {
+              "type": "string",
+              "enum": [
+                "X-Axonflow-Approval-Id"
+              ]
+            },
+            "argument": {
+              "type": "string",
+              "enum": [
+                "approval_id"
+              ],
+              "description": "The MCP tool argument / MCP route body field that carries the id."
+            },
+            "body_field": {
+              "type": "string",
+              "enum": [
+                "approval_id"
+              ],
+              "description": "The decide request field that carries the id."
+            }
+          }
+        }
+      }
+    },
+    "PolicyIdentity": {
+      "type": "object",
+      "description": "One policy a decision matched, as `policy_identities` names it (PRD\nv11 §1.14). An identifier is never presented as a name.\n",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The policy id, as `evaluated_policies` carries it."
+        },
+        "name": {
+          "type": "string",
+          "description": "The policy's own display name. Omitted when it declares none.\n"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "shipped",
+            "organization",
+            "pack"
+          ],
+          "description": "Whose the policy is: a control the release ships (the system\ncorpus, the organization template, the deployment's baseline\npermission pack, or a recorded override's replacement of a\nshipped control), the organization's own published document, or\nan installed policy pack. Omitted for an id the engine did not\nactivate - a checksum validator's (`legacy_validators`).\n"
+        },
+        "version": {
+          "type": "integer",
+          "description": "The version an organization's own policy (its document's) or a\npack's control (the pack's) was published at. Omitted for a\nshipped control.\n"
+        }
+      }
+    }
+  }
+}

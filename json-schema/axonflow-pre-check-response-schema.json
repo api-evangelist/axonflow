@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-pre-check-response-schema.json",
+  "title": "PreCheckResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-agent-openapi.yml#/components/schemas/PreCheckResponse",
+  "type": "object",
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "description": "The decision identifier, and the CANONICAL name for it. Every other\nplane that mints a decision calls it `decision_id`:\n`POST /api/v1/decide`, `POST /api/v1/mcp/check-input`,\n`POST /api/v1/mcp/check-output`, and the AuthZEN adapter's\n`context.decision_id`.\n\nIT IS THE KEY TO ANOTHER ENDPOINT, and that linkage was\npreviously documented nowhere:\n\n  * `GET /api/v1/decisions/{decision_id}/explain` returns the full\n    policy explanation for this decision.\n\nA caller that reads only `context_id` below still has the value, but\nnothing told it that the value works on that endpoint, so\nintegrations built against this plane silently lost a capability\nthat integrations built against `/api/v1/decide` got for free.\n\n`POST /api/v1/overrides` was the second such endpoint until\nv11.0.0. It is keyed on a policy, never on `decision_id`, and from\nv11.0.0 it writes nothing and answers\n`409 LEGACY_POLICY_WRITE_FROZEN` (#4252).\n\nAlso valid for the subsequent `POST /api/audit/llm-call` for five\nminutes, which is what `context_id` was originally named for.\n"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny"
+      ],
+      "description": "The CANONICAL answer to \"may I do this?\", in the same vocabulary and\nwith the same values `POST /api/v1/decide` returns.\n\nRead this rather than `approved` in new integrations. Across the\ngoverned surface the same question was answered by five different\nkeys in two different types - `verdict` (string) on\n`/api/v1/decide`, `approved` (bool) here, `allowed` (bool) on both\nMCP check endpoints, `decision` (bool) on the AuthZEN adapter and\n`decision` (string) on the decisions feed - so a client typed from\none plane could not deserialise another.\n\nSince v11 the pre-check never holds a request: a `require_approval`\npolicy is a deny, because an anchored CHALLENGE is a refusal. So\n`verdict` and `approved` never disagree.\n\nThe AuthZEN adapter (`POST /api/v1/access/evaluation`) keeps its\nboolean `decision` and is not a divergence to be fixed: AuthZEN 1.0\nmandates a boolean, and the four-valued state rides in that\nendpoint's response context behind profile negotiation.\n"
+    },
+    "approved": {
+      "type": "boolean",
+      "description": "Whether the request is allowed. RETAINED and not deprecated - every\nshipped SDK reads it. Prefer `verdict`.\n"
+    },
+    "context_id": {
+      "type": "string",
+      "deprecated": true,
+      "description": "DEPRECATED ALIAS of `decision_id`, carrying the identical value.\n\nRetained because every shipped SDK reads it and removing it would\nbreak them all. New integrations should read `decision_id`; this\nmember will be removed no earlier than the release after the one\nthat introduced `decision_id`.\n"
+    },
+    "approved_data": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Data fetched from MCP connectors"
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Policies that were evaluated.\n\n`segment_resolution_failed` no longer appears here (it did from\n#3312). No segment gate stands on the pre-check any more: it\nresolved the caller's governance segments and refused the request\nwhen that failed, on behalf of an organization's segment-scoped\nstatic rows. Those rows no longer decide: the anchored engine\nauthors this verdict and reads no segments (PRD v11 §1.1, §1.2).\n"
+    },
+    "rate_limit": {
+      "$ref": "#/$defs/RateLimitInfo"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the context expires"
+    },
+    "block_reason": {
+      "type": "string",
+      "description": "Reason if request was blocked"
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "W3C OpenTelemetry trace_id (32-char lowercase hex) emitted\nby the decision tracer. Optional: present when the tracer\nis enabled via AXONFLOW_OTEL_ENDPOINT, omitted otherwise.\nPolicy Enforcement Points propagate this id downstream so\nmulti-gateway decisions stitch into one end-to-end trace.\n"
+    },
+    "engine": {
+      "type": "string",
+      "enum": [
+        "anchored"
+      ],
+      "description": "Which policy engine authored this verdict: the ADR-065 decision\nplane, the only author on this route (PRD v11 §1.1). Omitted\non a refusal no engine decided - an authentication failure, or a\nrequest refused before the policy pass ran.\n"
+    },
+    "subject_type": {
+      "type": "string",
+      "description": "The type of principal the verdict was decided for (PRD v11 §1.6):\n`User` for a verified user token, `Client` when the request\npresented no user identity and its client credential is the\nprincipal. Omitted wherever `engine` is.\n"
+    },
+    "policy_bundle": {
+      "type": "string",
+      "description": "The digest of the policy set that decided: the system corpus's\nrestriction for this route and the organization root - the\norganization's active typed document composed with the\ndeployment's baseline permission pack, or, while it has published\nnothing, the implicit bundle of that pack and the organization\ntemplate. A rollback reinstates an earlier digest. Omitted wherever\n`engine` is.\n"
+    },
+    "legacy_validators": {
+      "type": "array",
+      "description": "A checksum validator that acted BEFORE the anchored engine decided\n(#4122): under an organization's recorded `pii=block` or\n`pii=redact` detection override, the Indonesia or India validator\nblocked the request or masked the response ahead of the decision\nplane. Omitted when none did, which is every request without\nsuch an override.\n",
+      "items": {
+        "type": "object",
+        "required": [
+          "validator",
+          "action"
+        ],
+        "properties": {
+          "validator": {
+            "type": "string",
+            "enum": [
+              "indonesia_pii",
+              "india_pii"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "masked"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "RateLimitInfo": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "description": "Rate limit per window"
+        },
+        "remaining": {
+          "type": "integer",
+          "description": "Remaining requests in current window"
+        },
+        "reset_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the rate limit resets"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,87 @@
+generated: '2026-10-09'
+method: derived
+source: >-
+  Derived by aligning the 10 MCP tool names published at
+  https://docs.getaxonflow.com/docs/integration/claude-code (mcp/axonflow-mcp.yml) with the agent and
+  orchestrator OpenAPI under openapi/. Bindings are by name and semantics: the live tools/list
+  (and so each tool's real inputSchema) is only reachable on a self-hosted, authenticated agent and
+  was not called. Confidence is set accordingly.
+surfaces:
+  rest_openapi:
+  - openapi/axonflow-agent-openapi.yml          # 101 operations, http://localhost:8080
+  - openapi/axonflow-orchestrator-openapi.yml   # 210 operations, http://localhost:8081
+  - openapi/axonflow-policy-openapi.yml         # 39 operations
+  - openapi/axonflow-masfeat-openapi.yml        # 18 operations
+  graphql: null
+  mcp: http://localhost:8080/api/v1/mcp-server  # self-hosted; Basic org:license-key; operationId mcpServerJSONRPC
+crosswalk:
+- tool: check_policy
+  category: governance
+  rest: [mcpCheckInput]
+  binding: rest
+  confidence: medium
+  note: Docs call it with connector_type/statement/operation, the same required fields as POST /api/v1/mcp/check-input. gatewayPreCheck and decide are adjacent policy-evaluation operations.
+- tool: check_output
+  category: governance
+  rest: [mcpCheckOutput]
+  binding: rest
+  confidence: medium
+- tool: audit_tool_call
+  category: governance
+  rest: [auditToolCall]
+  binding: rest
+  confidence: medium
+  note: Orchestrator POST /api/v1/audit/tool-call (required tool_name).
+- tool: list_policies
+  category: governance
+  rest: [listStaticPolicies, listDynamicPolicies]
+  binding: composite
+  confidence: medium
+  note: Tool lists "static + dynamic" policies; static on the agent, dynamic on the orchestrator/policy API.
+- tool: get_policy_stats
+  category: governance
+  rest: [getAuditSummary]
+  binding: rest
+  confidence: low
+  note: No REST operation is named policy stats; getAuditSummary (and getPolicyPackSummary) are the nearest summaries.
+- tool: search_audit_events
+  category: governance
+  rest: [searchAuditLogs]
+  binding: rest
+  confidence: medium
+- tool: explain_decision
+  category: overrides-explainability
+  rest: [explainDecision]
+  binding: rest
+  confidence: high
+  note: Same name and argument (decision ID); GET /api/v1/decisions/{id}/explain.
+- tool: create_override
+  category: overrides-explainability
+  rest: [createPolicyOverride]
+  binding: rest
+  confidence: medium
+  note: The spec marks POST /api/v1/overrides "retired in v11".
+- tool: delete_override
+  category: overrides-explainability
+  rest: [revokePolicyOverride]
+  binding: rest
+  confidence: medium
+  note: The spec marks DELETE /api/v1/overrides/{id} "retired in v11".
+- tool: list_overrides
+  category: overrides-explainability
+  rest: [listPolicyOverrides]
+  binding: rest
+  confidence: medium
+mcp_only: []
+rest_only:
+  count: 356   # 2026-10-09 recount of openapi/*.yml: 369 operations, 13 of which carry one of the 11 bound operationIds
+  note: >-
+    Every other operation (workflows, plans, HITL queue, budgets, compliance exports, connectors,
+    policy CRUD) has no MCP tool; 368 operations total across the four specs, 11 distinct operationIds bound above.
+coverage:
+  tools: 10
+  tools_bound: 10
+  high: 1
+  medium: 8
+  low: 1
+  rest_operations_total: 368

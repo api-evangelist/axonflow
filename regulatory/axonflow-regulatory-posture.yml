@@ -1,0 +1,93 @@
+generated: '2026-10-09'
+method: searched
+source:
+  - https://getaxonflow.com/privacy/
+  - https://getaxonflow.com/trust/
+  - https://getaxonflow.com/terms-of-service/
+x-note: >-
+  The pre-flight dossier had no legal_pages. These pages were found from the docs llms.txt (Privacy Policy link) and the
+  privacy page's own footer links (Trust, Plugin Pro Terms of Service). A plain curl got 403 from getaxonflow.com, but
+  fetch-url.py (strategy plain) got 200 for all three on 2026-10-09. Privacy Policy is dated "Last updated: May 9, 2026".
+  Most of the policy covers only the optional hosted Community SaaS (try.getaxonflow.com) and Plugin Pro; the core product is self-hosted.
+signals:
+  data_subject_request:
+    url: https://getaxonflow.com/privacy/
+    section: Payment Processing (AxonFlow Plugin Pro) / Your Rights Under EU GDPR
+    note: Lists the GDPR rights (access, erasure, portability, among others) and how deletion requests are made. Requests are verified by email and completed within 30 days. Transaction records are kept for tax and dispute purposes.
+    evidence:
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "Right of access (Article 15) — request a copy of personal data we hold about you"
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "We verify the request via an email round-trip to the address on file, then queue the deletion."
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "We complete deletion within 30 days from a verified request, per GDPR Article 17(1)."
+      - source: https://getaxonflow.com/trust/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "POST /api/v1/gdpr/delete removes data associated with a specified identity across platform tables within the authenticated organization's scope."
+  subprocessors:
+    url: https://getaxonflow.com/privacy/
+    section: Third Parties
+    note: The Privacy Policy names its third-party providers (Scarf, ipapi, Google Analytics, YouTube, Stripe, Resend) and AWS as its infrastructure. We found no separate subprocessor list or DPA page.
+    evidence:
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "Scarf — receives SDK and plugin telemetry pings (including the source IP) forwarded from our servers, and page-view pings from our websites via a tracking pixel."
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "We do not transfer it to any third party other than Stripe (payment processing), Resend (license-token delivery), and our own infrastructure (AWS for storage and compute, within AxonFlow Inc.'s control)."
+  data_residency:
+    url: https://getaxonflow.com/trust/
+    section: Data residency
+    note: For self-hosted and In-VPC deployments the customer controls where data lives. The hosted Community SaaS runs in AWS us-east-1. EU-to-US transfers of personal data rely on Standard Contractual Clauses (and Stripe's certification under the EU–US Data Privacy Framework).
+    evidence:
+      - source: https://getaxonflow.com/trust/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "Self-hosted and In-VPC deployments give customers full control over data residency. Model calls and operational customer data stay inside the customer's deployment boundary."
+      - source: https://getaxonflow.com/trust/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "AxonFlow heartbeat telemetry is documented separately and can be disabled with AXONFLOW_TELEMETRY=off . Community SaaS runs in us-east-1 (AWS)."
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "AxonFlow Inc. relies on Standard Contractual Clauses for its own EU-to-US transfers of EU residents' personal data and provides the additional protections described in the \"Data Controller and EU Representative\" section above, including a designated GDPR Article 27 representative within the European Union."
+  data_retention:
+    url: https://getaxonflow.com/privacy/
+    section: Community SaaS (try.getaxonflow.com) / Payment Processing (AxonFlow Plugin Pro)
+    note: Publishes retention periods. Telemetry rows are kept for up to 1 year and k-anonymized aggregates for up to 10 years. Operational logs keep source IPs for up to 90 days. Transaction records are kept for about 7 years under tax law.
+    evidence:
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "Individual telemetry rows are retained for up to 1 year. Aggregate statistics with no tie to an individual user (weekly rollups, k-anonymized at a minimum threshold of five distinct sources per cohort) are retained for up to 10 years for trend analysis."
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "Standard internet-facing service operational logs — including API Gateway access logs and CloudWatch logs for the heartbeat ingestion service, and ALB access logs for try.getaxonflow.com — retain source IP for up to 90 days (specific retention varies by service) for service operation, security monitoring, and debugging."
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "This transaction record is retained for as long as required by applicable tax, accounting, and consumer-protection law (typically 7 years under Dutch and EU tax law) and for the resolution of any chargeback or dispute window."
+  ai_transparency:
+    url: https://getaxonflow.com/privacy/
+    section: Payment Processing (AxonFlow Plugin Pro)
+    note: States that personal data is not used to train AI models. This is a data-use denial, not a model disclosure. The Trust page also says that AxonFlow's EU AI Act mappings are not compliance claims.
+    evidence:
+      - source: https://getaxonflow.com/privacy/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "We do not use it for advertising, profiling, or training AI models."
+      - source: https://getaxonflow.com/trust/
+        http_status: 200
+        fetched: '2026-10-09'
+        quote: "AxonFlow is not a certification body and does not claim blanket compliance with any framework."

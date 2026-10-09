@@ -1,0 +1,408 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Testing API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Testing across 2 of this provider''s published API definitions: axonflow-policy-api.yaml, axonflow-policy-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (Agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local development (Agent single entry point)
+- url: http://localhost:8081
+  description: Orchestrator direct (internal only)
+tags:
+- name: Testing
+  description: Policy testing and validation
+paths:
+  /api/v1/dynamic-policies/{id}/test:
+    parameters:
+    - $ref: '#/components/parameters/PolicyID'
+    - $ref: '#/components/parameters/TenantID'
+    post:
+      deprecated: true
+      tags:
+      - Testing
+      summary: Test a dynamic policy
+      description: 'Evaluate a dynamic policy against sample input without executing
+
+        actions. `query` is required.'
+      operationId: testDynamicPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestPolicyRequest'
+      responses:
+        '200':
+          description: Test results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestPolicyResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/tenant-policies/{id}/test:
+    parameters:
+    - $ref: '#/components/parameters/PolicyID'
+    - $ref: '#/components/parameters/TenantID'
+    post:
+      deprecated: true
+      tags:
+      - Testing
+      summary: Test a dynamic policy
+      description: 'Evaluate a dynamic policy against sample input without executing
+
+        actions. `query` is required.'
+      operationId: testTenantPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestPolicyRequest'
+      responses:
+        '200':
+          description: Test results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestPolicyResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/policies/{id}/test:
+    parameters:
+    - $ref: '#/components/parameters/PolicyID'
+    - $ref: '#/components/parameters/TenantID'
+    post:
+      deprecated: true
+      tags:
+      - Testing
+      summary: Test a policy
+      description: 'Evaluate a policy against sample input without executing actions.
+
+        Useful for validating policy behavior before enabling.'
+      operationId: testPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestPolicyRequest'
+            example:
+              query: Show me the customer's SSN and credit card
+              user:
+                email: analyst@company.com
+                role: analyst
+                department: sales
+              request_type: query
+              context:
+                connector: salesforce
+      responses:
+        '200':
+          description: Test results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestPolicyResponse'
+              example:
+                matched: true
+                blocked: true
+                actions:
+                - type: block
+                  config:
+                    message: Access to PII requires admin or compliance role
+                  message: Access to PII requires admin or compliance role
+                explanation: 'Policy ''Block PII Access'' matched: all 2 conditions evaluated to true'
+                eval_time_ms: 0.45
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/policies/test:
+    post:
+      tags:
+      - Testing
+      summary: Test input against all active policies (legacy)
+      deprecated: true
+      description: '**Legacy endpoint.** Evaluates the supplied input against all active
+
+        dynamic policies and returns the raw policy evaluation result. Prefer
+
+        `POST /api/v1/policies/simulate` (dry-run semantics, tier-aware) or
+
+        `POST /api/v1/dynamic-policies/{id}/test` (single-policy testing).'
+      operationId: testPoliciesLegacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: Sample query to test against
+                user:
+                  $ref: '#/components/schemas/SimulationUserContext'
+                request_type:
+                  type: string
+                  description: Type of request being simulated
+      responses:
+        '200':
+          description: Policy evaluation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  allowed:
+                    type: boolean
+                  applied_policies:
+                    type: array
+                    items:
+                      type: string
+                  risk_score:
+                    type: number
+                    format: float
+                  severity:
+                    type: string
+                    description: 'Highest severity of matched policies: critical, high, medium, low'
+                  required_actions:
+                    type: array
+                    items:
+                      type: string
+                  processing_time_ms:
+                    type: integer
+                    format: int64
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+components:
+  responses:
+    Unauthorized:
+      description: Missing or invalid tenant ID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Missing tenant ID
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+              - field: name
+                message: Name must be between 3 and 100 characters
+              - field: conditions[0].operator
+                message: 'Invalid operator: like. Must be one of: equals, contains, regex'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+    NotFound:
+      description: Policy not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Policy not found
+  schemas:
+    TestPolicyRequest:
+      type: object
+      required:
+      - query
+      properties:
+        query:
+          type: string
+          description: Sample query to test against
+        user:
+          type: object
+          additionalProperties: true
+          description: User context for testing
+          example:
+            email: user@company.com
+            role: analyst
+            department: sales
+        request_type:
+          type: string
+          description: Type of request being simulated
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for testing
+    SimulationUserContext:
+      type: object
+      description: User context for policy simulation and testing
+      properties:
+        id:
+          type: integer
+          description: Numeric user identifier
+        email:
+          type: string
+          example: analyst@company.com
+        role:
+          type: string
+          example: analyst
+        region:
+          type: string
+          description: User's region for geo-based routing policies
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organization for multi-tenant isolation
+    APIError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+              description: Field-level validation errors
+    TestPolicyResponse:
+      type: object
+      properties:
+        matched:
+          type: boolean
+          description: Whether the policy conditions matched
+        blocked:
+          type: boolean
+          description: Whether a block action would trigger
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              config:
+                type: object
+              message:
+                type: string
+          description: Actions that would be triggered
+        explanation:
+          type: string
+          description: Human-readable explanation of the result
+        eval_time_ms:
+          type: number
+          format: float
+          description: Evaluation time in milliseconds
+  parameters:
+    TenantID:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier for multi-tenancy isolation. When calling through
+
+        the Agent (recommended), this header is stamped automatically from the
+
+        authenticated client — you do not set it yourself. Required only on
+
+        direct Orchestrator calls (internal deployments).
+
+        '
+      schema:
+        type: string
+        example: tenant_abc123
+    PolicyID:
+      name: id
+      in: path
+      required: true
+      description: Policy unique identifier
+      schema:
+        type: string
+        example: pol_abc123def456
+x-refined-from:
+- axonflow-policy-api.yaml
+- axonflow-policy-openapi.yml

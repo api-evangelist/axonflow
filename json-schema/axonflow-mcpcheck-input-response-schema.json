@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-mcpcheck-input-response-schema.json",
+  "title": "MCPCheckInputResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-agent-openapi.yml#/components/schemas/MCPCheckInputResponse",
+  "type": "object",
+  "properties": {
+    "pending_approval": {
+      "$ref": "#/$defs/PendingApproval",
+      "description": "Set when the call is held for a person's approval (#4370); `allowed` is false and nothing ran."
+    },
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "On an allow, the approval that admitted this call (#4370)."
+    },
+    "allowed": {
+      "type": "boolean",
+      "description": "Whether the input passed all policy checks"
+    },
+    "block_reason": {
+      "type": "string",
+      "description": "Human-readable reason if blocked (omitted when allowed)"
+    },
+    "policies_evaluated": {
+      "type": "integer",
+      "description": "Total number of policies evaluated"
+    },
+    "policy_info": {
+      "$ref": "#/$defs/PolicyInfo"
+    },
+    "decision_id": {
+      "type": "string",
+      "description": "Unique audit correlator for this policy decision. Links the gate\nresponse to its row in the audit log; surfaceable to end users\nfor explainability (\"decision: dec_abc123\").\n"
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "description": "Highest risk level across all matched policies. Plugins use this\nto map the block reason to severity (warning vs hard error).\n"
+    },
+    "policy_matches": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RicherPolicyMatch"
+      },
+      "description": "Per-policy explainability records (ADR-043). Surfaced on a\nrefusal: the controls that determined the anchored engine's\nverdict. Source of truth:\n`platform/agent/mcp_request_enforcing_seam.go` (`anchoredPolicyMatches`).\n"
+    },
+    "override_available": {
+      "type": "boolean",
+      "description": "Not set from v11.0.0: session overrides are retired (PRD v11\n§1.5, #4252), so the block offers none and a plugin renders no\noverride hint.\n"
+    },
+    "override_existing_id": {
+      "type": "string",
+      "description": "Not set from v11.0.0: no override is offered, and the step gate\nno longer reads a session override (#4252).\n"
+    },
+    "redacted": {
+      "type": "boolean",
+      "description": "Whether the engine masked any PII in the request statement or in\nany parameter. Omitted (false) when nothing was redacted.\n"
+    },
+    "redacted_statement": {
+      "type": "string",
+      "description": "The request statement with PII fields masked. A PEP fulfilling a\nDecision Mode redact_pii obligation forwards THIS value instead of\nthe original. Omitted when the statement was not masked, including\na redaction of the parameters alone (`redacted: true` with only\n`redacted_parameters`). Source of truth:\n`platform/agent/mcp_handler.go` (MCPCheckInputResponse).\n"
+    },
+    "redacted_parameters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Each request parameter the redaction masked, keyed by parameter,\nas the text the request pass scanned it as: the string itself, or\na map or list parameter's JSON serialisation, masked as one text so\na span across the serialisation is masked as it was matched. The\ncaller decodes it where it decodes the parameter and forwards the\nmasked value. A string or number parameter comes back as its text\n(a number's decimal text) masked in place, unquoted, as a string.\nPresent only for an enforcement point whose PEP handshake declares\n`field_redact` at version 2, on Enterprise; any other caller whose\nparameter the redaction masks is refused 403\n`unsupported_obligation`. Omitted when no parameter was masked, so\na caller that never carries PII in its parameters gets a\nbyte-identical response (#4264, since v11.1.0).\n"
+    },
+    "redaction_evaluated": {
+      "type": "boolean",
+      "description": "Whether the redaction detector actually ran (regardless of whether\nit masked anything). A PEP fulfilling a redact_pii obligation MUST\nfail closed when this is false — it means no detection config was\nenabled, so `redacted: false` is indistinguishable from \"looked,\nfound nothing\" and the request must not be forwarded as clean.\n"
+    },
+    "engine": {
+      "type": "string",
+      "enum": [
+        "anchored"
+      ],
+      "description": "Which policy engine authored this verdict: the ADR-065 decision\nplane, the only author on this route (PRD v11 §1.1). Omitted\non a refusal no engine decided - an authentication failure, or a\nrequest refused before the policy pass ran.\n"
+    },
+    "subject_type": {
+      "type": "string",
+      "description": "The type of principal the verdict was decided for (PRD v11 §1.6):\n`User` for a verified user token, `Client` when the request\npresented no user identity and its client credential is the\nprincipal. Omitted wherever `engine` is.\n"
+    },
+    "policy_bundle": {
+      "type": "string",
+      "description": "The digest of the policy set that decided: the system corpus's\nrestriction for this route and the organization root - the\norganization's active typed document composed with the\ndeployment's baseline permission pack, or, while it has published\nnothing, the implicit bundle of that pack and the organization\ntemplate. A rollback reinstates an earlier digest. Omitted wherever\n`engine` is.\n"
+    },
+    "policy_packs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The add-on policy packs (PRD v11 §1.9) whose controls composed\ninto `policy_bundle` on this route, each as `<pack id>@<digest of\nthe pack document the deployment instantiated>`, sorted. Omitted\nwhen the deployment installs no pack or none binds on this route.\n"
+    },
+    "legacy_validators": {
+      "type": "array",
+      "description": "A checksum validator that acted BEFORE the anchored engine decided\n(#4122): under the organization's recorded `pii=redact` detection\noverride, the Indonesia validator masked the statement ahead of\nthe decision plane. Omitted when none did.\n",
+      "items": {
+        "type": "object",
+        "required": [
+          "validator",
+          "action"
+        ],
+        "properties": {
+          "validator": {
+            "type": "string",
+            "enum": [
+              "indonesia_pii",
+              "india_pii"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "masked"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ExfiltrationCheckInfo": {
+      "type": "object",
+      "description": "Information about exfiltration limit checks (v3.2.0+)",
+      "properties": {
+        "rows_returned": {
+          "type": "integer",
+          "description": "Number of rows in the response"
+        },
+        "row_limit": {
+          "type": "integer",
+          "description": "Configured row limit (MCP_MAX_ROWS_PER_QUERY)"
+        },
+        "bytes_returned": {
+          "type": "integer",
+          "description": "Response size in bytes"
+        },
+        "byte_limit": {
+          "type": "integer",
+          "description": "Configured byte limit (MCP_MAX_BYTES_PER_QUERY)"
+        },
+        "within_limits": {
+          "type": "boolean",
+          "description": "True when the response stayed within every configured limit"
+        }
+      }
+    },
+    "PendingApproval": {
+      "type": "object",
+      "description": "A call held for a person's approval (#4370, PRD v11 §1.13). Pending\nis NOT allow: nothing ran, and the enforcement point must not\nforward. An approver approves the queue entry in the portal\n(Approvals), and the caller retries the same call naming\n`approval_id` (see the `X-Axonflow-Approval-Id` parameter).\n\nThe approval expires at `expires_at`: the approval requirement's\nown deadline, which the engine stamps 15 minutes after the decision\non v11. It is never extended; a retry after it is refused\n`approval_expired`.\n",
+      "required": [
+        "approval_id",
+        "status",
+        "plane",
+        "retry"
+      ],
+      "properties": {
+        "approval_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The queue entry's id; the retry names it."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved"
+          ],
+          "description": "`pending`: nobody has decided it yet. `approved`: a person\napproved it and it is waiting for this caller's retry, which\nmust name the id.\n"
+        },
+        "plane": {
+          "type": "string",
+          "enum": [
+            "mcp:request",
+            "decide"
+          ]
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the approval lapses. Omitted on a retry of a still-pending approval."
+        },
+        "retry": {
+          "type": "object",
+          "required": [
+            "header"
+          ],
+          "properties": {
+            "header": {
+              "type": "string",
+              "enum": [
+                "X-Axonflow-Approval-Id"
+              ]
+            },
+            "argument": {
+              "type": "string",
+              "enum": [
+                "approval_id"
+              ],
+              "description": "The MCP tool argument / MCP route body field that carries the id."
+            },
+            "body_field": {
+              "type": "string",
+              "enum": [
+                "approval_id"
+              ],
+              "description": "The decide request field that carries the id."
+            }
+          }
+        }
+      }
+    },
+    "PolicyInfo": {
+      "type": "object",
+      "description": "Policy evaluation information included in MCP responses",
+      "properties": {
+        "policies_evaluated": {
+          "type": "integer",
+          "description": "Number of policies evaluated during request/response processing"
+        },
+        "blocked": {
+          "type": "boolean",
+          "description": "Whether the request was blocked by policy"
+        },
+        "block_reason": {
+          "type": "string",
+          "description": "Reason if the request was blocked"
+        },
+        "redactions_applied": {
+          "type": "integer",
+          "description": "Number of field redactions applied to the response"
+        },
+        "processing_time_ms": {
+          "type": "integer",
+          "description": "Time spent on policy evaluation in milliseconds"
+        },
+        "matched_policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PolicyMatchInfo"
+          },
+          "description": "Policies that matched during evaluation"
+        },
+        "exfiltration_check": {
+          "$ref": "#/$defs/ExfiltrationCheckInfo"
+        }
+      }
+    },
+    "PolicyMatchInfo": {
+      "type": "object",
+      "description": "Information about a policy match during evaluation",
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "description": "Unique policy identifier"
+        },
+        "policy_name": {
+          "type": "string",
+          "description": "Human-readable policy name"
+        },
+        "category": {
+          "type": "string",
+          "description": "Policy category (e.g., \"pii-us\", \"security-sqli\")"
+        },
+        "severity": {
+          "type": "string",
+          "description": "Match severity (low, medium, high, critical)"
+        },
+        "action": {
+          "type": "string",
+          "description": "Action taken (block, redact, warn, log)"
+        }
+      }
+    },
+    "RicherPolicyMatch": {
+      "type": "object",
+      "description": "Per-policy match record on MCP check-input responses\n(`platform/agent/mcp_handler.go`).\n",
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "description": "Unique policy identifier."
+        },
+        "policy_name": {
+          "type": "string",
+          "description": "Human-readable policy name. Omitted when unknown."
+        },
+        "risk_level": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "description": "Risk level configured on this policy. Omitted when unset."
+        },
+        "allow_override": {
+          "type": "boolean",
+          "description": "Whether this policy permits a session override."
+        },
+        "policy_version": {
+          "type": "integer",
+          "description": "Policy version that matched. Omitted when zero."
+        }
+      }
+    }
+  }
+}

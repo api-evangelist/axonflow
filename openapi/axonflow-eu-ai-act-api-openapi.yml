@@ -1,0 +1,1464 @@
+openapi: 3.2.0
+info:
+  title: Axonflow EU AI Act API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged EU AI Act across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: EU AI Act
+  description: 'EU AI Act compliance endpoints for technical documentation export,
+
+    conformity assessments (Article 43), and accuracy/bias tracking (Article 15).
+
+    Enterprise feature for EU regulatory compliance.'
+paths:
+  /api/v1/euaiact/export:
+    post:
+      tags:
+      - EU AI Act
+      summary: Create compliance export
+      description: 'Creates a new EU AI Act compliance export job for technical documentation (Article 11).
+
+
+        Export types:
+
+        - `full_audit`: Complete audit trail for regulatory review
+
+        - `conformity_evidence`: Evidence for conformity assessments
+
+        - `hitl_summary`: Human-in-the-loop decision summary
+
+        - `decision_chain`: Full decision chain tracing
+
+        - `policy_violations`: Policy violation records
+
+        - `accuracy_metrics`: Model accuracy and bias metrics'
+      operationId: createEUAIActExport
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      - $ref: '#/components/parameters/UserIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EUAIActExportRequest'
+            example:
+              export_type: full_audit
+              format: json
+              date_from: '2025-01-01T00:00:00Z'
+              date_to: '2025-12-31T23:59:59Z'
+      responses:
+        '202':
+          description: Export job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EUAIActExport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      tags:
+      - EU AI Act
+      summary: List exports
+      description: List EU AI Act compliance exports for the organization.
+      operationId: listEUAIActExports
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      - $ref: '#/components/parameters/LimitParam'
+      - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: List of exports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EUAIActExport'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/export/{export_id}:
+    get:
+      tags:
+      - EU AI Act
+      summary: Get export status
+      description: Get the status of a specific export job.
+      operationId: getEUAIActExport
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Export details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EUAIActExport'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/export/{export_id}/download:
+    get:
+      tags:
+      - EU AI Act
+      summary: Download export
+      description: 'Download a completed export file. When cloud storage is configured,
+
+        returns a redirect (302) to a presigned URL. For local storage, streams the file.'
+      operationId: downloadEUAIActExport
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Export file metadata or streamed content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  file_path:
+                    type: string
+                  file_size:
+                    type: integer
+                  format:
+                    type: string
+                  download_url:
+                    type: string
+                    description: Presigned URL for cloud storage downloads
+                  storage_type:
+                    type: string
+                    enum:
+                    - local
+                    - s3
+                    - gcs
+                    - azure
+        '307':
+          description: Temporary redirect to presigned cloud storage URL
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/conformity:
+    post:
+      tags:
+      - EU AI Act
+      summary: Create conformity assessment
+      description: 'Create a new EU AI Act conformity assessment (Article 43).
+
+        Used to document compliance for high-risk AI systems.'
+      operationId: createConformityAssessment
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      - $ref: '#/components/parameters/UserIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConformityRequest'
+            example:
+              system_id: ai-system-001
+              system_name: Customer Risk Scoring Model
+              risk_category: high-risk
+              assessors:
+              - compliance@company.com
+      responses:
+        '201':
+          description: Assessment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConformityAssessment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      tags:
+      - EU AI Act
+      summary: List conformity assessments
+      description: List conformity assessments for the organization.
+      operationId: listConformityAssessments
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - draft
+          - in_progress
+          - submitted
+          - approved
+          - rejected
+      - $ref: '#/components/parameters/LimitParam'
+      - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: List of assessments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assessments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConformityAssessment'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}:
+    get:
+      tags:
+      - EU AI Act
+      summary: Get conformity assessment
+      description: Get details of a specific conformity assessment.
+      operationId: getConformityAssessment
+      parameters:
+      - name: assessment_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Assessment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConformityAssessment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - EU AI Act
+      summary: Update conformity assessment
+      description: Update a conformity assessment (only allowed for draft/in_progress status).
+      operationId: updateConformityAssessment
+      parameters:
+      - name: assessment_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConformityRequest'
+      responses:
+        '200':
+          description: Assessment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConformityAssessment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}/submit:
+    post:
+      tags:
+      - EU AI Act
+      summary: Submit assessment for review
+      description: Submit a conformity assessment for approval review.
+      operationId: submitConformityAssessment
+      parameters:
+      - name: assessment_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/UserIDHeader'
+      responses:
+        '200':
+          description: Assessment submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConformityAssessment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}/approve:
+    post:
+      tags:
+      - EU AI Act
+      summary: Approve assessment
+      description: Approve a submitted conformity assessment.
+      operationId: approveConformityAssessment
+      parameters:
+      - name: assessment_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/UserIDHeader'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                validity_years:
+                  type: integer
+                  default: 1
+                  description: Number of years the approval is valid
+      responses:
+        '200':
+          description: Assessment approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConformityAssessment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/conformity/{assessment_id}/reject:
+    post:
+      tags:
+      - EU AI Act
+      summary: Reject assessment
+      description: Reject a submitted conformity assessment.
+      operationId: rejectConformityAssessment
+      parameters:
+      - name: assessment_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/UserIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  description: Reason for rejection
+      responses:
+        '200':
+          description: Assessment rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConformityAssessment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy:
+    get:
+      tags:
+      - EU AI Act
+      summary: Get accuracy summary
+      description: 'Get accuracy and bias tracking summary for the organization (Article 15).
+
+        Provides overview of model performance and compliance status.'
+      operationId: getAccuracySummary
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      responses:
+        '200':
+          description: Accuracy summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccuracySummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy/record:
+    post:
+      tags:
+      - EU AI Act
+      summary: Record accuracy metric
+      description: Record an accuracy metric for a model.
+      operationId: recordAccuracyMetric
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordAccuracyRequest'
+            example:
+              model_id: model-001
+              metric_type: accuracy
+              value: 0.95
+              sample_size: 10000
+      responses:
+        '201':
+          description: Metric recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccuracyMetric'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy/bias:
+    post:
+      tags:
+      - EU AI Act
+      summary: Record bias measurement
+      description: Record a bias detection measurement for a model.
+      operationId: recordBiasMeasurement
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordBiasRequest'
+            example:
+              model_id: model-001
+              category: gender
+              group_a: male
+              group_b: female
+              group_a_rate: 0.82
+              group_b_rate: 0.79
+              sample_size: 5000
+      responses:
+        '201':
+          description: Bias record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BiasRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy/history:
+    get:
+      tags:
+      - EU AI Act
+      summary: Get accuracy history
+      description: Get historical accuracy metrics for filtering and analysis.
+      operationId: getAccuracyHistory
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      - name: model_id
+        in: query
+        schema:
+          type: string
+      - name: metric_type
+        in: query
+        schema:
+          type: string
+          enum:
+          - accuracy
+          - precision
+          - recall
+          - f1_score
+          - auc_roc
+          - auc_pr
+          - mse
+          - mae
+          - custom
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - $ref: '#/components/parameters/LimitParam'
+      - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: Accuracy metrics history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AccuracyMetric'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy/alerts:
+    get:
+      tags:
+      - EU AI Act
+      summary: Get active alerts
+      description: Get active accuracy and bias alerts for the organization.
+      operationId: getAccuracyAlerts
+      parameters:
+      - $ref: '#/components/parameters/OrgIDHeader'
+      responses:
+        '200':
+          description: Active alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AccuracyAlert'
+                  total:
+                    type: integer
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy/alerts/{alert_id}:
+    get:
+      tags:
+      - EU AI Act
+      summary: Get an accuracy alert by ID
+      description: 'Get one accuracy or bias alert. Scoped to the calling organization: an alert belonging to another organization is reported as 404, not 403, so the response cannot be used to probe for another tenant''s alert IDs.'
+      operationId: getAccuracyAlertByID
+      parameters:
+      - name: alert_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/OrgIDHeader'
+      responses:
+        '200':
+          description: The alert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccuracyAlert'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy/alerts/{alert_id}/acknowledge:
+    post:
+      tags:
+      - EU AI Act
+      summary: Acknowledge alert
+      description: Acknowledge an accuracy or bias alert.
+      operationId: acknowledgeAccuracyAlert
+      parameters:
+      - name: alert_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/UserIDHeader'
+      responses:
+        '200':
+          description: Alert acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: acknowledged
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/euaiact/accuracy/alerts/{alert_id}/resolve:
+    post:
+      tags:
+      - EU AI Act
+      summary: Resolve alert
+      description: Resolve an accuracy or bias alert.
+      operationId: resolveAccuracyAlert
+      parameters:
+      - name: alert_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/UserIDHeader'
+      responses:
+        '200':
+          description: Alert resolved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: resolved
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  parameters:
+    UserIDHeader:
+      name: X-User-ID
+      in: header
+      required: false
+      description: 'Caller identity. Defaults to the authenticated user resolved
+
+        from the request token when omitted. Surface for service-mode
+
+        callers that proxy on behalf of multiple users.
+
+        '
+      schema:
+        type: string
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: 'Maximum number of records to return. Defaults vary by
+
+        endpoint; see per-endpoint description for the cap.
+
+        '
+      schema:
+        type: integer
+        minimum: 1
+        default: 100
+    OffsetParam:
+      name: offset
+      in: query
+      required: false
+      description: 'Number of records to skip from the start of the result set.
+
+        Pair with `limit` to walk multi-page reads.
+
+        '
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    OrgIDHeader:
+      name: X-Org-ID
+      in: header
+      required: false
+      description: 'Organization identifier. Falls back to authenticated org from
+
+        the Basic auth client when omitted. Surface for callers that
+
+        need to override (e.g. cross-org admin reads in Enterprise).
+
+        '
+      schema:
+        type: string
+      example: travel-us
+  schemas:
+    RequirementStatus:
+      type: object
+      properties:
+        requirement_id:
+          type: string
+        article:
+          type: string
+          description: EU AI Act article reference (e.g., "Article 9")
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - compliant
+          - non_compliant
+          - partial
+          - not_applicable
+        notes:
+          type: string
+        evidence_ids:
+          type: array
+          items:
+            type: string
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    EvidenceItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+          - document
+          - test_result
+          - audit_log
+          - certification
+        title:
+          type: string
+        description:
+          type: string
+        file_path:
+          type: string
+        url:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+        uploaded_by:
+          type: string
+    Finding:
+      type: object
+      properties:
+        id:
+          type: string
+        severity:
+          type: string
+          enum:
+          - critical
+          - major
+          - minor
+          - observation
+        category:
+          type: string
+        description:
+          type: string
+        article:
+          type: string
+          description: Related EU AI Act article
+        remediation:
+          type: string
+        status:
+          type: string
+          enum:
+          - open
+          - resolved
+          - accepted
+    EUAIActExport:
+      type: object
+      description: EU AI Act compliance export record
+      properties:
+        id:
+          type: string
+          description: Unique export identifier
+        org_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - processing
+          - completed
+          - failed
+          description: Export processing status
+        export_type:
+          type: string
+          enum:
+          - full_audit
+          - conformity_evidence
+          - hitl_summary
+          - decision_chain
+          - policy_violations
+          - accuracy_metrics
+        format:
+          type: string
+          enum:
+          - json
+          - xml
+          - csv
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        date_from:
+          type: string
+          format: date-time
+        date_to:
+          type: string
+          format: date-time
+        download_url:
+          type:
+          - string
+          - 'null'
+          description: Presigned URL for cloud storage downloads
+        storage_type:
+          type: string
+          enum:
+          - local
+          - s3
+          - gcs
+          - azure
+          description: Storage backend used for this export
+        storage_key:
+          type:
+          - string
+          - 'null'
+          description: Cloud storage object key
+        file_path:
+          type:
+          - string
+          - 'null'
+          description: Local file path (when storage_type is local)
+        file_size:
+          type: integer
+          description: Size of export file in bytes
+        record_count:
+          type: integer
+          description: Number of records in the export
+        progress:
+          type: number
+          format: float
+          description: Processing progress (0.0 to 1.0)
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details if export failed
+        created_by:
+          type: string
+    RecordAccuracyRequest:
+      type: object
+      required:
+      - model_id
+      - metric_type
+      - value
+      properties:
+        model_id:
+          type: string
+        metric_type:
+          type: string
+          enum:
+          - accuracy
+          - precision
+          - recall
+          - f1_score
+          - auc_roc
+          - auc_pr
+          - mse
+          - mae
+          - custom
+        value:
+          type: number
+          format: double
+        sample_size:
+          type: integer
+        window_start:
+          type: string
+          format: date-time
+        window_end:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+    CreateConformityRequest:
+      type: object
+      description: 'Request body for `POST /api/v1/euaiact/conformity`. Mirrors
+
+        `platform/orchestrator/euaiact/types.go::CreateAssessmentRequest`.
+
+        '
+      required:
+      - system_id
+      - system_name
+      - risk_category
+      properties:
+        system_id:
+          type: string
+        system_name:
+          type: string
+        risk_category:
+          type: string
+          enum:
+          - minimal
+          - limited
+          - high-risk
+          - unacceptable
+        assessors:
+          type: array
+          items:
+            type: string
+    ConformityAssessment:
+      type: object
+      description: 'EU AI Act conformity assessment record (Article 43). Mirrors the
+
+        wire shape of `platform/orchestrator/euaiact/types.go::ConformityAssessment`.
+
+        '
+      required:
+      - id
+      - org_id
+      - system_id
+      - system_name
+      - risk_category
+      - status
+      - assessment_date
+      - assessors
+      - created_by
+      - created_at
+      - updated_at
+      properties:
+        id:
+          type: string
+          description: Unique assessment identifier (UUID).
+        org_id:
+          type: string
+          description: Owning organization.
+        system_id:
+          type: string
+          description: AI system this assessment covers.
+        system_name:
+          type: string
+          description: Human-readable name of the AI system.
+        risk_category:
+          type: string
+          enum:
+          - minimal
+          - limited
+          - high-risk
+          - unacceptable
+          description: EU AI Act risk classification.
+        status:
+          type: string
+          enum:
+          - draft
+          - in_progress
+          - submitted
+          - approved
+          - rejected
+        version:
+          type: integer
+          description: Monotonic version (bumps on every update).
+        assessment_date:
+          type: string
+          format: date-time
+        valid_until:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        assessors:
+          type: array
+          description: Email addresses of the team members carrying out the assessment.
+          items:
+            type: string
+        requirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequirementStatus'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceItem'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+        risk_mitigation:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+          description: Free-form risk-mitigation notes structured as a JSON object.
+        recommendations:
+          type: array
+          items:
+            type: string
+        created_by:
+          type: string
+          description: User email that opened the assessment.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        submitted_by:
+          type: string
+        approved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        approved_by:
+          type: string
+        rejected_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        rejected_by:
+          type: string
+        rejection_reason:
+          type: string
+          description: Free-form reason a reviewer used when transitioning to `rejected`.
+    UpdateConformityRequest:
+      type: object
+      description: 'Request body for `PUT /api/v1/euaiact/conformity/{assessment_id}`.
+
+        All fields optional — only the fields present are updated.
+
+        Mirrors `platform/orchestrator/euaiact/types.go::UpdateAssessmentRequest`.
+
+        The handler rejects updates when the assessment status is no
+
+        longer `draft` or `in_progress`.
+
+        '
+      properties:
+        system_name:
+          type: string
+        risk_category:
+          type: string
+          enum:
+          - minimal
+          - limited
+          - high-risk
+          - unacceptable
+        assessors:
+          type: array
+          items:
+            type: string
+        requirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequirementStatus'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceItem'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+        risk_mitigation:
+          type: object
+          additionalProperties: true
+        recommendations:
+          type: array
+          items:
+            type: string
+    AccuracySummary:
+      type: object
+      properties:
+        org_id:
+          type: string
+        total_models:
+          type: integer
+        models_above_target:
+          type: integer
+        models_below_target:
+          type: integer
+        average_accuracy:
+          type: number
+          format: double
+        active_alerts:
+          type: integer
+        last_updated:
+          type: string
+          format: date-time
+        metrics_by_model:
+          type: object
+          additionalProperties: true
+    BiasRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        model_id:
+          type: string
+        category:
+          type: string
+          enum:
+          - gender
+          - age
+          - ethnicity
+          - disability
+          - religion
+          - nationality
+          - socioeconomic
+          - custom
+        score:
+          type: number
+          format: double
+          description: Calculated bias score (difference ratio)
+        threshold:
+          type: number
+          format: double
+        is_violation:
+          type: boolean
+        sample_size:
+          type: integer
+        group_a:
+          type: string
+        group_b:
+          type: string
+        group_a_rate:
+          type: number
+          format: double
+        group_b_rate:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+        window_start:
+          type: string
+          format: date-time
+        window_end:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+    AccuracyAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        model_id:
+          type: string
+        alert_type:
+          type: string
+          enum:
+          - accuracy_degradation
+          - bias_detected
+        severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+        title:
+          type: string
+        description:
+          type: string
+        metric_type:
+          type: string
+        bias_category:
+          type: string
+        current_value:
+          type: number
+          format: double
+        threshold:
+          type: number
+          format: double
+        triggered_at:
+          type: string
+          format: date-time
+        acked_at:
+          type: string
+          format: date-time
+        acked_by:
+          type: string
+        resolved_at:
+          type: string
+          format: date-time
+        resolved_by:
+          type: string
+    AccuracyMetric:
+      type: object
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        model_id:
+          type: string
+        metric_type:
+          type: string
+          enum:
+          - accuracy
+          - precision
+          - recall
+          - f1_score
+          - auc_roc
+          - auc_pr
+          - mse
+          - mae
+          - custom
+        value:
+          type: number
+          format: double
+        sample_size:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        window_start:
+          type: string
+          format: date-time
+        window_end:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+    EUAIActExportRequest:
+      type: object
+      description: Request to create an EU AI Act compliance export
+      required:
+      - export_type
+      - format
+      properties:
+        export_type:
+          type: string
+          enum:
+          - full_audit
+          - conformity_evidence
+          - hitl_summary
+          - decision_chain
+          - policy_violations
+          - accuracy_metrics
+          description: Type of compliance export
+        format:
+          type: string
+          enum:
+          - json
+          - xml
+          - csv
+          description: Export file format
+        date_from:
+          type: string
+          format: date-time
+          description: Start of date range
+        date_to:
+          type: string
+          format: date-time
+          description: End of date range
+        model_ids:
+          type: array
+          items:
+            type: string
+          description: Filter by specific model IDs (optional)
+    RecordBiasRequest:
+      type: object
+      required:
+      - model_id
+      - category
+      - group_a
+      - group_b
+      - group_a_rate
+      - group_b_rate
+      properties:
+        model_id:
+          type: string
+        category:
+          type: string
+          enum:
+          - gender
+          - age
+          - ethnicity
+          - disability
+          - religion
+          - nationality
+          - socioeconomic
+          - custom
+        group_a:
+          type: string
+          description: Name of the first comparison group
+        group_b:
+          type: string
+          description: Name of the second comparison group
+        group_a_rate:
+          type: number
+          format: double
+          description: Positive outcome rate for group A
+        group_b_rate:
+          type: number
+          format: double
+          description: Positive outcome rate for group B
+        sample_size:
+          type: integer
+        window_start:
+          type: string
+          format: date-time
+        window_end:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Resource not found
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

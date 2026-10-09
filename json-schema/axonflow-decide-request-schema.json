@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-decide-request-schema.json",
+  "title": "DecideRequest",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-agent-openapi.yml#/components/schemas/DecideRequest",
+  "type": "object",
+  "required": [
+    "stage",
+    "query"
+  ],
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The approval a retry spends (#4370), for a client that cannot set\nthe `X-Axonflow-Approval-Id` header (see that parameter). Never\npart of what the approval binds.\n"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "llm",
+        "tool",
+        "agent"
+      ],
+      "description": "Which gateway layer is calling. Maps to ADR-056's three-layer\nreference architecture (agent / MCP / LLM).\n"
+    },
+    "caller_identity": {
+      "$ref": "#/$defs/DecisionCallerIdentity"
+    },
+    "target": {
+      "$ref": "#/$defs/DecisionTarget"
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The request body / prompt / statement being decided on."
+    },
+    "user_token": {
+      "type": "string",
+      "description": "Optional end-user JWT for audit identity. PEP gateways are\ntypically services and may omit this field -- in enterprise\nmode the platform synthesizes a service identity for the\naudit row when no token is supplied. Supplying a token gets\nthe validated-user record on the audit row instead.\n"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Part of what an approval binds (#4370): a retry naming an\napproval must send the same `context`, or it is refused\n`bound_input_changed` - keep per-request values (request ids,\ntimestamps) in headers.\n\nOptional caller-supplied context (string values) that AxonFlow\npropagates end-to-end into the decision audit record + the OTel\ndecision span, so a SIEM can correlate the decision with upstream\nlogs (e.g. by session_id). Intended for infrastructure-gateway\naudit headers such as `X-AI-Agent`, `X-Session-ID`,\n`X-Leader-Identity`, and a tenant-scoped header family.\n\nOnly keys matching the server's allowlist\n(`AXONFLOW_DECISION_CONTEXT_ALLOWLIST`; the default covers common\nagent / session / leader identity headers plus a tenant-scoped\nheader family, where a trailing `*` is a prefix match) are\npersisted; all other keys are\nsilently dropped. Surviving keys are canonicalized to\nlower_snake_case (`X-AI-Agent` → `x_ai_agent`) so joins are\ndeterministic regardless of header casing. Non-string values are\ndropped; values are capped at 256 bytes and the map at 10 keys\n(surplus dropped, flagged `context_truncated`). The persisted map\nis returned (full) by `GET /api/v1/decisions/{id}/explain` and\n(truncated to 5 keys) by `GET /api/v1/decisions`.\n"
+    },
+    "fulfillment_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "request_body_redaction",
+          "request_header_mutation"
+        ]
+      },
+      "description": "What this PEP's **seam** can mechanically do to a request before\nforwarding it. A different axis from the capability handshake, which\ndeclares which OBLIGATIONS the enforcement point can discharge:\n`request_header_mutation` has no obligation type at all, and\n`immutable_audit` has no seam mechanic, so neither list is derivable\nfrom the other.\n\nThree wire states, three meanings:\n\n* **member omitted** - a legacy (pre-9.11.0) caller. Obligations are\n  emitted exactly as before.\n* **`[]`** - still a **legacy caller**, deliberately. These bytes\n  have always been acceptable to the server and any non-Go client\n  could send them, so giving them a new meaning would move an\n  unchanged caller from \"obligation emitted, the PEP fails closed\"\n  to \"obligation suppressed, organization fallback posture\" - default\n  `log`, i.e. allowed without the redaction. Since v10.4.0 the state\n  is representable in the Go client and distinguishable in the type;\n  its reading is unchanged.\n* **non-empty** - only the obligations these capabilities can\n  discharge are emitted; the organization's obligation-fallback\n  posture decides what happens to any the platform suppresses.\n\nUnknown values are ignored, never an error and never a block, so an\nolder platform meeting a newer PEP's vocabulary degrades instead of\nfailing.\n"
+    }
+  },
+  "$defs": {
+    "DecisionCallerIdentity": {
+      "type": "object",
+      "description": "Gateway-asserted caller identity. `org_id` and `tenant_id` are\nOPTIONAL in the body -- the auth-derived identity from\n`apiAuthMiddleware` is authoritative. In non-community mode,\nbody-supplied values MUST match the authenticated identity or\nthe request is rejected with HTTP 403.\n",
+      "properties": {
+        "gateway_id": {
+          "type": "string",
+          "description": "Identifier of the calling gateway (PEP), for audit trail."
+        },
+        "org_id": {
+          "type": "string",
+          "description": "Org scope for the decision. In non-community mode, must match\nthe authenticated identity if supplied.\n"
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "Tenant scope for the decision. In non-community mode, must\nmatch the authenticated identity if supplied.\n"
+        }
+      }
+    },
+    "DecisionTarget": {
+      "type": "object",
+      "description": "What the gateway is about to call.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "What kind of thing is being called: `llm`, `tool`, `agent`, or\n`http` (an LLM-shaped target under the transport name the ext_proc\nand ext_authz seams send).\n\n`tool` IS LOAD-BEARING, not descriptive. It is the only value for\nwhich the platform records `server` and `tool` as the decision's\ntool attribution -- onto the audit row (`policy_details.tool_server`\n/ `.tool_name`) and into the descriptor a human approver sees on a\nHITL queue entry. A tool call sent under any other value is decided\nand enforced exactly the same way, and its audit row carries neither\nfield: a complete-looking record that does not say which tool it was\nabout. Matching is case-insensitive, so `TOOL` and `Tool` are the\nsame value; there is no second accepted WORD and no alias (#3717).\n\nCapability-scoped policy evaluation is a separate question and is\nNOT offered for every tool target. A target that also names a\n`server` describes a call the caller routes to a backend it does not\nitself execute, so its `tool` is not used to relax evaluation --\nthose requests always get full evaluation.\n\nSO SETTING `server` IS A TRADE, AND IT IS THE SAFE DIRECTION OF ONE:\nit is what puts `tool_server` on the audit row, and it also opts the\nrequest out of any evaluation relaxation. It cannot weaken\nenforcement. What it costs is false positives on prose that looks\nlike a statement, and the ADR-065 shadow comparison's tool label,\nwhich follows the scoping key and is empty for these requests. Audit\nattribution, the HITL descriptor and the FinCrime scoring context\nall still carry the tool name.\n"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier when type is llm."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Provider identifier when type is llm."
+        },
+        "server": {
+          "type": "string",
+          "description": "Server/connector identifier when type is tool (#2904)."
+        },
+        "tool": {
+          "type": "string",
+          "description": "Tool identifier when type is tool."
+        }
+      }
+    }
+  }
+}

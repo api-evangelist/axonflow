@@ -1,0 +1,393 @@
+openapi: 3.2.0
+info:
+  title: Axonflow US Securities Compliance API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged US Securities Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: US Securities Compliance
+  description: 'SEC adviser and FINRA broker-dealer examination evidence (ADR-064). One
+
+    read: the examination-readiness summary. The evidence itself is produced
+
+    by the compliance report facade with `regulator=ussecurities`; this module
+
+    owns no tables and adds no second path to the underlying rows. The
+
+    supervised population is DERIVED from the framework a report requests, so
+
+    the same evidence is cited against the adviser''s instruments, the
+
+    broker-dealer''s, or both under Regulation S-P. **Enterprise** feature.'
+paths:
+  /api/v1/ussecurities/exam-readiness:
+    get:
+      tags:
+      - US Securities Compliance
+      summary: US securities examination readiness
+      description: 'Answers "if I generate the SEC/FINRA examination package now, what will
+
+        be in it and what will it have to disclose?" WITHOUT creating a report
+
+        job.
+
+
+        It returns COUNTS, PRESENCE and DISCLOSURES, never evidence rows. The
+
+        rows come from the compliance report facade
+
+        (`POST /api/v1/compliance/reports` with `regulator=ussecurities`) and
+
+        only from there, so this is not a second export path.
+
+
+        It exists because the facade cannot answer this question: asking it
+
+        means creating a job, spending one of an Evaluation tier''s three daily
+
+        reports, and waiting on an async render, purely to learn whether the
+
+        package is worth generating.
+
+
+        SCOPE: the summary covers the requesting TENANCY, with two DISCLOSED
+
+        exceptions rather than two silent ones (ADR-064 section 4). The
+
+        RLS-gated sources - the approval queue and the signed decision chain -
+
+        are additionally bounded by ORGANIZATION, because both enforce that
+
+        boundary in the database. The configured supervisory controls are
+
+        scoped by organization outright, because that is the scope the engine
+
+        that enforces them reads them under; a tenancy-scoped inventory would
+
+        publish a set of controls that is not the set being applied. The `scope`
+
+        field states all three in one sentence.
+
+
+        AUTHORITY: gated on tenant-wide read authority, the same gate as the
+
+        evidence and compliance exports. It returns aggregates rather than rows,
+
+        but an aggregate over `audit_logs` still describes whole-tenant
+
+        activity.
+
+
+        **Enterprise Feature**. Community builds register no route (404).'
+      operationId: getUSSecuritiesExamReadiness
+      responses:
+        '200':
+          description: Examination readiness summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/USSecuritiesExamReadiness'
+        '401':
+          description: 'No organization or tenant scope on the request (`SCOPE_REQUIRED`):
+
+            it did not traverse an authenticating hop.
+
+            '
+        '403':
+          description: 'The caller does not hold tenant-wide read authority.
+
+            '
+        '405':
+          description: Method not allowed; this route is GET-only.
+        '500':
+          description: 'The readiness summary could not be produced (`INTERNAL_ERROR`). The
+
+            body carries a fixed sentence; the cause is in the orchestrator log
+
+            keyed by the request.
+
+            '
+        '503':
+          description: 'The module is not initialized (`USSECURITIES_NOT_AVAILABLE`: the
+
+            orchestrator has no database connection). A DEPLOYMENT fact, not a
+
+            server fault, so it is not behind a Retry button that can never
+
+            clear.
+
+            '
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    USSecuritiesInstrument:
+      type: object
+      properties:
+        instrument:
+          type: string
+        as_of:
+          type: string
+          description: The version or date this package is rendered against.
+        note:
+          type: string
+          description: What the instrument is cited for.
+        applies_to:
+          type: array
+          description: 'The registrations the instrument reaches. A rendered artifact
+
+            carries only the instruments its own population appears in, because
+
+            an examiner reads a citation block as the set the document answers.
+
+            '
+          items:
+            type: string
+            enum:
+            - adviser
+            - broker-dealer
+    USSecuritiesPopulation:
+      type: object
+      properties:
+        id:
+          type: string
+          enum:
+          - adviser
+          - broker-dealer
+          - both
+        display_name:
+          type: string
+        frameworks:
+          type: array
+          description: The framework tokens that select this population.
+          items:
+            type: string
+            enum:
+            - SEC_EXAM
+            - FINRA_SUPERVISION
+            - REG_SP
+        recordkeeping_citation:
+          type: string
+          description: 'States the REQUIREMENT, never this deployment''s posture. Where it
+
+            names WORM it also names the audit-trail alternative the 2022
+
+            amendments to Exchange Act rule 17a-4 added: naming only the first
+
+            tells a firm to buy storage it may not need.
+
+            '
+        supervision_citation:
+          type: string
+        marketing_citation:
+          type: string
+          description: 'The instrument under which the firm''s own AI claims are examined.
+
+            This is what makes the disclosure-vs-reality reconciliation a
+
+            compliance artifact rather than a marketing summary.
+
+            '
+    USSecuritiesSourceReadiness:
+      type: object
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        present:
+          type: boolean
+          description: 'An OBSERVATION, not a health check: false means the source held
+
+            nothing for this tenancy in this window, which on a quiet deployment
+
+            is a truthful answer and not a fault. Meaningful ONLY when
+
+            `readable` is true.
+
+            '
+        count:
+          type: integer
+        readable:
+          type: boolean
+          description: 'Whether this deployment could read the source AT ALL. `present:
+
+            false` has two causes needing opposite reactions - a quiet
+
+            deployment, and a surface this deployment cannot read - and this is
+
+            the field that separates them. A console must key on this boolean
+
+            rather than on the note''s prose, or rewording the sentence silently
+
+            switches the warning off.
+
+            '
+        note:
+          type: string
+          description: 'Why the count reads as it does. Load-bearing: a note beginning `NOT
+
+            REPORTED` means the generated package will carry an INCOMPLETE
+
+            section, and a note beginning `DISCLOSED ABSENT` means the
+
+            capability is not installed here and the section will say so rather
+
+            than reporting a zero.
+
+            '
+    USSecuritiesExamReadiness:
+      type: object
+      description: 'The US securities examination-readiness summary. Counts, presence and
+
+        disclosures only; it carries no evidence rows.
+
+        '
+      properties:
+        tenant_id:
+          type: string
+          description: The tenancy this summary covers.
+        window_days:
+          type: integer
+          description: 'The lookback the counts are taken over. One quarter, matching the
+
+            sibling US modules: it is the shortest cycle any instrument in scope
+
+            works to, and it bounds an unqualified read on a busy audit trail.
+
+            '
+          example: 90
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        scope:
+          type: string
+          description: 'One sentence stating the package''s tenancy boundary AND its two
+
+            disclosed exceptions. Every count is meaningless without it.
+
+            '
+        populations:
+          type: array
+          description: 'The supervised populations and the frameworks that select each. The
+
+            population is DERIVED from the framework a report requests and is
+
+            never a separate request field, so a caller cannot ask for a
+
+            combination that contradicts itself (ADR-063 section 2). Served so a
+
+            console learns the mapping from the deployment instead of keeping a
+
+            copy that drifts.
+
+            '
+          items:
+            $ref: '#/components/schemas/USSecuritiesPopulation'
+        sources:
+          type: array
+          description: Per evidence source, whether it holds anything and how much.
+          items:
+            $ref: '#/components/schemas/USSecuritiesSourceReadiness'
+        instruments:
+          type: array
+          description: 'The instruments a generated package is rendered against, each with
+
+            the version or date it was read at. An instrument named without its
+
+            revision leaves the reader to guess, and the guess a reader makes is
+
+            always the current one.
+
+            '
+          items:
+            $ref: '#/components/schemas/USSecuritiesInstrument'
+        disclosures:
+          type: array
+          description: 'The sentences every generated artifact carries. Returned here so
+
+            nothing in a package is a surprise at the point it reaches an
+
+            examiner, and served from the same source the artifact renders from,
+
+            so the two cannot say different things.
+
+            '
+          items:
+            type: string
+        complete:
+          type: boolean
+          description: 'False when ANY source could not be read. A package generated while
+
+            this is false carries at least one INCOMPLETE section.
+
+            '
+        fraud_risk_addon_active:
+          type: boolean
+          description: 'Whether the Fraud and Risk Add-on''s FinCrime pack was in force on at
+
+            least one decision of this tenancy in the window. MEASURED from the
+
+            audit trail: a decision on a scope the pack binds on records it in
+
+            policy_details.policy_packs as fincrime@<digest>. The licence feature
+
+            reader ADR-061 designs does not exist in the tree, and this service
+
+            cannot see which packs the agent installed, so a deployment that
+
+            installed the pack and made no decision in the window reads false
+
+            (#4164).
+
+
+            It is published here because the answer changes what the
+
+            financial-crime section of a generated package SAYS - disclosed
+
+            absent rather than empty - and an operator deciding whether to
+
+            generate should see that first.
+
+            '
+        fraud_risk_addon_decisions:
+          type: integer
+          description: 'The number of this tenancy''s decisions in the window whose audit
+
+            record names the FinCrime pack. fraud_risk_addon_active is true
+
+            exactly when this is above zero.
+
+            '
+        generated_at:
+          type: string
+          format: date-time
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

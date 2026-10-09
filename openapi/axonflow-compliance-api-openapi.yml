@@ -1,0 +1,380 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Compliance API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Compliance
+paths:
+  /api/v1/compliance/reports:
+    post:
+      tags:
+      - Compliance
+      summary: Request a compliance report
+      description: 'Queue an asynchronous compliance report for a regulator and period. The
+
+        job is returned immediately with `status` and `progress`; poll
+
+        `GET /api/v1/compliance/reports/{id}` and then follow
+
+        `GET /api/v1/compliance/reports/{id}/download`.
+
+
+        The request body is decoded with unknown fields REJECTED and a 32 KiB
+
+        limit. `period_start` and `period_end` are RFC 3339.
+
+
+        This route is additionally gated by the tenant-wide audit export check,
+
+        which refuses a caller without an admin or owner role with a 403 in the
+
+        FLAT envelope rather than this module''s own.'
+      operationId: createComplianceReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                regulator:
+                  type: string
+                framework:
+                  type: string
+                period_start:
+                  type: string
+                  format: date-time
+                period_end:
+                  type: string
+                  format: date-time
+                format:
+                  type: string
+              required:
+              - regulator
+              - period_start
+              - period_end
+              - format
+      responses:
+        '202':
+          description: Report job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportJob'
+        '400':
+          description: Invalid body, period, regulator, framework or format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+        '401':
+          description: Tenant scope required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          description: Method not allowed on this collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+        '503':
+          description: The compliance report module is not available on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/compliance/reports/{id}:
+    get:
+      tags:
+      - Compliance
+      summary: Poll a compliance report job
+      description: 'Return the current state of a report job. This is the POLL shape and is
+
+        exempt from the tenant-wide audit-export role gate that guards the
+
+        create and download routes.'
+      operationId: getComplianceReport
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The report job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportJob'
+        '401':
+          description: Tenant scope required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/compliance/reports/{id}/download:
+    get:
+      tags:
+      - Compliance
+      summary: Download a completed compliance report
+      description: 'Redirects to a short-lived presigned object-storage URL. There is NO
+
+        response body on success - follow the `Location` header. The response
+
+        carries `Cache-Control: no-store` because the presigned URL is a
+
+        bearer credential for the report artifact.
+
+
+        Returns 409 when the job exists but is not yet complete, or is complete
+
+        with no retrievable artifact; `error_code` distinguishes the two.'
+      operationId: downloadComplianceReport
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '307':
+          description: Redirect to the presigned artifact URL
+          headers:
+            Location:
+              description: Short-lived presigned URL for the report artifact.
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store, no-cache, must-revalidate, private
+        '401':
+          description: Tenant scope required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+        '409':
+          description: Report not completed, or its artifact is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReportError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    ComplianceReportError:
+      type: object
+      description: 'The compliance-report facade''s error envelope. It is neither the flat
+
+        `{success, error}` nor the coded `{error: {code, message}}` family: it is
+
+        a third, MODULE-LOCAL shape that carries `report_state` alongside the
+
+        code, because a caller that gets a refusal needs to distinguish "this
+
+        regulator is not enabled" from "it is enabled and the period is empty"
+
+        from "the report exists but is not finished". Documented as its own
+
+        shape rather than forced into one of the two families, because a
+
+        document that claims a shape the handler does not emit is the defect
+
+        this reconciliation exists to remove.
+
+        '
+      properties:
+        error:
+          type: string
+        error_code:
+          type: string
+          enum:
+          - UNKNOWN_REGULATOR
+          - UNKNOWN_FRAMEWORK
+          - UNSUPPORTED_FORMAT
+          - INVALID_PERIOD
+          - INVALID_BODY
+          - SCOPE_REQUIRED
+          - REPORT_NOT_FOUND
+          - REGULATOR_NOT_AVAILABLE
+          - COMPLIANCE_REPORT_REQUIRES_EVALUATION_LICENSE
+          - COMPLIANCE_REPORT_LIMIT_EXCEEDED
+          - REPORT_NOT_COMPLETED
+          - REPORT_ARTIFACT_UNAVAILABLE
+          - INTERNAL_ERROR
+        report_state:
+          type: string
+          enum:
+          - ''
+          - not_available
+          - enabled_empty
+          - populated
+          description: Omitted when the refusal does not depend on report state.
+      required:
+      - error
+      - error_code
+    ComplianceReportJob:
+      type: object
+      description: 'An asynchronous compliance-report job. `org_id`, `tenant_id` and
+
+        `storage_key` are deliberately NOT on the wire (json:"-" in the platform
+
+        type); the tenancy is the caller''s own and the storage key is internal.
+
+        '
+      properties:
+        id:
+          type: string
+        regulator:
+          type: string
+        framework:
+          type: string
+        format:
+          type: string
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        status:
+          type: string
+        report_state:
+          type: string
+          enum:
+          - ''
+          - not_available
+          - enabled_empty
+          - populated
+        progress:
+          type: integer
+        record_count:
+          type: integer
+        size_bytes:
+          type: integer
+          format: int64
+        checksum:
+          type: string
+        error:
+          type: string
+        requested_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  responses:
+    Forbidden:
+      description: Forbidden - insufficient permissions or enterprise license required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Enterprise license required
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

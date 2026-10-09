@@ -1,0 +1,1990 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Audit API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Audit across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Audit
+  description: Audit log search and retrieval
+paths:
+  /api/v1/audit/search:
+    get:
+      tags:
+      - Audit
+      summary: Not supported - audit search is POST-only
+      description: 'THIS OPERATION ALWAYS RETURNS 405, and it is documented because it is
+
+        registered deliberately rather than by accident.
+
+
+        Audit search takes a JSON criteria body, so it is POST-only. Without an
+
+        explicit GET registration the request fell through to the greedy
+
+        `GET /api/v1/audit/{id}` with `id="search"` and answered
+
+        `audit record not found` - a 404 that lies about the resource and sends
+
+        anyone probing the API hunting for a data problem that does not exist.
+
+
+        A working query-string mirror is deliberately NOT offered: it would be a
+
+        second, silently diverging spelling of a contract the SDKs and plugins
+
+        already drive over POST.'
+      operationId: auditSearchMethodNotAllowed
+      responses:
+        '405':
+          description: Method not allowed - use POST
+          headers:
+            Allow:
+              schema:
+                type: string
+                example: POST, OPTIONS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    head:
+      tags:
+      - Audit
+      summary: Not supported - audit search is POST-only
+      description: Same 405 sentinel as GET on this path; see that operation.
+      operationId: auditSearchMethodNotAllowedHead
+      responses:
+        '405':
+          description: Method not allowed - use POST
+          headers:
+            Allow:
+              schema:
+                type: string
+                example: POST, OPTIONS
+    post:
+      tags:
+      - Audit
+      summary: Search audit logs
+      description: 'Search audit logs by various criteria. The tenant scope is always forced
+
+        from the `X-Tenant-ID` header (the body cannot override it); requests
+
+        without the header are rejected with 401. `user_email` and `client_id`
+
+        are case-insensitive partial (ILIKE substring) matches. The search
+
+        start time is clamped to the tenant''s tier-based retention window.
+
+
+        **Role-scoped reads (#2922):** the caller''s read scope is resolved
+
+        server-side. `admin`/`owner` read the full tenant trail; every other
+
+        role — and any caller without a validated per-user identity — reads
+
+        **only their own** `user_email` rows (fail-closed). A non-admin''s
+
+        `user_email` filter can only narrow the result to their own identity,
+
+        never widen it to another user''s rows. Callers without any resolvable
+
+        identity receive an empty `entries` array. The role/scope is trusted
+
+        only over the internal agent→orchestrator proxy-auth channel, never a
+
+        client-forwarded header.
+
+
+        **Single-operator deployments (#3060):** `DEPLOYMENT_MODE=community`
+
+        reads tenant-wide unconditionally, and `DEPLOYMENT_MODE=community-saas`
+
+        reads tenant-wide for requests that arrived over the agent gateway
+
+        (proven by the internal proxy-auth token) — in that mode the
+
+        organization, tenant and credential are one `cs_`, so tenant-wide
+
+        is that single evaluator''s own data. A community-saas request that
+
+        reaches the orchestrator directly stays least-privilege. Read scope is
+
+        a separate axis from administrative authority: a community-saas caller
+
+        reads tenant-wide here and is still denied (403) the whole-tenant
+
+        compliance exports and the cost/usage/execution family.
+
+
+        **Method:** this endpoint is **POST-only** (its criteria are a JSON
+
+        body). A `GET` returns **405** with `Allow: POST, OPTIONS`.'
+      operationId: searchAuditLogs
+      parameters:
+      - $ref: '#/components/parameters/TenantIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditSearchRequest'
+            example:
+              user_email: analyst@company.com
+              client_id: analytics-app
+              start_time: '2025-01-01T00:00:00Z'
+              end_time: '2025-01-15T23:59:59Z'
+              action: blocked
+              session_id: sess-4f6a2c
+              limit: 100
+      responses:
+        '200':
+          description: 'Audit search results. `total` is the true pre-LIMIT match count
+
+            for the filters, so callers can paginate with `limit`/`offset`.
+
+            `entries` is always a JSON array (`[]` when empty, never `null`).
+
+            '
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditSearchResponse'
+              example:
+                entries:
+                - id: a1b2c3d4
+                  request_id: req_9f8e7d
+                  timestamp: '2025-01-14T10:30:00Z'
+                  user_email: analyst@company.com
+                  tenant_id: tenant-abc
+                  request_type: llm_chat
+                  policy_decision: blocked
+                  session_id: sess-4f6a2c
+                total: 235
+                limit: 100
+                offset: 0
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing X-Tenant-ID header (tenant scoping required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Audit search failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/audit/summary:
+    post:
+      tags:
+      - Audit
+      summary: Get audit compliance summary
+      description: 'Returns aggregated compliance summary statistics for a given date range.
+
+        Includes total event counts, breakdowns by severity and action type,
+
+        top triggered policies, and an overall compliance score.'
+      operationId: getAuditSummary
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: true
+        description: 'Tenant identifier for scoping results. Required to prevent cross-tenant
+
+          data aggregation. There is no fallback header: the X-Org-ID fallback was
+
+          removed in v6.2.0, and a request without X-Tenant-ID is rejected with 400.
+
+          '
+        schema:
+          type: string
+        example: travel-us
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - start_time
+              - end_time
+              properties:
+                start_time:
+                  type: string
+                  format: date-time
+                  description: Start of date range (RFC3339)
+                end_time:
+                  type: string
+                  format: date-time
+                  description: End of date range (RFC3339, must be after start_time)
+            example:
+              start_time: '2026-01-01T00:00:00Z'
+              end_time: '2026-04-01T00:00:00Z'
+      responses:
+        '200':
+          description: 'Compliance summary. A fail-closed read (`X-Axonflow-Read-Scope:
+
+            none`) returns the zero-events summary, whose `compliance_score`
+
+            of 100 reads as "all clear" — the header is what tells the two
+
+            apart.
+
+            '
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_events:
+                    type: integer
+                    description: Total audit events in the date range
+                  by_severity:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: Event counts by severity (info, warning, critical)
+                  by_action:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: Event counts by action type (llm_call, tool_call, etc.)
+                  top_policies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        policy_name:
+                          type: string
+                          description: 'The policy identity resolved for this group by the
+
+                            shared identity chain. IDENTITY-first: it carries a
+
+                            raw policy IDENTIFIER on every row whose writer
+
+                            stamped one, and a display NAME only when it did
+
+                            not. Read `identity_is_name` before rendering;
+
+                            styling an identifier as though it were a display
+
+                            name is exactly the defect #3347 fixed.
+
+                            '
+                        identity_is_name:
+                          type: boolean
+                          description: 'Whether `policy_name` holds a display NAME (true) or
+
+                            a raw IDENTIFIER (false).
+
+
+                            It is a property of the RESOLVED STRING, NOT a claim
+
+                            about what the writer recorded. Since #3365 a
+
+                            decide-plane row stamps `policy_names` alongside
+
+                            `policy_ids`, so such a row records a name AND
+
+                            reports false here, because the chain resolves the
+
+                            id arm first. Render a false value with a NEUTRAL
+
+                            identifier affordance (the portal appends
+
+                            "(policy id)"); a "name not recorded" affordance
+
+                            would assert a falsehood about that row.
+
+                            '
+                        trigger_count:
+                          type: integer
+                        block_count:
+                          type: integer
+                    description: 'Top 10 policies by trigger count. A row is counted once
+
+                      per DISTINCT policy it recorded, so these counts do not
+
+                      sum to the number of audit rows and are not a share of
+
+                      one. Compare the array length against `total_policies`
+
+                      before presenting it as the complete set.
+
+                      '
+                  total_policies:
+                    type: integer
+                    description: 'How many DISTINCT policies fired in the range BEFORE the
+
+                      10-entry `top_policies` limit truncated it. 0 when nothing
+
+                      fired. When it exceeds the array length, disclose "top 10
+
+                      of N" rather than implying the remainder does not exist.
+
+                      '
+                  top_policies_unavailable:
+                    type: boolean
+                    description: 'Present and `true` ONLY when the top-policies aggregation
+
+                      did not complete (it failed, or exceeded its 15s
+
+                      deadline). OMITTED entirely otherwise, so treat absence as
+
+                      false.
+
+
+                      The rest of the summary is still returned, so without this
+
+                      flag a failed aggregation is INDISTINGUISHABLE from "no
+
+                      policies fired": `top_policies` empty, `total_policies` 0,
+
+                      and any truncation disclosure computing "nothing hidden".
+
+                      Clients MUST NOT render that as a clean zero result. The
+
+                      portal replaces the tile with an explicit "could not be
+
+                      computed for this range" notice.
+
+
+                      The `/api/v1/audit/report` twin of this field does not
+
+                      exist: on that endpoint a failed aggregation fails the
+
+                      whole response with a 500 instead of truncating.
+
+                      '
+                  compliance_score:
+                    type: number
+                    format: float
+                    description: Compliance score 0-100 (100 = no blocked events)
+                  avg_latency_ms:
+                    type:
+                    - number
+                    - 'null'
+                    format: double
+                    description: 'Mean ENFORCEMENT latency in milliseconds over the rows in
+
+                      the range that carried a measurement, or `null` when none
+
+                      did (#3424). Same contract as the /api/v1/audit/report
+
+                      field of this name: `null` is the absence of a
+
+                      measurement, NOT a measured zero, and clients MUST accept
+
+                      it (a strict deserializer binding this to a non-optional
+
+                      float will raise). Values below 1 are legitimate --
+
+                      response_time_ms is whole milliseconds, so a decision
+
+                      completing in under one contributes a 0.
+
+                      '
+                  latency_sample_count:
+                    type: integer
+                    description: 'How many rows backed avg_latency_ms. 0 exactly when
+
+                      avg_latency_ms is null, and never greater than
+
+                      total_requests. Routinely far below it: planes that record
+
+                      no enforcement duration (HITL approvals, workflow
+
+                      lifecycle rows, the connector-exec MCP closure) and the
+
+                      LLM plane''s provider round trips are excluded from the
+
+                      average while still being governed rows. The portal
+
+                      renders this as the tile''s basis so an average over a
+
+                      small subset cannot read like an average over all of them.
+
+                      '
+              example:
+                total_events: 1523
+                by_severity:
+                  info: 1400
+                  warning: 100
+                  critical: 23
+                by_action:
+                  llm_call: 1200
+                  tool_call: 300
+                  policy_check: 23
+                top_policies:
+                - policy_name: demo-block-bulk-email
+                  identity_is_name: true
+                  trigger_count: 15
+                  block_count: 15
+                - policy_name: sys_pii_iban
+                  identity_is_name: false
+                  trigger_count: 8
+                  block_count: 3
+                total_policies: 2
+                compliance_score: 98.5
+                avg_latency_ms: 4.2
+                latency_sample_count: 612
+        '400':
+          description: 'Invalid request (bad/missing RFC3339 timestamps, end_time not after
+
+            start_time, range over 1 year) or missing X-Tenant-ID header.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/audit/tenant/{tenant_id}:
+    get:
+      tags:
+      - Audit
+      summary: Get tenant audit logs
+      description: 'Get recent audit logs for a specific tenant. The URL tenant must match
+
+        the session tenant carried in the `X-Tenant-ID` header: a missing header
+
+        is rejected with 401 (fail-closed), and a mismatch with 403. Results are
+
+        clamped to the tenant''s tier-based retention window.'
+      operationId: getTenantAuditLogs
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        description: Tenant identifier (must equal the X-Tenant-ID header value)
+        schema:
+          type: string
+        example: tenant-abc
+      - $ref: '#/components/parameters/TenantIDHeader'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of rows to return (1-1000)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 50
+      - name: page_size
+        in: query
+        required: false
+        description: 'Deprecated alias for `limit` (1-1000); ignored when `limit` is
+
+          supplied. Kept for backward compatibility.
+
+          '
+        deprecated: true
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+      responses:
+        '200':
+          description: Tenant audit logs
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Missing X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: URL tenant does not match the session tenant (tenant scope mismatch)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/audit/tool-call:
+    post:
+      tags:
+      - Audit
+      summary: Record a tool call audit entry
+      description: 'Records a non-LLM tool call (API calls, webhooks, MCP tool executions by external
+
+        orchestrators) in the AxonFlow audit trail. Only `tool_name` is required; all other
+
+        fields are optional.'
+      operationId: auditToolCall
+      security:
+      - basicAuth: []
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: true
+        description: Tenant identifier (must match the client ID from Basic auth credentials)
+        schema:
+          type: string
+      - name: X-Axonflow-Proxy-Auth
+        in: header
+        required: true
+        description: 'Internal-service HMAC token proving the request was routed through the
+
+          AxonFlow Agent gateway (derived from `AXONFLOW_INTERNAL_SERVICE_SECRET`).
+
+          Enforced **fail-closed in every non-Community deployment**: a missing or
+
+          invalid token — or an unconfigured secret — is rejected with 403, in
+
+          addition to the Basic auth requirement below. Community deployments
+
+          without the secret configured skip this check.
+
+          '
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: 'Optional per-request dedup token. When supplied, the platform caches
+
+          the response for 24h and returns it byte-for-byte on subsequent
+
+          requests carrying the same key + same authenticated tenant. A cache
+
+          hit adds an `Idempotent-Replayed: true` response header. Pattern:
+
+          `^[A-Za-z0-9_.:\-/]+$`, max 256 chars. 5xx responses are not cached
+
+          so the caller''s retry can hit a fresh attempt.
+
+          '
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^[A-Za-z0-9_.:\-/]+$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditToolCallRequest'
+            example:
+              tool_name: getUserInfo
+              caller_name: claude_code
+              input: {}
+              output: {}
+              workflow_id: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+              step_id: step-3
+              user_id: user@example.com
+              duration_ms: 45
+              policies_applied:
+              - pii_check
+              - data_access
+              success: true
+              error_message: ''
+      responses:
+        '201':
+          description: Tool call audit recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditToolCallResponse'
+              example:
+                audit_id: audit_1710432000_abcd1234
+                status: recorded
+                timestamp: '2026-03-14T12:00:00Z'
+        '400':
+          description: Bad request (missing tool_name, invalid body, or missing X-Tenant-ID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Basic auth credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Client ID does not match tenant scope, or request not routed through Agent gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/audit/export:
+    post:
+      tags:
+      - Audit
+      summary: Export audit logs (CSV or JSON)
+      description: 'Exports audit logs as a downloadable file. Filters mirror
+
+        `/api/v1/audit/search` (same ILIKE user/client matching, canonical
+
+        action expansion, JSONB policy filters and date range), so an export
+
+        always reconciles with the on-screen search for the same filters.
+
+        Tenant scope is forced from the `X-Tenant-ID` header.
+
+
+        The export is capped at **50,000 rows**; when the cap is hit the
+
+        response carries the `X-Audit-Export-Truncated: true` and
+
+        `X-Audit-Export-Row-Cap` headers so callers can warn that the file is
+
+        partial. Free-text CSV cells are formula-escaped (leading `=`, `+`,
+
+        `-`, `@`, tab or CR is prefixed with `''`) to neutralize spreadsheet
+
+        formula injection.'
+      operationId: exportAuditLogs
+      parameters:
+      - $ref: '#/components/parameters/TenantIDHeader'
+      - name: format
+        in: query
+        required: false
+        description: Export format. Defaults to `json`.
+        schema:
+          type: string
+          enum:
+          - csv
+          - json
+          default: json
+      requestBody:
+        required: false
+        description: 'Optional filters. An empty body exports the whole tenant window
+
+          (within the tier retention floor). A present-but-malformed body is a
+
+          400.
+
+          '
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_email:
+                  type: string
+                  description: Case-insensitive partial (ILIKE substring) match
+                client_id:
+                  type: string
+                  description: Case-insensitive partial (ILIKE substring) match
+                action:
+                  type: string
+                  description: 'Canonical verdict filter (allowed, blocked, redacted,
+
+                    needs_approval, error); expanded to all historical DB
+
+                    spellings of that verdict.
+
+                    '
+                session_id:
+                  type: string
+                  description: Exact match on the first-class session_id column
+                decision_id:
+                  type: string
+                  description: Matches policy_details->>'decision_id'
+                policy_name:
+                  type: string
+                  description: Same three-shape policy_details match as /api/v1/audit/search
+                override_id:
+                  type: string
+                  description: Matches policy_details->>'override_id'
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+            example:
+              action: blocked
+              start_time: '2026-06-01T00:00:00Z'
+              end_time: '2026-06-30T23:59:59Z'
+      responses:
+        '200':
+          description: 'Export file (Content-Disposition attachment). CSV columns, in
+
+            order: id, timestamp, user_email, tenant_id, org_id,
+
+            policy_decision, request_type, query, response_sample, provider,
+
+            model, response_time_ms, tokens, correlation_id, session_id.
+
+
+            `response_time_ms` is EMPTY for a row whose writer measured nothing
+
+            (#3424), never `0`: a spreadsheet skips an empty cell in AVERAGE()
+
+            and would otherwise let every unmeasured row vote that average
+
+            towards zero.
+
+            '
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+            X-Audit-Export-Truncated:
+              description: Present (value `true`) when the 50,000-row cap was hit
+              schema:
+                type: string
+            X-Audit-Export-Row-Cap:
+              description: The row cap in effect (50000). Present only when the cap was hit, alongside X-Audit-Export-Truncated
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLogEntry'
+                  count:
+                    type: integer
+                    description: Number of entries in this export
+                  truncated:
+                    type: boolean
+                    description: True when the row cap was hit
+                  row_cap:
+                    type: integer
+                    example: 50000
+            text/csv:
+              schema:
+                type: string
+        '400':
+          description: Invalid format value or malformed request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing X-Tenant-ID header (tenant scoping required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Audit export failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Audit subsystem unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/audit/report:
+    post:
+      tags:
+      - Audit
+      summary: Per-action audit report
+      description: 'Aggregates audit logs for a window into per-action counts, average
+
+        latency, and top policies, tenant-scoped and optionally filtered by
+
+        user and a single canonical action. Counts reconcile with
+
+        `/api/v1/audit/search` for the same filters.'
+      operationId: getAuditActionReport
+      parameters:
+      - $ref: '#/components/parameters/TenantIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - start_time
+              - end_time
+              properties:
+                start_time:
+                  type: string
+                  format: date-time
+                  description: Window start (RFC3339)
+                end_time:
+                  type: string
+                  format: date-time
+                  description: Window end (RFC3339, must be after start_time; range at most 1 year)
+                user_email:
+                  type: string
+                  description: Optional case-insensitive partial match
+                action:
+                  type: string
+                  description: Optional single canonical action filter
+            example:
+              start_time: '2026-06-01T00:00:00Z'
+              end_time: '2026-06-30T23:59:59Z'
+      responses:
+        '200':
+          description: 'Per-action report. A fail-closed read (`X-Axonflow-Read-Scope:
+
+            none`) returns the seeded all-zeroes report, which has the same
+
+            shape as "no rows in the window".
+
+            '
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditActionReport'
+              example:
+                tenant_id: tenant-abc
+                start_time: '2026-06-01T00:00:00Z'
+                end_time: '2026-06-30T23:59:59Z'
+                total: 1523
+                by_action:
+                  allowed: 1400
+                  blocked: 100
+                  redacted: 20
+                  needs_approval: 3
+                  error: 0
+                avg_latency_ms: 245.7
+                latency_sample_count: 1180
+                top_policies:
+                - policy_name: pii-detection
+                  identity_is_name: true
+                  trigger_count: 88
+                  block_count: 35
+                - policy_name: sys_pii_iban
+                  identity_is_name: false
+                  trigger_count: 41
+                  block_count: 12
+                total_policies: 2
+        '400':
+          description: 'Invalid body, non-RFC3339 timestamps, end_time not after
+
+            start_time, or range over 1 year
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing X-Tenant-ID header (tenant scoping required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Audit report failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Audit subsystem unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/audit/session-summary:
+    get:
+      tags:
+      - Audit
+      summary: Session-level usage summary (Enterprise)
+      description: '**Enterprise** — session-level usage reporting (#2759). The Community
+
+        build mounts the same route but returns **501 Not Implemented**.
+
+
+        Buckets audit logs into per-session aggregates for the date window:
+
+        a bucket is **per-session** when `session_id` is present on its rows,
+
+        otherwise rows without a session id fall back to a **per-user-day**
+
+        bucket (the `day` field is set instead of `session_id`). Buckets are
+
+        capped at `bucket_limit` (most-recent activity first); `truncated` is
+
+        true when the window held more buckets than the cap — narrow the
+
+        window or raise `limit`. Drill into a bucket''s raw events via
+
+        `POST /api/v1/audit/search` with its `session_id` (#2857).
+
+
+        The window start is clamped to the tenant''s tier retention floor,
+
+        like `/api/v1/audit/search` and `/api/v1/audit/export`.
+
+
+        **`avg_latency_ms` is nullable** on the bucket and on every entry of
+
+        its `tools` array (#3433), paired with a `latency_sample_count`. `null`
+
+        means no row in that bucket carried a measurement, which is a different
+
+        fact from a measured zero and used to be coalesced onto it. A strict
+
+        deserializer binding it to a non-optional float will raise; see the
+
+        `SessionSummaryBucket` schema.'
+      operationId: getAuditSessionSummary
+      parameters:
+      - $ref: '#/components/parameters/TenantIDHeader'
+      - name: start_date
+        in: query
+        required: true
+        description: Window start, calendar day (YYYY-MM-DD)
+        schema:
+          type: string
+          format: date
+        example: '2026-07-01'
+      - name: end_date
+        in: query
+        required: true
+        description: Window end, calendar day (YYYY-MM-DD), inclusive
+        schema:
+          type: string
+          format: date
+        example: '2026-07-07'
+      - name: user_email
+        in: query
+        required: false
+        description: Case-insensitive partial (ILIKE substring) filter
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: 'Caps the number of returned buckets. Default 200. Values above the
+
+          server max (1000) are clamped; the effective bound is echoed back
+
+          as `bucket_limit`. A non-positive or non-integer value is a 400.
+
+          '
+        schema:
+          type: integer
+          minimum: 1
+          default: 200
+      responses:
+        '200':
+          description: Session summary buckets
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionSummaryResponse'
+        '400':
+          description: 'Missing/invalid start_date or end_date, end_date before
+
+            start_date, range over 1 year, or invalid limit
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing X-Tenant-ID header (tenant scoping required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Session summary query failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '501':
+          description: Community edition — session summary reporting is an Enterprise feature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Audit subsystem unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/audit/{id}:
+    get:
+      tags:
+      - Audit
+      summary: Get a single audit entry by ID
+      description: 'Returns the full audit entry for the given id, tenant-scoped by the
+
+        `X-Tenant-ID` header. A record that exists but belongs to another
+
+        tenant returns 404 (not 403), so the endpoint cannot be used as a
+
+        cross-tenant existence oracle. Literal `/api/v1/audit/*` routes
+
+        (search, export, report, session-summary, tenant, tool-call) are
+
+        matched before this parameterized path — including `GET
+
+        /api/v1/audit/search`, which answers **405** rather than being
+
+        swallowed here as an id of `"search"` (#3060).
+
+
+        **Role-scoped reads (#2922):** a non-tenant-wide caller may fetch only
+
+        their own rows; a record belonging to another user returns the same
+
+        404 as a missing one (non-oracle). See
+
+        `POST /api/v1/audit/search` for the deployment-mode carve-outs.'
+      operationId: getAuditLogById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Audit entry id
+        schema:
+          type: string
+      - $ref: '#/components/parameters/TenantIDHeader'
+      responses:
+        '200':
+          description: Full audit entry
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogEntry'
+        '400':
+          description: Missing audit id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing X-Tenant-ID header (tenant scoping required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 'Audit record not found (or belongs to another tenant, or is
+
+            outside the caller''s read scope). Deliberately the same body in
+
+            all three cases so the endpoint is not an existence oracle —
+
+            `X-Axonflow-Read-Scope` is the operator-side channel that tells
+
+            them apart.
+
+            '
+          headers:
+            X-Axonflow-Read-Scope:
+              $ref: '#/components/headers/XAxonflowReadScope'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Audit detail lookup failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Audit subsystem unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    SessionSummaryResponse:
+      type: object
+      description: GET /api/v1/audit/session-summary payload (Enterprise)
+      properties:
+        tenant_id:
+          type: string
+        user_email:
+          type: string
+          description: Echoed filter; omitted when not filtered
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        buckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionSummaryBucket'
+        bucket_limit:
+          type: integer
+          description: Effective bucket cap applied to this response
+        truncated:
+          type: boolean
+          description: 'True when the window held more buckets than bucket_limit —
+
+            narrow the window or raise ?limit=
+
+            '
+    AuditSearchRequest:
+      type: object
+      description: 'Search filters. The tenant scope is NOT part of this body — it is
+
+        always forced from the X-Tenant-ID header and cannot be overridden
+
+        by the payload.
+
+        '
+      properties:
+        user_email:
+          type: string
+          description: Case-insensitive partial (ILIKE substring) match
+        client_id:
+          type: string
+          description: Case-insensitive partial (ILIKE substring) match
+        start_time:
+          type: string
+          format: date-time
+          description: 'Window lower bound; clamped to the tenant''s tier-based
+
+            retention cutoff when earlier (or when omitted)
+
+            '
+        end_time:
+          type: string
+          format: date-time
+        action:
+          type: string
+          description: 'Filter by policy decision. The value is normalized to its
+
+            canonical verdict (allowed, blocked, redacted, needs_approval,
+
+            error) and expanded to every historical DB spelling of that
+
+            verdict, so it matches both current and legacy rows.
+
+            '
+        session_id:
+          type: string
+          description: 'Exact match on the first-class session_id column — used to
+
+            drill into a session-summary bucket''s raw events (#2857).
+
+            '
+        limit:
+          type: integer
+          default: 100
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 'Pagination offset — number of audit-log rows to skip from
+
+            the start of the result set. Pair with `limit` to walk
+
+            multi-page audit reads.
+
+            '
+        decision_id:
+          type: string
+          description: 'Filter audit reads to a specific governance decision id
+
+            (mints from MCPCheckInputResponse / MCPCheckOutputResponse
+
+            etc.). Matches `policy_details->>''decision_id''`. Useful when
+
+            correlating a specific request through its full audit trail.
+
+            '
+        override_id:
+          type: string
+          description: 'Filter to audit entries that recorded an override-used
+
+            event for this override id (matches
+
+            `policy_details->>''override_id''`).
+
+            '
+        policy_name:
+          type: string
+          description: 'Filter to audit entries where this policy fired. Matches the
+
+            three shapes audit writers store in the policy_details JSONB:
+
+            the scalar `policy_details.policy_name`, the CSV string
+
+            `policy_details.policy_names`, and
+
+            `policy_details.policy_matches[*].policy_name` (workflow step
+
+            gates + decision records).
+
+            '
+    AuditActionReport:
+      type: object
+      description: 'Per-action aggregate for a window. by_action always carries the full
+
+        canonical verdict set (allowed / blocked / redacted / needs_approval /
+
+        error) — a verdict with no rows reports 0 rather than being absent.
+
+        '
+      properties:
+        tenant_id:
+          type: string
+        user_email:
+          type: string
+          description: Echoed filter; omitted when not filtered
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        total:
+          type: integer
+          description: Governed decisions in the window (lifecycle events excluded)
+        by_action:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Counts folded onto the canonical verdicts
+        avg_latency_ms:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: 'Mean ENFORCEMENT latency in milliseconds over the rows in the range
+
+            that carried a measurement, or `null` when none did (#3424).
+
+
+            `null` is not `0`. Whole planes record no enforcement duration by
+
+            design (HITL approvals, workflow lifecycle rows, the connector-exec
+
+            MCP closure), and provider round trips on the LLM plane are a
+
+            different quantity and are excluded rather than averaged in, so a
+
+            range whose traffic was entirely one of those has nothing to report.
+
+            It used to be coalesced to 0, which reads exactly like a measured
+
+            zero. Clients MUST accept null here; a strict deserializer binding
+
+            this to a non-optional float will raise. It can also be BELOW 1:
+
+            response_time_ms is whole milliseconds, so a decision completing in
+
+            under a millisecond contributes a 0.
+
+
+            Read latency_sample_count to tell "fast" from "empty".
+
+            '
+        latency_sample_count:
+          type: integer
+          description: 'How many rows backed avg_latency_ms. 0 exactly when avg_latency_ms
+
+            is null. Never greater than `total`: both are narrowed to the same
+
+            verdict rows.
+
+            '
+        top_policies:
+          type: array
+          description: 'Top 10 policies by trigger count. A row is counted once per DISTINCT
+
+            policy it recorded, so these counts do not sum to `total` and are not
+
+            a share of it. Compare the array length against `total_policies`
+
+            before presenting it as the complete set.
+
+
+            There is no `top_policies_unavailable` flag on this endpoint, unlike
+
+            the compliance summary: this is the regulator-facing artifact, so a
+
+            failed or timed-out aggregation fails the WHOLE response with a 500
+
+            rather than returning a table that quietly omits rows.
+
+            '
+          items:
+            type: object
+            properties:
+              policy_name:
+                type: string
+                description: 'The policy identity resolved for this group by the shared
+
+                  identity chain. IDENTITY-first: it carries a raw policy
+
+                  IDENTIFIER on every row whose writer stamped one, and a display
+
+                  NAME only when it did not. Read `identity_is_name` before
+
+                  rendering; styling an identifier as though it were a display
+
+                  name is exactly the defect #3347 fixed.
+
+                  '
+              identity_is_name:
+                type: boolean
+                description: 'Whether `policy_name` holds a display NAME (true) or a raw
+
+                  IDENTIFIER (false).
+
+
+                  It is a property of the RESOLVED STRING, NOT a claim about what
+
+                  the writer recorded. Since #3365 a decide-plane row stamps
+
+                  `policy_names` alongside `policy_ids`, so such a row records a
+
+                  name AND reports false here, because the chain resolves the id
+
+                  arm first. Render a false value with a NEUTRAL identifier
+
+                  affordance; a "name not recorded" affordance would assert a
+
+                  falsehood about that row.
+
+                  '
+              trigger_count:
+                type: integer
+              block_count:
+                type: integer
+        total_policies:
+          type: integer
+          description: 'How many DISTINCT policies fired in the range BEFORE the 10-entry
+
+            `top_policies` limit truncated it. 0 when nothing fired. On this
+
+            REGULATOR-FACING report an undisclosed truncation is the sharper of
+
+            the two surfaces'' risks: when this exceeds the array length, disclose
+
+            "top 10 of N" rather than implying the remainder does not exist.
+
+            '
+    AuditSearchResponse:
+      type: object
+      description: Paginated audit search results
+      properties:
+        entries:
+          type: array
+          description: Matching audit entries (always an array, `[]` when empty)
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        total:
+          type: integer
+          description: True pre-LIMIT match count for the filters (for pagination)
+        limit:
+          type: integer
+        offset:
+          type: integer
+    SessionSummaryUsageMetrics:
+      type: object
+      description: 'Optional Claude-export enrichment (#2852), sourced from the OTLP
+
+        metrics ingest. Absent when no metric rows match the bucket. These
+
+        are the CLI''s own aggregates (everything the tool did, governed or
+
+        not) and are deliberately nested rather than merged with the
+
+        bucket-level tokens_used/cost, which remain the governed-gateway
+
+        sums. tokens_used here counts input/output only; cache tokens are
+
+        kept separately in cache_tokens and never inflate the headline.
+
+        '
+      properties:
+        lines_of_code:
+          type: integer
+        active_time_seconds:
+          type: number
+          format: double
+        commits:
+          type: integer
+        pull_requests:
+          type: integer
+        tool_permission_decisions:
+          type: object
+          properties:
+            accept:
+              type: integer
+            reject:
+              type: integer
+        session_count:
+          type: integer
+        tokens_used:
+          type: integer
+        cache_tokens:
+          type: integer
+        cost_usd:
+          type: number
+          format: double
+    AuditLogEntry:
+      type: object
+      description: 'A single audit_logs row as serialized on the wire (orchestrator
+
+        AuditEntry struct). Optional canonical-decision, cross-border and
+
+        session fields are omitted when empty.
+
+        '
+      properties:
+        id:
+          type: string
+        request_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        user_id:
+          type: integer
+        user_email:
+          type: string
+        user_role:
+          type: string
+        client_id:
+          type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+        request_type:
+          type: string
+        query:
+          type: string
+          description: The audited query/prompt (already redacted by the write path)
+        query_hash:
+          type: string
+        policy_decision:
+          type: string
+          description: 'Verdict for the request. Canonical values are allowed, blocked,
+
+            redacted, needs_approval, error; historical rows may carry
+
+            legacy spellings.
+
+            '
+        policy_details:
+          type: object
+          description: 'Nested decision detail exactly as the writer stored it
+
+            (policy_ids / reasons / latency_ms plus writer-specific keys
+
+            like gateway_id, tool_name, decision_id, override_id,
+
+            policy_matches). Treat keys as writer-specific.
+
+            '
+          additionalProperties: true
+        provider:
+          type: string
+        model:
+          type: string
+          description: 'LLM model identifier the request was routed to (e.g.
+
+            `gpt-4o-mini`, `llama3.2:latest`). Surfaced separately from
+
+            `provider` so callers can filter audit reads by model without
+
+            parsing the provider''s vendor-specific naming.
+
+            '
+        response_time_ms:
+          type: integer
+          format: int64
+          description: 'Measured duration for this row in whole milliseconds. ABSENT when
+
+            this row''s writer measured nothing (#3424).
+
+
+            Absent is NOT `0`. This field used to be emitted unconditionally, so
+
+            every row from a writer with no duration to record -- blocked
+
+            request / response / media, failed request, workflow, plan and
+
+            tool-call rows, HITL approvals, and the connector-exec MCP closure
+
+            -- carried a literal `0`, which the portal''s Latency column rendered
+
+            as a confident "0ms". The key is now omitted for those rows rather
+
+            than set to null: this schema declares no `required` list, so the
+
+            property was already optional and a conforming client already
+
+            handles its absence. Nothing about the declared contract changes.
+
+
+            A `0` that DOES arrive is a real measurement: the column is whole
+
+            milliseconds, so a decision the platform timed at under 1ms is
+
+            stored as the 0 its clock produced. The portal renders that as
+
+            "<1ms" and an absent value as "-".
+
+
+            The quantity differs by `plane`: enforcement duration on
+
+            decision/gateway/mcp/openai_compat, a PROVIDER round trip on `llm`,
+
+            and a client-asserted OTLP duration on cowork/claude_code (#3431).
+
+            The compliance summary''s `avg_latency_ms` averages only the first.
+
+            '
+        tokens_used:
+          type: integer
+          description: "Provider tokens consumed by this request, OMITTED when the row carries no RECORDED provider usage (#3427).\nThe omission says the usage was not recorded; it does NOT assert that no provider was called. Two distinct populations omit it:\n* Rows whose writer never reached a model at all -- a blocked\n  request, a redaction, a gateway pre-check deny, a media deny, a\n  workflow step, a plan or a tool-call row.\n* Rows written by the LLM RESPONSE-plane block writer, which runs\n  AFTER the forward: the call was made and the answer was withheld,\n  so a real round trip was paid for, but that writer records none\n  of the provider usage it is handed. That is a gap in the writer,\n  tracked separately, not a claim about the request.\n\nUntil #3427 both populations left the read paths as a literal `0`, which the portal's detail panel rendered as \"Tokens 0\" under a request no model saw. The key is now omitted for those rows rather than set to null: this schema declares no `required` list, so the property was already optional and a conforming client already handles its absence.\nA `0` that DOES arrive is a real report from a provider, not an absence.\n"
+        cost:
+          type: number
+          format: double
+          description: 'Estimated provider cost for this request in USD, OMITTED when the row carries no recorded provider usage (#3427). Same rule, same two populations and same rationale as `tokens_used` above; note that `0` is a genuinely representable cost (a locally hosted or free-tier model), which is why absence is expressed by omitting the key rather than by a zero.
+
+            '
+        redacted_fields:
+          type: array
+          items:
+            type: string
+        error_message:
+          type: string
+          description: Omitted when empty
+        response_sample:
+          type: string
+        compliance_flags:
+          type: array
+          items:
+            type: string
+        security_metrics:
+          type: object
+          additionalProperties: true
+        decision_id:
+          type: string
+          description: 'Canonical decision-row id (#2597/ADR-058); present on planes
+
+            that mint decisions, omitted on legacy writers
+
+            '
+        plane:
+          type: string
+          description: 'Enforcement plane that wrote the row (e.g. mcp, llm); omitted on
+
+            legacy writers. The orchestrator''s four ENFORCEMENT planes are
+
+            `orchestrator_request` for /api/v1/process and
+
+            /api/v1/plan/execute, `wcp` for the workflow step gate, `map` for a
+
+            multi-agent step and `orchestrator_response` for the LLM response.
+
+            (`policy_simulation` and `policy_test` are the orchestrator''s too,
+
+            but they are operator tools rather than enforcement points and
+
+            write no decision row.)
+
+            '
+        correlation_id:
+          type: string
+          description: Decision-chain correlation key (#2611); omitted when not stitched
+        transfer_basis:
+          type: string
+          description: 'UU PDP Pasal 56 cross-border transfer legal basis (adequacy,
+
+            safeguards, pasal_56b_dpa, consent) — Enterprise LLM-forward
+
+            path only (#2718)
+
+            '
+        data_residency:
+          type: string
+          description: ISO 3166-1 alpha-2 destination country (#2718); Enterprise only
+        session_id:
+          type: string
+          description: 'AI-tool session id (Claude Code / Desktop) forwarded via
+
+            X-Session-Id; asserted attribution, not an auth boundary
+
+            '
+    AuditToolCallRequest:
+      type: object
+      required:
+      - tool_name
+      properties:
+        tool_name:
+          type: string
+          description: Name of the tool that was called
+        caller_name:
+          type: string
+          description: Which client/integration made this call (e.g. claude_code, codex, cursor, openclaw). Replaces tool_type (#2912), which was misnamed for this purpose — every real caller used it to identify itself, not to describe a property of the tool.
+        tool_type:
+          type: string
+          deprecated: true
+          description: Deprecated — use caller_name instead. Accepted as a legacy input fallback when caller_name is not supplied.
+        input:
+          type: object
+          description: Input data sent to the tool
+        output:
+          type: object
+          description: Output data returned by the tool
+        workflow_id:
+          type: string
+          description: Associated workflow ID
+        step_id:
+          type: string
+          description: Associated workflow step ID
+        user_id:
+          type: string
+          description: User who triggered the tool call
+        duration_ms:
+          type: integer
+          format: int64
+          description: Duration of the tool call in milliseconds
+        policies_applied:
+          type: array
+          items:
+            type: string
+          description: List of policy names applied during the tool call
+        success:
+          type: boolean
+          description: Whether the tool call succeeded
+        error_message:
+          type: string
+          description: Error message if the tool call failed
+    SessionSummaryBucket:
+      type: object
+      description: 'One session (or per-user-day fallback) bucket. Exactly one of
+
+        session_id / day is set: session_id for a real session bucket, day
+
+        (YYYY-MM-DD) for rows without a session id grouped by calendar day.
+
+        '
+      properties:
+        session_id:
+          type: string
+          description: Set when the bucket is a real session
+        day:
+          type: string
+          description: Set only for a per-user-day fallback bucket (YYYY-MM-DD)
+        user_email:
+          type: string
+        tenant_id:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        total:
+          type: integer
+        by_action:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Per-bucket counts folded onto the canonical verdicts
+        tools:
+          type: array
+          description: Per-request_type usage within the bucket
+          items:
+            type: object
+            properties:
+              request_type:
+                type: string
+              count:
+                type: integer
+              tokens_used:
+                type: integer
+              cost:
+                type: number
+                format: double
+              avg_latency_ms:
+                type:
+                - number
+                - 'null'
+                format: double
+                description: 'Mean latency in milliseconds over the rows of this
+
+                  request_type in this bucket that carried a measurement, or
+
+                  `null` when none did (#3433). Same contract as the
+
+                  bucket-level `avg_latency_ms` below, applied per
+
+                  request_type - and `null` is the NORMAL answer for a
+
+                  request_type whose writers record no duration, which is why
+
+                  it is per-request_type rather than only on the bucket.
+
+                  '
+              latency_sample_count:
+                type: integer
+                description: 'How many rows of this request_type backed avg_latency_ms. 0
+
+                  exactly when avg_latency_ms is null, and never greater than
+
+                  `count`.
+
+                  '
+        tokens_used:
+          type: integer
+          description: Per-request token sum over governed audit rows (authoritative gateway view)
+        cost:
+          type: number
+          format: double
+        avg_latency_ms:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: 'Mean latency in milliseconds over the rows in this bucket that
+
+            carried a measurement, or `null` when none did (#3433, for parity
+
+            with `/api/v1/audit/summary` and `/api/v1/audit/report`).
+
+
+            `null` is not `0`. Whole planes record no duration by design (HITL
+
+            approvals, workflow lifecycle rows, the connector-exec MCP
+
+            closure), so a bucket whose traffic was entirely one of those has
+
+            nothing to report. It used to be coalesced to 0, which reads
+
+            exactly like a measured zero. Clients MUST accept null here; a
+
+            strict deserializer binding this to a non-optional float will
+
+            raise. It can also be BELOW 1: response_time_ms is whole
+
+            milliseconds, so a decision completing in under a millisecond
+
+            contributes a 0.
+
+
+            Read latency_sample_count to tell "fast" from "empty".
+
+
+            WHICH quantity this is differs from the compliance summary''s tile.
+
+            This surface sits beside provider tokens and cost, so it
+
+            deliberately keeps the LLM plane''s provider round trip in the
+
+            average; the audit page''s tile is the ENFORCEMENT number and
+
+            excludes that plane. Naming the three quantities
+
+            `response_time_ms` carries is tracked in #3431.
+
+            '
+        latency_sample_count:
+          type: integer
+          description: 'How many rows backed avg_latency_ms. 0 exactly when avg_latency_ms
+
+            is null, and never greater than `total`.
+
+            '
+        usage_metrics:
+          $ref: '#/components/schemas/SessionSummaryUsageMetrics'
+    AuditToolCallResponse:
+      type: object
+      properties:
+        audit_id:
+          type: string
+          description: Unique identifier for the audit entry
+        status:
+          type: string
+          description: Recording status
+          enum:
+          - recorded
+        timestamp:
+          type: string
+          format: date-time
+          description: When the audit entry was recorded
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  headers:
+    XAxonflowReadScope:
+      description: "RBAC read-scope diagnostic. Echoes the read scope the orchestrator\nresolved server-side for this caller and applied to the query:\n\n- `tenant` — the caller may read every user's rows within the\n  (header-forced) tenant: a validated `admin`/`owner` role over the\n  internal proxy-auth channel, the customer-portal's tenant-scope\n  assertion, or a single-operator deployment (`DEPLOYMENT_MODE=community`,\n  and `community-saas` for requests proven to have arrived over the\n  agent gateway — there the organization, tenant and credential are one\n  `cs_<uuid>`, so \"tenant-wide\" is that one evaluator's own data).\n- `own-rows` — the caller has a validated per-user identity but no\n  tenant-wide authority, so the read was restricted to rows stamped\n  with their own canonical `user_email`.\n- `none` — fail-closed. The caller presented neither tenant-wide\n  authority nor a per-user identity, so **zero rows** were returned.\n  The orchestrator also logs one diagnostic line on this path.\n\nThe header exists so that a `200` with an empty page — or a `404` on a\nrecord that does exist — is distinguishable from a genuinely empty\ntrail. That ambiguity is what let a whole deployment read zero rows\nwithout anyone noticing.\n\n**Diagnostic only.** The response body is byte-for-byte unchanged by\nits presence or value, and nothing keys authorization off it. It is a\nRESPONSE header the orchestrator writes, never an input: a\nclient-supplied `X-Axonflow-Read-Scope` REQUEST header is stripped by\nthe agent gateway and is never trusted. Scope is derived from the\nvalidated identity carried over the internal agent→orchestrator\nproxy-auth channel.\n\nRead scope is also a separate axis from administrative authority.\n`tenant` here does not imply the caller may run whole-tenant compliance\nexports or the cost/usage/execution family — those stay admin-gated and\nstill return 403.\n\nStamped before the handler writes its status line, so it is present on\nany response produced after the scope is resolved (including the\ndeliberately non-oracle `404`s), and absent on requests rejected before\nthat point (e.g. a missing `X-Tenant-ID`).\n"
+      schema:
+        type: string
+        enum:
+        - tenant
+        - own-rows
+        - none
+        example: tenant
+  parameters:
+    TenantIDHeader:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier scoping the request. The AxonFlow Agent gateway
+
+        sets this header after authentication; the orchestrator fails closed
+
+        when it is absent (401 on audit/decision endpoints, 400 on others —
+
+        see each operation). Clients cannot widen their scope through it:
+
+        handlers force the tenant filter from this header, never from the
+
+        request body.
+
+        '
+      schema:
+        type: string
+      example: travel-us
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

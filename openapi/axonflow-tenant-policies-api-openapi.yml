@@ -1,0 +1,1033 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Tenant Policies API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Tenant Policies across 2 of this provider''s published API definitions: axonflow-policy-api.yaml, axonflow-policy-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (Agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local development (Agent single entry point)
+- url: http://localhost:8081
+  description: Orchestrator direct (internal only)
+tags:
+- name: Tenant Policies
+  description: 'Tenant policy CRUD via the ADR-024 `/api/v1/tenant-policies` surface
+
+    (Orchestrator, proxied by the Agent).'
+paths:
+  /api/v1/tenant-policies:
+    get:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: List dynamic policies
+      description: 'Retrieve a paginated list of the caller''s policies, whatever their
+
+        category: with no `category` parameter no category filter is applied,
+
+        so rows categorised otherwise, or not at all (written through
+
+        `/api/v1/policies`), are returned too. A `category` parameter must
+
+        start with `dynamic-` or `media-`, and any other value is refused
+
+        `400`. When `type=media` is passed without a category, results are
+
+        filtered to `media-*` categories.
+
+
+        `limit` is the preferred pagination parameter; `page_size` is
+
+        deprecated but still accepted.'
+      operationId: listTenantPolicies
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: type
+        in: query
+        description: Filter by policy type
+        schema:
+          $ref: '#/components/schemas/PolicyType'
+      - name: category
+        in: query
+        description: 'Filter by category. Must start with `dynamic-` or `media-`
+
+          (e.g., dynamic-risk, media-safety); other values are rejected
+
+          with a validation error.
+
+          '
+        schema:
+          type: string
+      - name: enabled
+        in: query
+        description: Filter by enabled status
+        schema:
+          type: boolean
+      - name: search
+        in: query
+        description: Search in policy name and description
+        schema:
+          type: string
+          maxLength: 100
+      - name: page
+        in: query
+        description: Page number (1-indexed)
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        description: Items per page (preferred over the deprecated page_size)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: page_size
+        in: query
+        deprecated: true
+        description: Items per page (deprecated - use limit instead)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - name: sort_by
+        in: query
+        description: Sort field
+        schema:
+          type: string
+          enum:
+          - name
+          - created_at
+          - updated_at
+          - priority
+          default: created_at
+      - name: sort_dir
+        in: query
+        description: Sort direction
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+          default: desc
+      responses:
+        '200':
+          description: List of dynamic policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoliciesListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Create a dynamic policy
+      description: 'Create a new dynamic policy. `category` is required and must start
+
+        with `dynamic-` or `media-` (e.g., dynamic-risk, media-safety).'
+      operationId: createTenantPolicy
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+      responses:
+        '201':
+          description: Dynamic policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Tier validation failed (e.g., organization-tier policy without Enterprise license)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/tenant-policies/import:
+    post:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Import dynamic policies
+      description: 'Bulk import dynamic policies from JSON. Supports up to 100 policies
+
+        per request. Every policy must have a category starting with
+
+        `dynamic-` or `media-`.
+
+
+        On a deployment whose database connection cannot write the legacy
+
+        policy tables (migrations/core/172), the request is refused `409
+
+        LEGACY_POLICY_WRITE_FROZEN` before its body is read, whatever it
+
+        contains, and the refusal names the typed authoring route. An
+
+        owner-role deployment still imports.'
+      operationId: importTenantPolicies
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportPoliciesRequest'
+      responses:
+        '200':
+          description: Import results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportPoliciesResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/tenant-policies/export:
+    get:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Export dynamic policies
+      description: 'Export the organization''s policies as JSON: every row the list
+
+        route returns for the caller, whatever its category, including a
+
+        row with no category (one written through `/api/v1/policies`). The
+
+        same set as `/api/v1/policies/export`. Before v11.1.0 only rows with
+
+        a `dynamic-*` or `media-*` category were included, and the rest were
+
+        left out without notice (#4293). This family''s import still accepts
+
+        only `dynamic-*` and `media-*` rows and refuses the whole batch at the
+
+        first other one, so a file that carries other rows is imported
+
+        through `/api/v1/policies/import`, which accepts them.'
+      operationId: exportTenantPolicies
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: Exported dynamic policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportPoliciesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/tenant-policies/effective:
+    get:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Get effective dynamic policies
+      description: 'Returns the enabled dynamic policies for the tenant (both `dynamic-*`
+
+        and `media-*` categories), sorted by priority ascending. Returns up to
+
+        100 policies.'
+      operationId: getEffectiveTenantPolicies
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: Effective dynamic policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoliciesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/tenant-policies/{id}:
+    parameters:
+    - $ref: '#/components/parameters/PolicyID'
+    - $ref: '#/components/parameters/TenantID'
+    get:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Get a dynamic policy
+      description: 'Retrieve a single dynamic policy by ID. Returns 404 if the policy
+
+        exists but is not a dynamic policy (category not `dynamic-*`/`media-*`).'
+      operationId: getTenantPolicy
+      responses:
+        '200':
+          description: Dynamic policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Update a dynamic policy
+      description: 'Update an existing dynamic policy. Only provided fields are updated.
+
+        If `category` is changed, the new value must still start with
+
+        `dynamic-` or `media-`.'
+      operationId: updateTenantPolicy
+      parameters:
+      - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyRequest'
+      responses:
+        '200':
+          description: Dynamic policy updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Tier validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Delete a dynamic policy
+      description: Soft-delete a dynamic policy. The policy is marked as deleted but retained for audit purposes.
+      operationId: deleteTenantPolicy
+      parameters:
+      - $ref: '#/components/parameters/UserID'
+      responses:
+        '204':
+          description: Dynamic policy deleted
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Tier validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LegacyPolicyWriteFrozen'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+  /api/v1/tenant-policies/{id}/versions:
+    parameters:
+    - $ref: '#/components/parameters/PolicyID'
+    - $ref: '#/components/parameters/TenantID'
+    get:
+      deprecated: true
+      tags:
+      - Tenant Policies
+      summary: Get dynamic policy version history
+      description: Retrieve the complete version history of a dynamic policy for audit purposes
+      operationId: getTenantPolicyVersions
+      responses:
+        '200':
+          description: Version history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (Agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local development (Agent single entry point)
+    - url: http://localhost:8081
+      description: Orchestrator direct (internal only)
+components:
+  schemas:
+    PolicyResource:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique policy identifier
+          example: pol_abc123def456
+        name:
+          type: string
+          description: Human-readable policy name
+          minLength: 3
+          maxLength: 100
+          example: Block PII Access
+        description:
+          type: string
+          description: Detailed policy description
+          maxLength: 500
+          example: Prevent unauthorized access to personally identifiable information
+        type:
+          $ref: '#/components/schemas/PolicyType'
+        category:
+          type: string
+          description: Policy category (dynamic-risk, dynamic-compliance, media-safety, etc.)
+          example: dynamic-risk
+        tier:
+          type: string
+          enum:
+          - system
+          - organization
+          - tenant
+          description: Policy tier in the hierarchy (system policies are immutable)
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyCondition'
+          minItems: 1
+          description: Conditions that must all match (AND logic)
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyAction'
+          minItems: 1
+          description: Actions to execute when policy matches
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          default: 0
+          description: Higher priority policies are evaluated first
+        enabled:
+          type: boolean
+          default: true
+          description: Whether the policy is active
+        version:
+          type: integer
+          minimum: 1
+          description: Policy version number, incremented on each update
+        tenant_id:
+          type: string
+          description: Owning tenant ID
+        organization_id:
+          type: string
+          description: 'The organisation that owns this policy. Since #3490 the
+
+            organisation is what SELECTS a policy row, at every tier -- this
+
+            is not an organization-tier-only field, and the previous wording
+
+            described the retired organization_id COLUMN rather than this
+
+            resource field.
+
+            '
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        created_by:
+          type: string
+          description: User who created the policy
+        updated_by:
+          type: string
+          description: User who last updated the policy
+        deleted_at:
+          type: string
+          format: date-time
+          description: Soft-delete timestamp (present only on deleted policies)
+    PolicyVersionResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              version:
+                type: integer
+              snapshot:
+                $ref: '#/components/schemas/PolicyResource'
+              changed_by:
+                type: string
+              changed_at:
+                type: string
+                format: date-time
+              change_type:
+                type: string
+                enum:
+                - create
+                - update
+                - enable
+                - disable
+                - delete
+              change_summary:
+                type: string
+    ImportPoliciesResponse:
+      type: object
+      properties:
+        created:
+          type: integer
+          description: Number of policies created
+        updated:
+          type: integer
+          description: Number of policies updated
+        skipped:
+          type: integer
+          description: Number of policies skipped
+        errors:
+          type: array
+          items:
+            type: string
+          description: Error messages for failed imports
+    PolicyResponse:
+      type: object
+      properties:
+        policy:
+          $ref: '#/components/schemas/PolicyResource'
+    PaginationMeta:
+      type: object
+      description: Pagination metadata
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        page_size:
+          type: integer
+          description: Items per page
+          example: 20
+        total_items:
+          type: integer
+          description: Total number of items
+          example: 45
+        total_pages:
+          type: integer
+          description: Total number of pages
+          example: 3
+    ExportPoliciesResponse:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyResource'
+        exported_at:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
+    PoliciesListResponse:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyResource'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+    ImportPoliciesRequest:
+      type: object
+      required:
+      - policies
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreatePolicyRequest'
+          minItems: 1
+          maxItems: 100
+        overwrite_mode:
+          type: string
+          enum:
+          - skip
+          - overwrite
+          - error
+          default: skip
+          description: How to handle existing policies
+    PolicyAction:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          $ref: '#/components/schemas/ActionType'
+        config:
+          type: object
+          additionalProperties: true
+          description: Action-specific configuration
+          example:
+            message: Request blocked by policy
+            channel: security-alerts
+    PolicyType:
+      type: string
+      enum:
+      - content
+      - user
+      - risk
+      - cost
+      - context_aware
+      - media
+      - rate-limit
+      - budget
+      - time-access
+      - role-access
+      - mcp
+      - connector
+      description: 'Policy type determines evaluation context:
+
+        - `content`: Evaluates request/response content
+
+        - `user`: Evaluates user attributes
+
+        - `risk`: Evaluates risk scores
+
+        - `cost`: Evaluates cost estimates
+
+        - `context_aware`: Context-aware controls (tenant isolation, debug restriction, sensitive-data control)
+
+        - `media`: Media governance policies (multimodal image governance)
+
+        - `rate-limit`, `budget`, `time-access`: MCP rate/budget controls
+
+        - `role-access`, `mcp`, `connector`: MCP access controls
+
+        '
+    CreatePolicyRequest:
+      type: object
+      required:
+      - name
+      - type
+      - conditions
+      - actions
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        type:
+          $ref: '#/components/schemas/PolicyType'
+        category:
+          type: string
+          description: 'Policy category (dynamic-risk, dynamic-compliance, media-safety, etc.).
+
+            Required on the /api/v1/dynamic-policies surface, where it must
+
+            start with `dynamic-` or `media-`.
+
+            '
+        tier:
+          type: string
+          enum:
+          - organization
+          - tenant
+          description: Policy tier. Only organization or tenant is allowed via the API.
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyCondition'
+          minItems: 1
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyAction'
+          minItems: 1
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          default: 0
+        enabled:
+          type: boolean
+          default: true
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+    PolicyCondition:
+      type: object
+      required:
+      - field
+      - operator
+      - value
+      properties:
+        field:
+          type: string
+          description: 'Field to evaluate. `media.*` fields apply to media governance
+
+            policies (multimodal image governance); `step.*` fields are
+
+            retry-aware workflow step fields for WCP policies.
+
+            '
+          enum:
+          - query
+          - response
+          - user.email
+          - user.role
+          - user.department
+          - user.tenant_id
+          - risk_score
+          - request_type
+          - connector
+          - cost_estimate
+          - media.has_faces
+          - media.face_count
+          - media.has_biometric_data
+          - media.nsfw_score
+          - media.violence_score
+          - media.content_safe
+          - media.document_type
+          - media.is_sensitive_document
+          - media.has_pii
+          - media.pii_types
+          - media.has_extracted_text
+          - media.extracted_text_length
+          - step.gate_count
+          - step.completion_count
+          - step.prior_completion_status
+          - step.prior_output_available
+          - step.last_decision
+          - step.first_attempt_age_seconds
+          - step.idempotency_key
+        operator:
+          $ref: '#/components/schemas/ConditionOperator'
+        value:
+          oneOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: array
+            items:
+              type: string
+          description: Value to compare against
+    APIError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+              description: Field-level validation errors
+    ActionType:
+      type: string
+      enum:
+      - block
+      - require_approval
+      - redact
+      - warn
+      - alert
+      - log
+      - route
+      - modify_risk
+      description: 'Action to take when policy matches:
+
+        - `block`: Block the request with message
+
+        - `require_approval`: Hold the request for human approval (HITL)
+
+        - `redact`: Redact sensitive content from response
+
+        - `warn`: Allow the request but attach a warning
+
+        - `alert`: Send alert to configured channel
+
+        - `log`: Log to audit trail
+
+        - `route`: Route to specific provider
+
+        - `modify_risk`: Adjust risk score
+
+        '
+    ConditionOperator:
+      type: string
+      enum:
+      - equals
+      - not_equals
+      - contains
+      - not_contains
+      - contains_any
+      - regex
+      - greater_than
+      - less_than
+      - in
+      - not_in
+      description: Comparison operator for conditions
+    UpdatePolicyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        type:
+          $ref: '#/components/schemas/PolicyType'
+        category:
+          type: string
+          description: Policy category. Only changeable on non-system policies.
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyAction'
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        enabled:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+  parameters:
+    UserID:
+      name: X-User-ID
+      in: header
+      required: false
+      description: User identifier for audit logging
+      schema:
+        type: string
+        example: user@company.com
+    PolicyID:
+      name: id
+      in: path
+      required: true
+      description: Policy unique identifier
+      schema:
+        type: string
+        example: pol_abc123def456
+    TenantID:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier for multi-tenancy isolation. When calling through
+
+        the Agent (recommended), this header is stamped automatically from the
+
+        authenticated client — you do not set it yourself. Required only on
+
+        direct Orchestrator calls (internal deployments).
+
+        '
+      schema:
+        type: string
+        example: tenant_abc123
+  responses:
+    LegacyPolicyWriteFrozen:
+      description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
+
+        INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` and
+
+        `dynamic_policies` from the application roles, and this endpoint
+
+        writes them, so the write is refused permanently rather than
+
+        transiently. It is not an entitlement fact: no licence, edition or
+
+        upgrade changes it. Author policies through the typed authoring route
+
+        (`/api/v1/typed-policies`, in `orchestrator-api.yaml`) instead. Reads on
+
+        this endpoint are unaffected. A deployment whose connection may still
+
+        write the tables (the database owner; a property of the connection,
+
+        not of `AXONFLOW_DB_USE_APP_ROLE` alone) is not bound by the revoke
+
+        and does not receive this response. Where the connection cannot write
+
+        them, the create, update and bulk-import routes answer this before
+
+        reading the request body, whatever it contains.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: LEGACY_POLICY_WRITE_FROZEN
+              message: 'The legacy policy tables are read-only in v11: migrations/core/172 revoked write access from the application role, and this endpoint writes them. Author policies through the typed authoring route at /api/v1/typed-policies instead. Reads on this endpoint are unaffected.'
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+              - field: name
+                message: Name must be between 3 and 100 characters
+              - field: conditions[0].operator
+                message: 'Invalid operator: like. Must be one of: equals, contains, regex'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+    Unauthorized:
+      description: Missing or invalid tenant ID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Missing tenant ID
+    NotFound:
+      description: Policy not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Policy not found
+x-refined-from:
+- axonflow-policy-api.yaml
+- axonflow-policy-openapi.yml

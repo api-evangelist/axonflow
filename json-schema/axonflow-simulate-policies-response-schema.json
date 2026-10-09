@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-simulate-policies-response-schema.json",
+  "title": "SimulatePoliciesResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-policy-openapi.yml#/components/schemas/SimulatePoliciesResponse",
+  "type": "object",
+  "properties": {
+    "allowed": {
+      "type": "boolean",
+      "description": "Whether the input would be allowed"
+    },
+    "applied_policies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Names of policies that matched"
+    },
+    "risk_score": {
+      "type": "number",
+      "format": "float"
+    },
+    "required_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "processing_time_ms": {
+      "type": "integer",
+      "format": "int64"
+    },
+    "total_policies": {
+      "type": "integer",
+      "description": "Number of active policies visible to the calling tenant — its own\nplus the shared global/default baseline.\n\nCHANGED: this previously counted every active policy in the\ndeployment, across all tenants, which disclosed the deployment-wide\npolicy count to every caller. Integrations that treated this as a\ndeployment-level total will now see a smaller, tenant-scoped number.\n"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Always true — no actions were applied"
+    },
+    "simulated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tier": {
+      "type": "string",
+      "description": "License tier the simulation ran under"
+    },
+    "daily_usage": {
+      "$ref": "#/$defs/SimulationDailyUsage"
+    }
+  },
+  "$defs": {
+    "SimulationDailyUsage": {
+      "type": "object",
+      "description": "Simulation quota usage (omitted on unlimited tiers)",
+      "properties": {
+        "used": {
+          "type": "integer"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Daily limit (-1 = unlimited)"
+        }
+      }
+    }
+  }
+}

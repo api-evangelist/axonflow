@@ -1,0 +1,138 @@
+generated: '2026-10-09'
+method: derived
+generator: derive-problem-types.py
+source:
+- openapi/axonflow-agent-openapi.yml
+- openapi/axonflow-masfeat-openapi.yml
+- openapi/axonflow-orchestrator-openapi.yml
+- openapi/axonflow-policy-openapi.yml
+format: custom
+envelope:
+  media_type: application/json
+  schema: ErrorResponse
+coverage:
+  operations: 369
+  statuses_declared: 17
+problems:
+- status: 400
+  title: Bad Request
+  description: Invalid request body or parameters
+  operations: 175
+  media_types:
+  - application/json
+  - text/plain
+  schema: ErrorResponse
+- status: 401
+  title: Unauthorized
+  description: Unauthorized - missing or invalid organization scope (coded envelope)
+  operations: 143
+  media_types:
+  - application/json
+  schema: ErrorResponse
+- status: 402
+  title: Payment Required
+  description: A configured cost budget blocks the request (Enterprise cost
+  operations: 3
+  media_types:
+  - application/json
+  schema: ClientResponse
+- status: 403
+  title: Forbidden
+  description: Feature requires Evaluation or Enterprise license
+  operations: 59
+  media_types:
+  - application/json
+  schema: ErrorResponse
+- status: 404
+  title: Not Found
+  description: Policy not found
+  operations: 139
+  media_types:
+  - application/json
+  - text/plain
+  schema: ErrorResponse
+- status: 405
+  title: Method Not Allowed
+  description: The US insurance read routes are GET-only
+  operations: 11
+  media_types:
+  - application/json
+  - text/plain
+  schema: USInsuranceAPIError
+- status: 406
+  title: Not Acceptable
+  description: The `X-Axonflow-AuthZEN-Profile` header named a profile version this
+  operations: 1
+  media_types:
+  - application/json
+  schema: AuthZENError
+- status: 409
+  title: Conflict
+  description: The legacy policy tables are read-only. `migrations/core/172` revoked
+  operations: 58
+  media_types:
+  - application/json
+  schema: APIError
+- status: 410
+  title: Gone
+  description: Plan expired
+  operations: 2
+  media_types:
+  - application/json
+  schema: ErrorResponse
+- status: 413
+  title: Content Too Large
+  description: The request body is over 1 MiB (1,048,576 bytes), refused whole before
+  operations: 8
+  media_types:
+  - application/json
+  schema: ErrorResponse
+- status: 415
+  title: Unsupported Media Type
+  description: Unsupported Content-Type
+  operations: 4
+  media_types:
+  - application/json
+  schema: ErrorResponse
+- status: 422
+  title: Unprocessable Content
+  description: The envelope was well formed but described something this surface
+  operations: 2
+  media_types:
+  - application/json
+  schema: AuthZENError
+- status: 429
+  title: Too Many Requests
+  description: Daily simulation limit exceeded
+  operations: 17
+  media_types:
+  - application/json
+  schema: RateLimitEnvelope
+- status: 500
+  title: Internal Server Error
+  description: Internal server error
+  operations: 84
+  media_types:
+  - application/json
+  schema: APIError
+- status: 501
+  title: Not Implemented
+  description: 'Cowork OTLP ingest is not in this deployment''s plane set: the Community'
+  operations: 4
+  media_types:
+  - application/json
+  schema: JSONError
+- status: 502
+  title: Bad Gateway
+  description: The evaluator could not answer. Retrying is meaningful.
+  operations: 1
+  media_types:
+  - application/json
+  schema: AuthZENError
+- status: 503
+  title: Service Unavailable
+  description: Registry not initialized
+  operations: 39
+  media_types:
+  - application/json
+  schema: ErrorResponse

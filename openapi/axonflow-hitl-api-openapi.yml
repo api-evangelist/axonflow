@@ -1,0 +1,1037 @@
+openapi: 3.2.0
+info:
+  title: Axonflow HITL API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged HITL across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: HITL
+  description: 'Human-in-the-Loop decision queue (EU AI Act Article 14).
+
+    Route high-risk AI decisions for human review before execution.'
+paths:
+  /api/v1/hitl/queue:
+    post:
+      tags:
+      - HITL
+      summary: Create HITL approval request
+      description: 'Route a high-risk AI decision for human review.
+
+        EU AI Act Article 14 requires human oversight for high-risk AI systems.
+
+
+        Requires both `X-Org-ID` and `X-Tenant-ID` headers (stamped by the
+
+        auth middleware) — **400** when either is missing.
+
+
+        **Enterprise only** — community builds expose only
+
+        `GET /api/v1/hitl/status`.'
+      operationId: createHITLDecision
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HITLCreateRequest'
+      responses:
+        '201':
+          description: Approval request created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/HITLApprovalRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 'HITL approvals are disabled for the deployment''s license tier.
+
+            Entitled tiers are `Professional`, `Enterprise` and
+
+            `Enterprise Plus`; `Community`, `Free`, `Pro`, `Premium` and
+
+            `Evaluation` are refused (HITL became Enterprise-only on
+
+            2026-08-26; Evaluation was entitled until then). The refusal names
+
+            no tier, because it is raised for five of them.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 'Community SaaS pending-approvals cap reached for the tenant.
+
+            Not returned on self-hosted or Enterprise deployments.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - HITL
+      summary: List HITL approval requests
+      description: 'Retrieve approval requests, filtered and paginated. Tenant scoping
+
+        comes from the authenticated request context (RLS), not a query
+
+        parameter.'
+      operationId: listHITLDecisions
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: status
+        in: query
+        description: Comma-separated status filter (e.g. `pending` or `pending,approved`)
+        schema:
+          type: string
+          example: pending
+      - name: severity
+        in: query
+        description: Comma-separated severity filter
+        schema:
+          type: string
+          example: high,critical
+      - name: policy_id
+        in: query
+        schema:
+          type: string
+      - name: client_id
+        in: query
+        schema:
+          type: string
+      - name: user_id
+        in: query
+        schema:
+          type: string
+      - name: request_type
+        in: query
+        description: 'Narrow the listing to one `request_type`.
+
+
+          **Default behaviour without it (#3408):** the listing is the
+
+          ACTIONABLE queue and EXCLUDES `wcp_step_gate` entries. Those
+
+          mirror a Workflow Control Plane step gate whose approval is
+
+          resolved on the workflow plane
+
+          (`POST /api/v1/workflows/{workflow_id}/steps/{step_id}/approve`);
+
+          approving one here changes a status and releases nothing, so
+
+          leaving them in rendered one workflow gate as two rows in the
+
+          portal''s merged Approvals queue and double-counted it in the
+
+          sidebar badge. They are retained as the EU AI Act Article 14
+
+          oversight record and are returned by asking for them explicitly:
+
+          `?request_type=wcp_step_gate`.
+
+
+          `meta.total` follows the same predicate as the returned rows, so
+
+          a client that renders a badge from it and a page from `data`
+
+          cannot disagree.
+
+          '
+        schema:
+          type: string
+          example: wcp_step_gate
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+      - name: order_by
+        in: query
+        schema:
+          type: string
+      - name: order_dir
+        in: query
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      responses:
+        '200':
+          description: List of approval requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HITLApprovalRequest'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        format: int64
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/queue/{id}:
+    get:
+      tags:
+      - HITL
+      summary: Get HITL approval request
+      operationId: getHITLDecision
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: id
+        in: path
+        required: true
+        description: The request UUID (`request_id`)
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Approval request details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/HITLApprovalRequest'
+        '400':
+          description: Invalid request ID (not a UUID)
+        '404':
+          description: Request not found
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/queue/{id}/approve:
+    post:
+      tags:
+      - HITL
+      summary: Approve HITL request
+      description: Approve a pending request to allow AI execution
+      operationId: approveHITLDecision
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HITLReviewInput'
+      responses:
+        '200':
+          description: Request approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: approved
+        '400':
+          description: Invalid request ID or JSON body
+        '404':
+          description: Request not found
+        '409':
+          description: 'Conflict - the request is not pending (already reviewed or expired).
+
+
+            Also returned when the entry is a Workflow Control Plane step-gate
+
+            MIRROR (`request_type: "wcp_step_gate"`). Those are resolved on the
+
+            workflow plane -
+
+            `POST /api/v1/workflows/{workflow_id}/steps/{step_id}/approve|reject` -
+
+            and actioning one here would flip a status and release nothing,
+
+            leaving the workflow paused. **This arm fires on a row that IS
+
+            pending**, unlike the state conflict above; the response body names
+
+            the route that works. Mirrors are excluded from this queue''s
+
+            default listing, so a client reaches this only by acting on an id
+
+            obtained another way (#3408).
+
+            '
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/queue/{id}/reject:
+    post:
+      tags:
+      - HITL
+      summary: Reject HITL request
+      description: Reject a pending request to block AI execution
+      operationId: rejectHITLDecision
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HITLReviewInput'
+      responses:
+        '200':
+          description: Request rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: rejected
+        '400':
+          description: Invalid request ID or JSON body
+        '404':
+          description: Request not found
+        '409':
+          description: 'Conflict - the request is not pending.
+
+
+            Also returned when the entry is a Workflow Control Plane step-gate
+
+            MIRROR (`request_type: "wcp_step_gate"`). Those are resolved on the
+
+            workflow plane -
+
+            `POST /api/v1/workflows/{workflow_id}/steps/{step_id}/approve|reject` -
+
+            and actioning one here would flip a status and release nothing,
+
+            leaving the workflow paused. **This arm fires on a row that IS
+
+            pending**, unlike the state conflict above; the response body names
+
+            the route that works. Mirrors are excluded from this queue''s
+
+            default listing, so a client reaches this only by acting on an id
+
+            obtained another way (#3408).
+
+            '
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/queue/{id}/override:
+    post:
+      tags:
+      - HITL
+      summary: Override HITL request
+      description: 'Record an authorized override of a pending request — the caller takes
+
+        responsibility for letting the action proceed outside the normal
+
+        approve/reject flow. Requires a justification for the audit trail.'
+      operationId: overrideHITLDecision
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                justification:
+                  type: string
+                  description: Required by the service — missing justification returns 400
+                authorized_by_id:
+                  type: string
+                authorized_by_email:
+                  type: string
+                authorized_by_role:
+                  type: string
+      responses:
+        '200':
+          description: Request overridden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: overridden
+        '400':
+          description: Invalid request ID/JSON, or missing justification
+        '404':
+          description: Request not found
+        '409':
+          description: 'Conflict - another reviewer decided this request first (lost race).
+
+
+            Also returned when the entry is a Workflow Control Plane step-gate
+
+            MIRROR (`request_type: "wcp_step_gate"`). Those are resolved on the
+
+            workflow plane -
+
+            `POST /api/v1/workflows/{workflow_id}/steps/{step_id}/approve|reject` -
+
+            and actioning one here would flip a status and release nothing,
+
+            leaving the workflow paused. **This arm fires on a row that IS
+
+            pending**, unlike the state conflict above; the response body names
+
+            the route that works. Mirrors are excluded from this queue''s
+
+            default listing, so a client reaches this only by acting on an id
+
+            obtained another way (#3408).
+
+            '
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/queue/{id}/history:
+    get:
+      tags:
+      - HITL
+      summary: Get HITL request audit history
+      description: Immutable audit-trail entries for a request (create/approve/reject/override/expire actions).
+      operationId: getHITLDecisionHistory
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: History entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HITLHistoryEntry'
+        '400':
+          description: Invalid request ID
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/stats:
+    get:
+      tags:
+      - HITL
+      summary: Pending-queue statistics
+      description: 'Dashboard summary of the pending queue for the caller''s org.
+
+        Requires the `X-Org-ID` header (400 when missing).'
+      operationId: getHITLStats
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Pending statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      total_pending:
+                        type: integer
+                        format: int64
+                      high_priority:
+                        type: integer
+                        format: int64
+                      critical_priority:
+                        type: integer
+                        format: int64
+                      oldest_pending_hours:
+                        type: number
+        '400':
+          description: Missing X-Org-ID header
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/status:
+    get:
+      tags:
+      - HITL
+      summary: HITL feature status
+      description: 'Reports whether HITL is enabled and which features are available.
+
+        This is the **only** HITL endpoint present in community builds
+
+        (returns `enabled: false`, `mode: "community"`); Enterprise builds
+
+        return `enabled: true`, `mode: "enterprise"` plus a feature map
+
+        (queue, approve_reject, override, expiration, audit_history,
+
+        pending_summary, notify_url, idempotency_key).'
+      operationId: getHITLStatus
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Feature status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  mode:
+                    type: string
+                    enum:
+                    - community
+                    - enterprise
+                  features:
+                    type: object
+                    additionalProperties:
+                      type: boolean
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/hitl/expire:
+    post:
+      tags:
+      - HITL
+      summary: Expire stale pending requests
+      description: 'Sweeps pending requests past their `expires_at` into the `expired`
+
+        state and returns the count. Intended for schedulers/ops automation;
+
+        the platform also expires lazily.'
+      operationId: expireHITLDecisions
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      responses:
+        '200':
+          description: Sweep result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      expired_count:
+                        type: integer
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: 'Optional per-request dedup token. When supplied on POST /api/v1/mcp/check-input,
+
+        POST /api/v1/audit/tool-call, or POST /api/v1/hitl/queue, the platform caches
+
+        the original response for 24h and returns it byte-for-byte on subsequent
+
+        requests carrying the same key + same authenticated tenant + same endpoint.
+
+
+        Format: 1-256 chars, `^[A-Za-z0-9_.:\-/]+$`. Workflow IDs from n8n, ADK,
+
+        or generic SDKs all fall inside this set. A malformed key returns 400
+
+        before the handler runs.
+
+
+        Cache rules: 2xx + 4xx responses are cached; 5xx is NOT cached so the
+
+        caller''s retry can hit a fresh attempt. A cache hit returns the original
+
+        response plus an `Idempotent-Replayed: true` response header.
+
+
+        Cross-tenant collisions are impossible: tenant_id participates in the
+
+        primary key + an RLS policy on the storage table. Two tenants using
+
+        the same key value get distinct rows.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
+        pattern: ^[A-Za-z0-9_.:\-/]+$
+        example: n8n-exec-abc123-node-Approve
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
+  schemas:
+    HITLHistoryEntry:
+      type: object
+      description: 'Immutable audit-trail entry for a request. Source of truth:
+
+        `platform/agent/hitl/repository.go` (ApprovalHistory).
+
+        '
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        tenant_id:
+          type: string
+        action:
+          type: string
+        actor_id:
+          type: string
+        actor_email:
+          type: string
+        actor_role:
+          type: string
+        actor_ip:
+          type: string
+        comment:
+          type: string
+        justification:
+          type: string
+        previous_status:
+          type: string
+        new_status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    HITLReviewInput:
+      type: object
+      description: 'Body for approve/reject. Source of truth:
+
+        `platform/agent/hitl/handler.go` (ReviewInput).
+
+        '
+      properties:
+        reviewer_id:
+          type: string
+        reviewer_email:
+          type: string
+        reviewer_role:
+          type: string
+        comment:
+          type: string
+    HITLApprovalRequest:
+      type: object
+      description: 'An approval-queue row. Source of truth:
+
+        `platform/agent/hitl/repository.go` (ApprovalRequest).
+
+        '
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        tenant_id:
+          type: string
+        client_id:
+          type: string
+        user_id:
+          type: string
+        original_query:
+          type: string
+        request_type:
+          type: string
+        request_context:
+          type: object
+          additionalProperties: true
+        triggered_policy_id:
+          type: string
+        triggered_policy_name:
+          type: string
+        trigger_reason:
+          type: string
+        severity:
+          type: string
+        eu_ai_act_article:
+          type: string
+        compliance_framework:
+          type: string
+        risk_classification:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - overridden
+          - expired
+        reviewer_id:
+          type: string
+        reviewer_email:
+          type: string
+        reviewer_role:
+          type: string
+        review_comment:
+          type: string
+        reviewed_at:
+          type: string
+          format: date-time
+        override_justification:
+          type: string
+        override_authorized_by:
+          type: string
+        notify_url:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    HITLCreateRequest:
+      type: object
+      description: 'Body for POST /api/v1/hitl/queue. Org/tenant identity comes from the
+
+        `X-Org-ID` / `X-Tenant-ID` headers, not the body. Source of truth:
+
+        `platform/agent/hitl/handler.go` (CreateRequestInput).
+
+        '
+      required:
+      - client_id
+      - original_query
+      - request_type
+      - triggered_policy_id
+      - triggered_policy_name
+      - trigger_reason
+      properties:
+        client_id:
+          type: string
+        user_id:
+          type: string
+        original_query:
+          type: string
+          description: The query/action awaiting human review
+        request_type:
+          type: string
+          description: Request classification (e.g. `mcp_query`, `llm_chat`)
+        request_context:
+          type: object
+          additionalProperties: true
+        triggered_policy_id:
+          type: string
+        triggered_policy_name:
+          type: string
+        trigger_reason:
+          type: string
+        severity:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+        eu_ai_act_article:
+          type: string
+        compliance_framework:
+          type: string
+        risk_classification:
+          type: string
+        expires_in_seconds:
+          type: integer
+          description: TTL before the request auto-expires
+        notify_url:
+          type: string
+          format: uri
+          description: 'Optional outbound webhook URL fired asynchronously after the request
+
+            transitions to a terminal state (approved / rejected / overridden /
+
+            expired). Must use `https://` or `http://`. The platform signs the
+
+            envelope with HMAC-SHA256 over the body keyed by the deployment''s
+
+            `AXONFLOW_HITL_WEBHOOK_SIGNING_KEY`, sent as
+
+            `X-AxonFlow-Signature: sha256=<hex>`. See the HITLWebhookEnvelope
+
+            schema and `docs.getaxonflow.com/docs/governance/hitl` for the full
+
+            shape + verification recipe.
+
+            '
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-audit-log-entry-schema.json",
+  "title": "AuditLogEntry",
+  "description": "A single audit_logs row as serialized on the wire (orchestrator\nAuditEntry struct). Optional canonical-decision, cross-border and\nsession fields are omitted when empty.\n",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-orchestrator-openapi.yml#/components/schemas/AuditLogEntry",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "user_id": {
+      "type": "integer"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "user_role": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "org_id": {
+      "type": "string"
+    },
+    "request_type": {
+      "type": "string"
+    },
+    "query": {
+      "type": "string",
+      "description": "The audited query/prompt (already redacted by the write path)"
+    },
+    "query_hash": {
+      "type": "string"
+    },
+    "policy_decision": {
+      "type": "string",
+      "description": "Verdict for the request. Canonical values are allowed, blocked,\nredacted, needs_approval, error; historical rows may carry\nlegacy spellings.\n"
+    },
+    "policy_details": {
+      "type": "object",
+      "description": "Nested decision detail exactly as the writer stored it\n(policy_ids / reasons / latency_ms plus writer-specific keys\nlike gateway_id, tool_name, decision_id, override_id,\npolicy_matches). Treat keys as writer-specific.\n",
+      "additionalProperties": true
+    },
+    "provider": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string",
+      "description": "LLM model identifier the request was routed to (e.g.\n`gpt-4o-mini`, `llama3.2:latest`). Surfaced separately from\n`provider` so callers can filter audit reads by model without\nparsing the provider's vendor-specific naming.\n"
+    },
+    "response_time_ms": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Measured duration for this row in whole milliseconds. ABSENT when\nthis row's writer measured nothing (#3424).\n\nAbsent is NOT `0`. This field used to be emitted unconditionally, so\nevery row from a writer with no duration to record -- blocked\nrequest / response / media, failed request, workflow, plan and\ntool-call rows, HITL approvals, and the connector-exec MCP closure\n-- carried a literal `0`, which the portal's Latency column rendered\nas a confident \"0ms\". The key is now omitted for those rows rather\nthan set to null: this schema declares no `required` list, so the\nproperty was already optional and a conforming client already\nhandles its absence. Nothing about the declared contract changes.\n\nA `0` that DOES arrive is a real measurement: the column is whole\nmilliseconds, so a decision the platform timed at under 1ms is\nstored as the 0 its clock produced. The portal renders that as\n\"<1ms\" and an absent value as \"-\".\n\nThe quantity differs by `plane`: enforcement duration on\ndecision/gateway/mcp/openai_compat, a PROVIDER round trip on `llm`,\nand a client-asserted OTLP duration on cowork/claude_code (#3431).\nThe compliance summary's `avg_latency_ms` averages only the first.\n"
+    },
+    "tokens_used": {
+      "type": "integer",
+      "description": "Provider tokens consumed by this request, OMITTED when the row carries no RECORDED provider usage (#3427).\nThe omission says the usage was not recorded; it does NOT assert that no provider was called. Two distinct populations omit it:\n* Rows whose writer never reached a model at all -- a blocked\n  request, a redaction, a gateway pre-check deny, a media deny, a\n  workflow step, a plan or a tool-call row.\n* Rows written by the LLM RESPONSE-plane block writer, which runs\n  AFTER the forward: the call was made and the answer was withheld,\n  so a real round trip was paid for, but that writer records none\n  of the provider usage it is handed. That is a gap in the writer,\n  tracked separately, not a claim about the request.\n\nUntil #3427 both populations left the read paths as a literal `0`, which the portal's detail panel rendered as \"Tokens 0\" under a request no model saw. The key is now omitted for those rows rather than set to null: this schema declares no `required` list, so the property was already optional and a conforming client already handles its absence.\nA `0` that DOES arrive is a real report from a provider, not an absence.\n"
+    },
+    "cost": {
+      "type": "number",
+      "format": "double",
+      "description": "Estimated provider cost for this request in USD, OMITTED when the row carries no recorded provider usage (#3427). Same rule, same two populations and same rationale as `tokens_used` above; note that `0` is a genuinely representable cost (a locally hosted or free-tier model), which is why absence is expressed by omitting the key rather than by a zero.\n"
+    },
+    "redacted_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Omitted when empty"
+    },
+    "response_sample": {
+      "type": "string"
+    },
+    "compliance_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "security_metrics": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "decision_id": {
+      "type": "string",
+      "description": "Canonical decision-row id (#2597/ADR-058); present on planes\nthat mint decisions, omitted on legacy writers\n"
+    },
+    "plane": {
+      "type": "string",
+      "description": "Enforcement plane that wrote the row (e.g. mcp, llm); omitted on\nlegacy writers. The orchestrator's four ENFORCEMENT planes are\n`orchestrator_request` for /api/v1/process and\n/api/v1/plan/execute, `wcp` for the workflow step gate, `map` for a\nmulti-agent step and `orchestrator_response` for the LLM response.\n(`policy_simulation` and `policy_test` are the orchestrator's too,\nbut they are operator tools rather than enforcement points and\nwrite no decision row.)\n"
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Decision-chain correlation key (#2611); omitted when not stitched"
+    },
+    "transfer_basis": {
+      "type": "string",
+      "description": "UU PDP Pasal 56 cross-border transfer legal basis (adequacy,\nsafeguards, pasal_56b_dpa, consent) — Enterprise LLM-forward\npath only (#2718)\n"
+    },
+    "data_residency": {
+      "type": "string",
+      "description": "ISO 3166-1 alpha-2 destination country (#2718); Enterprise only"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "AI-tool session id (Claude Code / Desktop) forwarded via\nX-Session-Id; asserted attribution, not an auth boundary\n"
+    }
+  }
+}

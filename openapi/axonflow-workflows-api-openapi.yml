@@ -1,0 +1,638 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Workflows API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Workflows across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Workflows
+  description: Workflow execution engine
+paths:
+  /api/v1/workflows/execute:
+    post:
+      tags:
+      - Workflows
+      summary: Execute a workflow
+      description: Execute a defined workflow with input parameters
+      operationId: executeWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowExecuteRequest'
+            example:
+              workflow:
+                metadata:
+                  name: data-analysis-workflow
+                  description: Analyze sales data
+                spec:
+                  steps:
+                  - name: fetch_data
+                    type: mcp_query
+                    connector: postgres
+                    query: SELECT * FROM sales
+                  - name: analyze
+                    type: llm
+                    prompt: 'Analyze the sales data: {{fetch_data.result}}'
+              input:
+                start_date: '2025-01-01'
+                end_date: '2025-01-15'
+              user:
+                id: 123
+                email: analyst@company.com
+                role: analyst
+                tenant_id: tenant-abc
+      responses:
+        '200':
+          description: 'Workflow execution result: every step ran, each decided by the
+
+            organization''s policy before it ran (#4382). The returned `id` is
+
+            where a caller first observes the `wfe_` prefix introduced in
+
+            #3442, so an integration that matches run ids on `wf_` breaks
+
+            here rather than on a later GET.
+
+
+            Since v11.1.0 every step is decided on every deployment, and
+
+            `AXONFLOW_HITL_ENABLED` is ignored. Before it, steps were decided
+
+            only when that variable was `true`, and a run paused by an approval
+
+            answered `200` with `status: "paused"` (or `202` when the approval
+
+            could not be created). Neither pause exists any more: a step that
+
+            requires an approval is withheld (`403`,
+
+            `approval_requires_durable_record`). A plan run in `confirm` or
+
+            `step` mode holds its steps durably.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecution'
+              example:
+                id: wfe_1787399674_6t245pvn
+                workflow_name: data-analysis-workflow
+                status: completed
+                steps:
+                - name: fetch_data
+                  status: completed
+                  process_time: 412ms
+                - name: analyze
+                  status: completed
+                  process_time: 1.83s
+                output:
+                  summary: Sales rose 12% over the window.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: 'The authenticated tenancy scope is missing or unusable. The
+
+            handler resolves the gateway-stamped `X-Org-ID` /
+
+            `X-Tenant-ID` pair before anything else and refuses when
+
+            either dimension is absent, blank, or the unowned-org
+
+            sentinel, with a message opening `Unauthorized: an
+
+            authenticated tenant scope is required` and naming the two
+
+            headers the AxonFlow Agent gateway stamps. The resolved scope
+
+            then overwrites the body''s `user.tenant_id` / `user.org_id`
+
+            and becomes the tenancy stamped on every row this call
+
+            creates. A second stamped-row write guard sits at the row
+
+            boundary (#3066), but it is defense in depth: the scope
+
+            resolution above already guarantees both dimensions, so that
+
+            guard''s distinct refusal message is not reachable on this
+
+            endpoint.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 'Refused, with one of two bodies.
+
+
+            A step was refused before it ran (#4382). Every step is decided
+
+            by the organization''s policy before it runs, on every deployment.
+
+            The body is a `MultiAgentStepRefusal`: `code` is
+
+            `execution_blocked` when a policy blocks the step, or
+
+            `approval_requires_durable_record` when a policy requires an
+
+            approval (this route keeps no durable approval record, so it
+
+            withholds the step; run the plan in `confirm` or `step` mode,
+
+            whose holds are durable), or `route_refused` when the
+
+            organization''s route rows refuse an `llm-call` step''s call (#4249;
+
+            `policy` is the route''s reason). No later step runs, and
+
+            `soft_failure_tolerance` does not absorb a refusal.
+
+
+            Or the request body carries a cross-tenant claim: a
+
+            `user.tenant_id` naming a tenancy other than the
+
+            authenticated one is refused with `Forbidden: user.tenant_id
+
+            does not name the authenticated tenancy`. Omitting the body
+
+            field is not an error; it is overwritten from the
+
+            authenticated scope.
+
+            '
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/MultiAgentStepRefusal'
+                - $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/StepRequestTooLargeFlat'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: 'The orchestrator''s workflow engine decides no step (its step
+
+            gate is not wired), so nothing runs. A serving orchestrator
+
+            wires it at boot on every deployment.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/executions/{id}:
+    get:
+      tags:
+      - Workflows
+      summary: Get workflow execution
+      description: Get details of a specific workflow execution
+      operationId: getWorkflowExecution
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: 'In-process declarative workflow-engine execution ID, as returned by POST /api/v1/workflows/execute. Since #3442 these carry the `wfe_` prefix; a governed control-plane `wf_` workflow_id is not resolvable here.'
+        schema:
+          type: string
+        example: wfe_1787399674_6t245pvn
+      responses:
+        '200':
+          description: Workflow execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecution'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/executions:
+    get:
+      tags:
+      - Workflows
+      summary: List workflow executions
+      description: List recent workflow executions
+      operationId: listWorkflowExecutions
+      parameters:
+      - name: limit
+        in: query
+        description: Maximum number of executions to return
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+      responses:
+        '200':
+          description: List of executions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  executions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowExecution'
+                  count:
+                    type: integer
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/executions/tenant/{tenant_id}:
+    get:
+      tags:
+      - Workflows
+      summary: Get tenant workflow executions
+      description: Get workflow executions for a specific tenant
+      operationId: getTenantWorkflowExecutions
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        description: Tenant identifier
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Tenant workflow executions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenant_id:
+                    type: string
+                  count:
+                    type: integer
+                  executions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowExecution'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/executions/{id}/hitl-status:
+    get:
+      tags:
+      - Workflows
+      summary: Human-in-the-loop status for a workflow execution
+      description: 'Reported whether an execution was paused, in memory, awaiting human
+
+        approval. The multi-agent execute routes pause nothing since v11.1.0
+
+        (#4382), and the in-memory engine this route read is retired (#4249), so
+
+        every id answers 404 `Execution not found`. A multi-agent step is held
+
+        only in confirm or step mode; read its approval state through the
+
+        workflow control plane. The route is removed in v12.0.0.'
+      operationId: getHITLExecutionStatus
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: X-Tenant-ID
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    WorkflowExecution:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 'In-process declarative workflow-engine run identifier. Since #3442 these carry the `wfe_` prefix, not `wf_`: this engine runs a spec handed to it in the request body and appears in `workflows`, `workflow_steps` and `execution_history` nowhere at all, so it is a different thing from a governed control-plane workflow and no longer shares that workflow''s prefix. No component derives meaning from a `wfe_` id; the one place in the platform that parses id prefixes is the unified-executions resolver, which dispatches on `wf_`/`wcp_`/`plan_`, and a `wfe_` id deliberately no longer matches any of them. A caller that stored one and matches on the `wf_` prefix stops matching. Ids minted before v10.0.0 keep their old prefix; no row is rewritten.'
+          example: wfe_1787399674_6t245pvn
+        workflow_name:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+        input:
+          type: object
+          additionalProperties: true
+        start_time:
+          type: string
+          format: date-time
+          description: Earlier revisions of this spec named this field `started_at`; the wire has always been `start_time`. Same for `end_time` below, previously misdocumented as `completed_at`.
+        end_time:
+          type: string
+          format: date-time
+          description: Omitted while the run is still executing.
+        user_context:
+          $ref: '#/components/schemas/UserContext'
+        error:
+          type: string
+          description: Present only when the run failed.
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum:
+                - pending
+                - running
+                - completed
+                - failed
+                - skipped
+              input:
+                type: object
+                additionalProperties: true
+              output:
+                type: object
+                additionalProperties: true
+              start_time:
+                type: string
+                format: date-time
+              end_time:
+                type: string
+                format: date-time
+                description: Omitted while the step is still executing.
+              error:
+                type: string
+                description: Present only when the step failed.
+              process_time:
+                type: string
+        output:
+          type: object
+          additionalProperties: true
+    Workflow:
+      type: object
+      required:
+      - metadata
+      - spec
+      properties:
+        metadata:
+          type: object
+          required:
+          - name
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+        spec:
+          type: object
+          required:
+          - steps
+          properties:
+            steps:
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkflowStep'
+    MultiAgentStepRefusal:
+      description: 'A multi-agent step refused before it ran (#4382), on
+
+        `POST /api/v1/workflows/execute` and `POST /api/v1/plan/execute`.
+
+        This is the flat `ErrorResponse` envelope with a machine-readable
+
+        `code` and the refusing policy added. It is a refinement of that
+
+        shape, not a fourth one, as `LLMProviderAPIError` refines the coded
+
+        shape.
+
+        '
+      allOf:
+      - $ref: '#/components/schemas/ErrorResponse'
+      - type: object
+        properties:
+          error:
+            type: string
+            example: 'execution blocked by policy: ceiling.no_tool_calls'
+          code:
+            type: string
+            enum:
+            - execution_blocked
+            - approval_requires_durable_record
+            - route_refused
+            description: '`execution_blocked`: a policy blocks the step. `approval_requires_durable_record`: a policy requires an approval, and this execution path keeps no durable approval record, so the step is withheld; `confirm` and `step` mode hold durably. `route_refused`: the organization''s route rows refuse an `llm-call` step''s call before any provider is called, and `policy` is the route''s reason (`no_compliant_provider`, `segment_not_established`, `segment_resolution_failed` or `decision_enforcement_unavailable`).'
+          policy:
+            type: string
+            description: The policy, or the cause, that refused the step.
+          reason:
+            type: string
+            description: Why the step was refused.
+        required:
+        - code
+        - policy
+        - reason
+    WorkflowStep:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - mcp_query
+          - llm
+          - api_call
+          - transform
+        connector:
+          type: string
+        query:
+          type: string
+        prompt:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+        region:
+          type: string
+          description: User's region, read by geo-based routing policies.
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
+    WorkflowExecuteRequest:
+      type: object
+      required:
+      - workflow
+      properties:
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+        input:
+          type: object
+          additionalProperties: true
+        user:
+          $ref: '#/components/schemas/UserContext'
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Internal server error
+    StepRequestTooLargeFlat:
+      description: 'The request body is over 1 MiB (1,048,576 bytes), refused whole before
+
+        it is decoded, in this route''s `{success, error}` envelope: `error`
+
+        begins `request_too_large: `. Nothing is gated, planned or run (#4249).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'request_too_large: request body exceeds 1048576 bytes; nothing was gated or run'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Resource not found
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

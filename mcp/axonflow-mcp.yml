@@ -1,0 +1,82 @@
+generated: '2026-10-09'
+method: searched
+status: published
+source: https://docs.getaxonflow.com/docs/integration/claude-code
+spec_source: openapi/axonflow-agent-openapi.yml  # POST /api/v1/mcp-server (operationId mcpServerJSONRPC)
+name: AxonFlow MCP Server
+description: >-
+  Built-in MCP server of the self-hosted AxonFlow agent (gateway). It is served by every AxonFlow
+  deployment at /api/v1/mcp-server as a single Streamable-HTTP JSON-RPC 2.0 endpoint (initialize,
+  tools/list, tools/call). The AxonFlow Claude Code, Cursor, Codex and OpenClaw plugins point their
+  .mcp.json at this endpoint; the plugins do not serve tools themselves. There is NO vendor-hosted
+  public endpoint: the server runs in the customer's own environment.
+deployment:
+  mode: remote
+  endpoint: http://localhost:8080/api/v1/mcp-server
+  endpoint_note: >-
+    Self-hosted. The URL is the documented default for a local agent (docs curl example and the
+    agent OpenAPI). Each customer's real endpoint is <their agent base URL>/api/v1/mcp-server. Not
+    probed: there is no public instance to probe (the spec's *.getaxonflow.com servers returned
+    NXDOMAIN on 2026-10-09 per apis.yml).
+  auth: api-key
+  auth_detail: >-
+    HTTP Basic `org:license-key` (AXONFLOW_AUTH) on every request; Enterprise may also send a
+    per-user token in X-User-Token. A community-mode deployment needs no credentials. The agent
+    answers /.well-known/oauth-protected-resource with a deliberate 404 and advertises no
+    authorization server.
+  verified: searched
+transport: streamable-http
+headers:
+- 'Content-Type: application/json'
+- 'Accept: application/json, text/event-stream'
+- 'Authorization: Basic $AXONFLOW_AUTH'
+- 'Mcp-Session-Id: <session-id-from-initialize>'
+tool_count: 10
+tools_evidence: >-
+  Tool names as PUBLISHED in the provider's Claude Code integration docs ("the plugin exposes 10 MCP
+  tools ... served by the agent's MCP server at /api/v1/mcp-server") in two tables. We did NOT call
+  tools/list. The agent OpenAPI description of mcpServerJSONRPC names the first six plus
+  explain_decision and "Pro-tier tools".
+tools:
+- name: check_policy
+  category: governance
+  description: Evaluate specific inputs against policies
+- name: check_output
+  category: governance
+  description: Scan specific content for PII/secrets
+- name: audit_tool_call
+  category: governance
+  description: Record additional audit entries
+- name: list_policies
+  category: governance
+  description: List active governance policies (static + dynamic)
+- name: get_policy_stats
+  category: governance
+  description: Get governance activity summary
+- name: search_audit_events
+  category: governance
+  description: Search individual audit records for debugging and compliance
+- name: explain_decision
+  category: overrides-explainability
+  description: Return the full DecisionExplanation for a decision ID
+- name: create_override
+  category: overrides-explainability
+  description: Create a time-bounded, audit-logged session override (mandatory justification)
+- name: delete_override
+  category: overrides-explainability
+  description: Revoke an active session override
+- name: list_overrides
+  category: overrides-explainability
+  description: List active overrides scoped to the caller's tenant
+notes:
+- The four override/explainability tools require an authenticated user identity (X-User-Email / X-User-ID) populated by the agent from the MCP session.
+- On platform v9.10.0+ (Enterprise) search_audit_events, get_policy_stats, explain_decision and list_overrides are role-scoped by the caller's per-user token.
+- The orchestrator OpenAPI marks POST /api/v1/overrides and DELETE /api/v1/overrides/{id} "retired in v11"; the docs still list create_override / delete_override.
+related_surfaces:
+- name: AxonFlow MCP governance proxy for Claude Desktop
+  mode: local-stdio
+  description: One-click Desktop Extension (.mcpb) that Claude Desktop runs over stdio; it fronts the customer's backend MCP servers and checks each tools/call against POST /api/v1/decide. It re-exposes backend tools (namespaced <id>__<tool>) rather than AxonFlow tools.
+  source: https://docs.getaxonflow.com/docs/integration/claude-desktop
+- name: MCP connectors
+  description: Agent-side connectors (PostgreSQL, S3, HTTP, Salesforce ...) reached via /mcp/resources/query and /mcp/tools/execute; these are REST, not an MCP server.
+  source: https://docs.getaxonflow.com/docs/mcp/overview

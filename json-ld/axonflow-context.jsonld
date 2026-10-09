@@ -1,0 +1,1723 @@
+{
+  "@context": {
+    "@vocab": "https://getaxonflow.com/schema#",
+    "schema": "https://schema.org/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "axonflow": "https://getaxonflow.com/schema#",
+    "OAuthDiscoveryNotSupported": "axonflow:OAuthDiscoveryNotSupported",
+    "error": {
+      "@id": "axonflow:error",
+      "@type": "xsd:string"
+    },
+    "error_description": {
+      "@id": "axonflow:error_description",
+      "@type": "xsd:string"
+    },
+    "HealthResponse": "axonflow:HealthResponse",
+    "status": {
+      "@id": "axonflow:status",
+      "@type": "xsd:string"
+    },
+    "service": {
+      "@id": "axonflow:service",
+      "@type": "xsd:string"
+    },
+    "timestamp": {
+      "@id": "axonflow:timestamp",
+      "@type": "xsd:dateTime"
+    },
+    "version": {
+      "@id": "axonflow:version",
+      "@type": "xsd:string"
+    },
+    "tier": {
+      "@id": "axonflow:tier",
+      "@type": "xsd:string"
+    },
+    "capabilities": {
+      "@id": "axonflow:capabilities",
+      "@container": "@list"
+    },
+    "sdk_compatibility": {
+      "@id": "axonflow:sdk_compatibility",
+      "@type": "@id"
+    },
+    "plugin_compatibility": {
+      "@id": "axonflow:plugin_compatibility",
+      "@type": "@id"
+    },
+    "upstream": {
+      "@id": "axonflow:upstream"
+    },
+    "PlatformCapability": "axonflow:PlatformCapability",
+    "name": {
+      "@id": "axonflow:name",
+      "@type": "xsd:string"
+    },
+    "since": {
+      "@id": "axonflow:since",
+      "@type": "xsd:string"
+    },
+    "description": {
+      "@id": "axonflow:description",
+      "@type": "xsd:string"
+    },
+    "SDKCompatInfo": "axonflow:SDKCompatInfo",
+    "min_sdk_version": {
+      "@id": "axonflow:min_sdk_version"
+    },
+    "recommended_sdk_version": {
+      "@id": "axonflow:recommended_sdk_version"
+    },
+    "PluginCompatInfo": "axonflow:PluginCompatInfo",
+    "min_plugin_version": {
+      "@id": "axonflow:min_plugin_version"
+    },
+    "recommended_plugin_version": {
+      "@id": "axonflow:recommended_plugin_version"
+    },
+    "StaticPolicy": "axonflow:StaticPolicy",
+    "id": {
+      "@id": "axonflow:id",
+      "@type": "xsd:string"
+    },
+    "policy_id": {
+      "@id": "axonflow:policy_id",
+      "@type": "xsd:string"
+    },
+    "category": {
+      "@id": "axonflow:category",
+      "@type": "xsd:string"
+    },
+    "pattern": {
+      "@id": "axonflow:pattern",
+      "@type": "xsd:string"
+    },
+    "severity": {
+      "@id": "axonflow:severity",
+      "@type": "xsd:string"
+    },
+    "action": {
+      "@id": "axonflow:action",
+      "@type": "xsd:string"
+    },
+    "enabled": {
+      "@id": "axonflow:enabled",
+      "@type": "xsd:boolean"
+    },
+    "priority": {
+      "@id": "axonflow:priority",
+      "@type": "xsd:integer"
+    },
+    "has_override": {
+      "@id": "axonflow:has_override",
+      "@type": "xsd:boolean"
+    },
+    "override": {
+      "@id": "axonflow:override",
+      "@type": "@id"
+    },
+    "tenant_id": {
+      "@id": "axonflow:tenant_id",
+      "@type": "xsd:string"
+    },
+    "created_at": {
+      "@id": "axonflow:created_at",
+      "@type": "xsd:dateTime"
+    },
+    "updated_at": {
+      "@id": "axonflow:updated_at",
+      "@type": "xsd:dateTime"
+    },
+    "StaticPoliciesListResponse": "axonflow:StaticPoliciesListResponse",
+    "policies": {
+      "@id": "axonflow:policies",
+      "@container": "@list"
+    },
+    "pagination": {
+      "@id": "axonflow:pagination",
+      "@type": "@id"
+    },
+    "StaticPolicyPagination": "axonflow:StaticPolicyPagination",
+    "page": {
+      "@id": "axonflow:page",
+      "@type": "xsd:integer"
+    },
+    "page_size": {
+      "@id": "axonflow:page_size",
+      "@type": "xsd:integer"
+    },
+    "total": {
+      "@id": "axonflow:total",
+      "@type": "xsd:integer"
+    },
+    "total_pages": {
+      "@id": "axonflow:total_pages",
+      "@type": "xsd:integer"
+    },
+    "PolicyOverride": "axonflow:PolicyOverride",
+    "policy_type": {
+      "@id": "axonflow:policy_type",
+      "@type": "xsd:string"
+    },
+    "enabled_override": {
+      "@id": "axonflow:enabled_override",
+      "@type": "xsd:boolean"
+    },
+    "action_override": {
+      "@id": "axonflow:action_override",
+      "@type": "xsd:string"
+    },
+    "override_reason": {
+      "@id": "axonflow:override_reason",
+      "@type": "xsd:string"
+    },
+    "expires_at": {
+      "@id": "axonflow:expires_at",
+      "@type": "xsd:dateTime"
+    },
+    "created_by": {
+      "@id": "axonflow:created_by",
+      "@type": "xsd:string"
+    },
+    "updated_by": {
+      "@id": "axonflow:updated_by",
+      "@type": "xsd:string"
+    },
+    "CreateStaticPolicyRequest": "axonflow:CreateStaticPolicyRequest",
+    "tags": {
+      "@id": "axonflow:tags",
+      "@container": "@list"
+    },
+    "UpdateStaticPolicyRequest": "axonflow:UpdateStaticPolicyRequest",
+    "CreateOverrideRequest": "axonflow:CreateOverrideRequest",
+    "TestPatternRequest": "axonflow:TestPatternRequest",
+    "input": {
+      "@id": "axonflow:input",
+      "@type": "xsd:string"
+    },
+    "inputs": {
+      "@id": "axonflow:inputs",
+      "@container": "@list"
+    },
+    "TestPatternResponse": "axonflow:TestPatternResponse",
+    "valid": {
+      "@id": "axonflow:valid",
+      "@type": "xsd:boolean"
+    },
+    "results": {
+      "@id": "axonflow:results",
+      "@container": "@list"
+    },
+    "EffectivePoliciesResponse": "axonflow:EffectivePoliciesResponse",
+    "static": {
+      "@id": "axonflow:static",
+      "@container": "@list"
+    },
+    "organization_id": {
+      "@id": "axonflow:organization_id",
+      "@type": "xsd:string"
+    },
+    "computed_at": {
+      "@id": "axonflow:computed_at",
+      "@type": "xsd:dateTime"
+    },
+    "PolicyVersionsResponse": "axonflow:PolicyVersionsResponse",
+    "versions": {
+      "@id": "axonflow:versions",
+      "@container": "@list"
+    },
+    "count": {
+      "@id": "axonflow:count",
+      "@type": "xsd:integer"
+    },
+    "PolicyVersion": "axonflow:PolicyVersion",
+    "snapshot": {
+      "@id": "axonflow:snapshot"
+    },
+    "change_type": {
+      "@id": "axonflow:change_type",
+      "@type": "xsd:string"
+    },
+    "change_summary": {
+      "@id": "axonflow:change_summary",
+      "@type": "xsd:string"
+    },
+    "changed_by": {
+      "@id": "axonflow:changed_by",
+      "@type": "xsd:string"
+    },
+    "changed_at": {
+      "@id": "axonflow:changed_at",
+      "@type": "xsd:dateTime"
+    },
+    "PolicyOverridesListResponse": "axonflow:PolicyOverridesListResponse",
+    "overrides": {
+      "@id": "axonflow:overrides",
+      "@container": "@list"
+    },
+    "MetricsResponse": "axonflow:MetricsResponse",
+    "agent_metrics": {
+      "@id": "axonflow:agent_metrics"
+    },
+    "health": {
+      "@id": "axonflow:health"
+    },
+    "request_types": {
+      "@id": "axonflow:request_types"
+    },
+    "connectors": {
+      "@id": "axonflow:connectors"
+    },
+    "ClientRequest": "axonflow:ClientRequest",
+    "query": {
+      "@id": "axonflow:query",
+      "@type": "xsd:string"
+    },
+    "user_token": {
+      "@id": "axonflow:user_token",
+      "@type": "xsd:string"
+    },
+    "client_id": {
+      "@id": "axonflow:client_id",
+      "@type": "xsd:string"
+    },
+    "request_type": {
+      "@id": "axonflow:request_type",
+      "@type": "xsd:string"
+    },
+    "skip_llm": {
+      "@id": "axonflow:skip_llm",
+      "@type": "xsd:boolean"
+    },
+    "context": {
+      "@id": "axonflow:context"
+    },
+    "media": {
+      "@id": "axonflow:media",
+      "@container": "@list"
+    },
+    "PolicyTestResponse": "axonflow:PolicyTestResponse",
+    "blocked": {
+      "@id": "axonflow:blocked",
+      "@type": "xsd:boolean"
+    },
+    "reason": {
+      "@id": "axonflow:reason",
+      "@type": "xsd:string"
+    },
+    "triggered_policies": {
+      "@id": "axonflow:triggered_policies",
+      "@container": "@list"
+    },
+    "checks_performed": {
+      "@id": "axonflow:checks_performed",
+      "@container": "@list"
+    },
+    "processing_time_ms": {
+      "@id": "axonflow:processing_time_ms",
+      "@type": "xsd:integer"
+    },
+    "engine": {
+      "@id": "axonflow:engine",
+      "@type": "xsd:string"
+    },
+    "subject_type": {
+      "@id": "axonflow:subject_type",
+      "@type": "xsd:string"
+    },
+    "policy_bundle": {
+      "@id": "axonflow:policy_bundle",
+      "@type": "xsd:string"
+    },
+    "ClientResponse": "axonflow:ClientResponse",
+    "success": {
+      "@id": "axonflow:success",
+      "@type": "xsd:boolean"
+    },
+    "data": {
+      "@id": "axonflow:data"
+    },
+    "result": {
+      "@id": "axonflow:result",
+      "@type": "xsd:string"
+    },
+    "plan_id": {
+      "@id": "axonflow:plan_id",
+      "@type": "xsd:string"
+    },
+    "metadata": {
+      "@id": "axonflow:metadata"
+    },
+    "code": {
+      "@id": "axonflow:code",
+      "@type": "xsd:string"
+    },
+    "block_reason": {
+      "@id": "axonflow:block_reason",
+      "@type": "xsd:string"
+    },
+    "policy_info": {
+      "@id": "axonflow:policy_info",
+      "@type": "@id"
+    },
+    "budget_info": {
+      "@id": "axonflow:budget_info"
+    },
+    "media_analysis": {
+      "@id": "axonflow:media_analysis"
+    },
+    "policy_packs": {
+      "@id": "axonflow:policy_packs",
+      "@container": "@list"
+    },
+    "legacy_validators": {
+      "@id": "axonflow:legacy_validators",
+      "@container": "@list"
+    },
+    "response_plane": {
+      "@id": "axonflow:response_plane"
+    },
+    "PolicyEvaluationInfo": "axonflow:PolicyEvaluationInfo",
+    "matched_policies": {
+      "@id": "axonflow:matched_policies",
+      "@container": "@list"
+    },
+    "policies_evaluated": {
+      "@id": "axonflow:policies_evaluated",
+      "@container": "@list"
+    },
+    "static_checks": {
+      "@id": "axonflow:static_checks",
+      "@container": "@list"
+    },
+    "processing_time": {
+      "@id": "axonflow:processing_time",
+      "@type": "xsd:string"
+    },
+    "code_artifact": {
+      "@id": "axonflow:code_artifact"
+    },
+    "PreCheckRequest": "axonflow:PreCheckRequest",
+    "data_sources": {
+      "@id": "axonflow:data_sources",
+      "@container": "@list"
+    },
+    "PreCheckResponse": "axonflow:PreCheckResponse",
+    "decision_id": {
+      "@id": "axonflow:decision_id",
+      "@type": "xsd:string"
+    },
+    "verdict": {
+      "@id": "axonflow:verdict",
+      "@type": "xsd:string"
+    },
+    "approved": {
+      "@id": "axonflow:approved",
+      "@type": "xsd:boolean"
+    },
+    "context_id": {
+      "@id": "axonflow:context_id",
+      "@type": "xsd:string"
+    },
+    "approved_data": {
+      "@id": "axonflow:approved_data"
+    },
+    "rate_limit": {
+      "@id": "axonflow:rate_limit",
+      "@type": "@id"
+    },
+    "trace_id": {
+      "@id": "axonflow:trace_id",
+      "@type": "xsd:string"
+    },
+    "RateLimitInfo": "axonflow:RateLimitInfo",
+    "limit": {
+      "@id": "axonflow:limit",
+      "@type": "xsd:integer"
+    },
+    "remaining": {
+      "@id": "axonflow:remaining",
+      "@type": "xsd:integer"
+    },
+    "reset_at": {
+      "@id": "axonflow:reset_at",
+      "@type": "xsd:dateTime"
+    },
+    "PEPHandshake": "axonflow:PEPHandshake",
+    "profile_version": {
+      "@id": "axonflow:profile_version",
+      "@type": "xsd:integer"
+    },
+    "pep_id": {
+      "@id": "axonflow:pep_id",
+      "@type": "xsd:string"
+    },
+    "audience": {
+      "@id": "axonflow:audience",
+      "@type": "xsd:string"
+    },
+    "PendingApproval": "axonflow:PendingApproval",
+    "approval_id": {
+      "@id": "axonflow:approval_id",
+      "@type": "xsd:string"
+    },
+    "plane": {
+      "@id": "axonflow:plane",
+      "@type": "xsd:string"
+    },
+    "retry": {
+      "@id": "axonflow:retry"
+    },
+    "ApprovalHoldReason": "axonflow:ApprovalHoldReason",
+    "DecideRequest": "axonflow:DecideRequest",
+    "stage": {
+      "@id": "axonflow:stage",
+      "@type": "xsd:string"
+    },
+    "caller_identity": {
+      "@id": "axonflow:caller_identity",
+      "@type": "@id"
+    },
+    "target": {
+      "@id": "axonflow:target",
+      "@type": "@id"
+    },
+    "fulfillment_capabilities": {
+      "@id": "axonflow:fulfillment_capabilities",
+      "@container": "@list"
+    },
+    "DecisionCallerIdentity": "axonflow:DecisionCallerIdentity",
+    "gateway_id": {
+      "@id": "axonflow:gateway_id",
+      "@type": "xsd:string"
+    },
+    "org_id": {
+      "@id": "axonflow:org_id",
+      "@type": "xsd:string"
+    },
+    "DecisionTarget": "axonflow:DecisionTarget",
+    "type": {
+      "@id": "axonflow:type",
+      "@type": "xsd:string"
+    },
+    "model": {
+      "@id": "axonflow:model",
+      "@type": "xsd:string"
+    },
+    "provider": {
+      "@id": "axonflow:provider",
+      "@type": "xsd:string"
+    },
+    "server": {
+      "@id": "axonflow:server",
+      "@type": "xsd:string"
+    },
+    "tool": {
+      "@id": "axonflow:tool",
+      "@type": "xsd:string"
+    },
+    "DecideResponse": "axonflow:DecideResponse",
+    "pending_approval": {
+      "@id": "axonflow:pending_approval",
+      "@type": "@id"
+    },
+    "reasons": {
+      "@id": "axonflow:reasons",
+      "@container": "@list"
+    },
+    "obligations": {
+      "@id": "axonflow:obligations",
+      "@container": "@list"
+    },
+    "evaluated_policies": {
+      "@id": "axonflow:evaluated_policies",
+      "@container": "@list"
+    },
+    "policy_identities": {
+      "@id": "axonflow:policy_identities",
+      "@container": "@list"
+    },
+    "document_version": {
+      "@id": "axonflow:document_version",
+      "@type": "xsd:integer"
+    },
+    "PolicyIdentity": "axonflow:PolicyIdentity",
+    "source": {
+      "@id": "axonflow:source",
+      "@type": "xsd:string"
+    },
+    "AuthZENSubject": "axonflow:AuthZENSubject",
+    "properties": {
+      "@id": "axonflow:properties"
+    },
+    "AuthZENAction": "axonflow:AuthZENAction",
+    "AuthZENResource": "axonflow:AuthZENResource",
+    "AuthZENRequest": "axonflow:AuthZENRequest",
+    "subject": {
+      "@id": "axonflow:subject",
+      "@type": "@id"
+    },
+    "resource": {
+      "@id": "axonflow:resource",
+      "@type": "@id"
+    },
+    "AuthZENContext": "axonflow:AuthZENContext",
+    "args": {
+      "@id": "axonflow:args"
+    },
+    "correlation": {
+      "@id": "axonflow:correlation"
+    },
+    "AuthZENBulk": "axonflow:AuthZENBulk",
+    "evaluations": {
+      "@id": "axonflow:evaluations",
+      "@container": "@list"
+    },
+    "AuthZENEnvelope": "axonflow:AuthZENEnvelope",
+    "evaluation": {
+      "@id": "axonflow:evaluation"
+    },
+    "AuthZENResponseContext": "axonflow:AuthZENResponseContext",
+    "profile": {
+      "@id": "axonflow:profile",
+      "@type": "xsd:string"
+    },
+    "state": {
+      "@id": "axonflow:state",
+      "@type": "xsd:string"
+    },
+    "approval": {
+      "@id": "axonflow:approval",
+      "@type": "@id"
+    },
+    "schema_version": {
+      "@id": "axonflow:schema_version",
+      "@type": "xsd:string"
+    },
+    "AuthZENObligation": "axonflow:AuthZENObligation",
+    "params": {
+      "@id": "axonflow:params"
+    },
+    "mandatory": {
+      "@id": "axonflow:mandatory",
+      "@type": "xsd:boolean"
+    },
+    "source_policy": {
+      "@id": "axonflow:source_policy",
+      "@type": "xsd:string"
+    },
+    "AuthZENApprovalClause": "axonflow:AuthZENApprovalClause",
+    "quorum": {
+      "@id": "axonflow:quorum",
+      "@type": "xsd:integer"
+    },
+    "eligible": {
+      "@id": "axonflow:eligible",
+      "@container": "@list"
+    },
+    "AuthZENApprovalRequirement": "axonflow:AuthZENApprovalRequirement",
+    "all_of": {
+      "@id": "axonflow:all_of",
+      "@container": "@list"
+    },
+    "separation_of_duties": {
+      "@id": "axonflow:separation_of_duties",
+      "@type": "xsd:boolean"
+    },
+    "AuthZENIdentifier": "axonflow:AuthZENIdentifier",
+    "kind": {
+      "@id": "axonflow:kind",
+      "@type": "xsd:string"
+    },
+    "qualifier": {
+      "@id": "axonflow:qualifier",
+      "@type": "xsd:string"
+    },
+    "local": {
+      "@id": "axonflow:local",
+      "@type": "xsd:string"
+    },
+    "AuthZENResponse": "axonflow:AuthZENResponse",
+    "decision": {
+      "@id": "axonflow:decision",
+      "@type": "xsd:boolean"
+    },
+    "AuthZENError": "axonflow:AuthZENError",
+    "pointer": {
+      "@id": "axonflow:pointer",
+      "@type": "xsd:string"
+    },
+    "message": {
+      "@id": "axonflow:message",
+      "@type": "xsd:string"
+    },
+    "supported": {
+      "@id": "axonflow:supported",
+      "@container": "@list"
+    },
+    "request_id": {
+      "@id": "axonflow:request_id",
+      "@type": "xsd:string"
+    },
+    "DecisionObligation": "axonflow:DecisionObligation",
+    "detail": {
+      "@id": "axonflow:detail",
+      "@type": "xsd:string"
+    },
+    "fulfillment": {
+      "@id": "axonflow:fulfillment",
+      "@type": "@id"
+    },
+    "ObligationFulfillment": "axonflow:ObligationFulfillment",
+    "endpoint": {
+      "@id": "axonflow:endpoint",
+      "@type": "xsd:string"
+    },
+    "method": {
+      "@id": "axonflow:method",
+      "@type": "xsd:string"
+    },
+    "phase": {
+      "@id": "axonflow:phase",
+      "@type": "xsd:string"
+    },
+    "content_types": {
+      "@id": "axonflow:content_types",
+      "@container": "@list"
+    },
+    "DecideErrorResponse": "axonflow:DecideErrorResponse",
+    "ChatCompletionRequest": "axonflow:ChatCompletionRequest",
+    "messages": {
+      "@id": "axonflow:messages",
+      "@container": "@list"
+    },
+    "temperature": {
+      "@id": "axonflow:temperature",
+      "@type": "xsd:decimal"
+    },
+    "top_p": {
+      "@id": "axonflow:top_p",
+      "@type": "xsd:decimal"
+    },
+    "max_tokens": {
+      "@id": "axonflow:max_tokens",
+      "@type": "xsd:integer"
+    },
+    "max_completion_tokens": {
+      "@id": "axonflow:max_completion_tokens",
+      "@type": "xsd:integer"
+    },
+    "stream": {
+      "@id": "axonflow:stream",
+      "@type": "xsd:boolean"
+    },
+    "stop": {
+      "@id": "axonflow:stop"
+    },
+    "presence_penalty": {
+      "@id": "axonflow:presence_penalty",
+      "@type": "xsd:decimal"
+    },
+    "frequency_penalty": {
+      "@id": "axonflow:frequency_penalty",
+      "@type": "xsd:decimal"
+    },
+    "user": {
+      "@id": "axonflow:user",
+      "@type": "xsd:string"
+    },
+    "response_format": {
+      "@id": "axonflow:response_format"
+    },
+    "seed": {
+      "@id": "axonflow:seed",
+      "@type": "xsd:integer"
+    },
+    "tools": {
+      "@id": "axonflow:tools",
+      "@container": "@list"
+    },
+    "tool_choice": {
+      "@id": "axonflow:tool_choice"
+    },
+    "ChatCompletionResponse": "axonflow:ChatCompletionResponse",
+    "object": {
+      "@id": "axonflow:object",
+      "@type": "xsd:string"
+    },
+    "created": {
+      "@id": "axonflow:created",
+      "@type": "xsd:integer"
+    },
+    "choices": {
+      "@id": "axonflow:choices",
+      "@container": "@list"
+    },
+    "usage": {
+      "@id": "axonflow:usage"
+    },
+    "system_fingerprint": {
+      "@id": "axonflow:system_fingerprint",
+      "@type": "xsd:string"
+    },
+    "OpenAIErrorResponse": "axonflow:OpenAIErrorResponse",
+    "AuditLLMCallRequest": "axonflow:AuditLLMCallRequest",
+    "response_summary": {
+      "@id": "axonflow:response_summary",
+      "@type": "xsd:string"
+    },
+    "token_usage": {
+      "@id": "axonflow:token_usage",
+      "@type": "@id"
+    },
+    "latency_ms": {
+      "@id": "axonflow:latency_ms",
+      "@type": "xsd:integer"
+    },
+    "TokenUsage": "axonflow:TokenUsage",
+    "prompt_tokens": {
+      "@id": "axonflow:prompt_tokens",
+      "@type": "xsd:integer"
+    },
+    "completion_tokens": {
+      "@id": "axonflow:completion_tokens",
+      "@type": "xsd:integer"
+    },
+    "total_tokens": {
+      "@id": "axonflow:total_tokens",
+      "@type": "xsd:integer"
+    },
+    "AuditLLMCallResponse": "axonflow:AuditLLMCallResponse",
+    "audit_id": {
+      "@id": "axonflow:audit_id",
+      "@type": "xsd:string"
+    },
+    "Client": "axonflow:Client",
+    "permissions": {
+      "@id": "axonflow:permissions",
+      "@container": "@list"
+    },
+    "license_tier": {
+      "@id": "axonflow:license_tier",
+      "@type": "xsd:string"
+    },
+    "license_expiry": {
+      "@id": "axonflow:license_expiry",
+      "@type": "xsd:dateTime"
+    },
+    "MCPQueryRequest": "axonflow:MCPQueryRequest",
+    "license_key": {
+      "@id": "axonflow:license_key",
+      "@type": "xsd:string"
+    },
+    "connector": {
+      "@id": "axonflow:connector",
+      "@type": "xsd:string"
+    },
+    "operation": {
+      "@id": "axonflow:operation",
+      "@type": "xsd:string"
+    },
+    "statement": {
+      "@id": "axonflow:statement",
+      "@type": "xsd:string"
+    },
+    "parameters": {
+      "@id": "axonflow:parameters"
+    },
+    "timeout": {
+      "@id": "axonflow:timeout",
+      "@type": "xsd:string"
+    },
+    "MCPQueryResponse": "axonflow:MCPQueryResponse",
+    "row_count": {
+      "@id": "axonflow:row_count",
+      "@type": "xsd:integer"
+    },
+    "duration_ms": {
+      "@id": "axonflow:duration_ms",
+      "@type": "xsd:integer"
+    },
+    "redacted": {
+      "@id": "axonflow:redacted",
+      "@type": "xsd:boolean"
+    },
+    "redacted_fields": {
+      "@id": "axonflow:redacted_fields",
+      "@container": "@list"
+    },
+    "PolicyInfo": "axonflow:PolicyInfo",
+    "redactions_applied": {
+      "@id": "axonflow:redactions_applied",
+      "@type": "xsd:integer"
+    },
+    "exfiltration_check": {
+      "@id": "axonflow:exfiltration_check",
+      "@type": "@id"
+    },
+    "ExplainPolicy": "axonflow:ExplainPolicy",
+    "policy_name": {
+      "@id": "axonflow:policy_name",
+      "@type": "xsd:string"
+    },
+    "risk_level": {
+      "@id": "axonflow:risk_level",
+      "@type": "xsd:string"
+    },
+    "allow_override": {
+      "@id": "axonflow:allow_override",
+      "@type": "xsd:boolean"
+    },
+    "policy_description": {
+      "@id": "axonflow:policy_description",
+      "@type": "xsd:string"
+    },
+    "RicherPolicyMatch": "axonflow:RicherPolicyMatch",
+    "policy_version": {
+      "@id": "axonflow:policy_version",
+      "@type": "xsd:integer"
+    },
+    "ExplainRule": "axonflow:ExplainRule",
+    "rule_id": {
+      "@id": "axonflow:rule_id",
+      "@type": "xsd:string"
+    },
+    "rule_text": {
+      "@id": "axonflow:rule_text",
+      "@type": "xsd:string"
+    },
+    "matched_on": {
+      "@id": "axonflow:matched_on",
+      "@type": "xsd:string"
+    },
+    "DecisionExplanation": "axonflow:DecisionExplanation",
+    "policy_matches": {
+      "@id": "axonflow:policy_matches",
+      "@container": "@list"
+    },
+    "matched_rules": {
+      "@id": "axonflow:matched_rules",
+      "@container": "@list"
+    },
+    "override_available": {
+      "@id": "axonflow:override_available",
+      "@type": "xsd:boolean"
+    },
+    "override_existing_id": {
+      "@id": "axonflow:override_existing_id",
+      "@type": "xsd:string"
+    },
+    "historical_hit_count_session": {
+      "@id": "axonflow:historical_hit_count_session",
+      "@type": "xsd:integer"
+    },
+    "policy_source_link": {
+      "@id": "axonflow:policy_source_link",
+      "@type": "xsd:string"
+    },
+    "tool_signature": {
+      "@id": "axonflow:tool_signature",
+      "@type": "xsd:string"
+    },
+    "ExfiltrationCheckInfo": "axonflow:ExfiltrationCheckInfo",
+    "rows_returned": {
+      "@id": "axonflow:rows_returned",
+      "@type": "xsd:integer"
+    },
+    "row_limit": {
+      "@id": "axonflow:row_limit",
+      "@type": "xsd:integer"
+    },
+    "bytes_returned": {
+      "@id": "axonflow:bytes_returned",
+      "@type": "xsd:integer"
+    },
+    "byte_limit": {
+      "@id": "axonflow:byte_limit",
+      "@type": "xsd:integer"
+    },
+    "within_limits": {
+      "@id": "axonflow:within_limits",
+      "@type": "xsd:boolean"
+    },
+    "PolicyMatchInfo": "axonflow:PolicyMatchInfo",
+    "MCPExecuteRequest": "axonflow:MCPExecuteRequest",
+    "MCPExecuteResponse": "axonflow:MCPExecuteResponse",
+    "rows_affected": {
+      "@id": "axonflow:rows_affected",
+      "@type": "xsd:integer"
+    },
+    "MCPCheckInputRequest": "axonflow:MCPCheckInputRequest",
+    "user_id": {
+      "@id": "axonflow:user_id",
+      "@type": "xsd:string"
+    },
+    "user_role": {
+      "@id": "axonflow:user_role",
+      "@type": "xsd:string"
+    },
+    "connector_type": {
+      "@id": "axonflow:connector_type",
+      "@type": "xsd:string"
+    },
+    "content_type": {
+      "@id": "axonflow:content_type",
+      "@type": "xsd:string"
+    },
+    "MCPCheckInputResponse": "axonflow:MCPCheckInputResponse",
+    "allowed": {
+      "@id": "axonflow:allowed",
+      "@type": "xsd:boolean"
+    },
+    "redacted_statement": {
+      "@id": "axonflow:redacted_statement",
+      "@type": "xsd:string"
+    },
+    "redacted_parameters": {
+      "@id": "axonflow:redacted_parameters"
+    },
+    "redaction_evaluated": {
+      "@id": "axonflow:redaction_evaluated",
+      "@type": "xsd:boolean"
+    },
+    "MCPCheckOutputRequest": "axonflow:MCPCheckOutputRequest",
+    "response_data": {
+      "@id": "axonflow:response_data",
+      "@container": "@list"
+    },
+    "MCPCheckOutputResponse": "axonflow:MCPCheckOutputResponse",
+    "redacted_data": {
+      "@id": "axonflow:redacted_data"
+    },
+    "exfiltration_info": {
+      "@id": "axonflow:exfiltration_info",
+      "@type": "@id"
+    },
+    "ConnectorRefreshResponse": "axonflow:ConnectorRefreshResponse",
+    "scope": {
+      "@id": "axonflow:scope",
+      "@type": "xsd:string"
+    },
+    "duration": {
+      "@id": "axonflow:duration",
+      "@type": "xsd:string"
+    },
+    "stats": {
+      "@id": "axonflow:stats",
+      "@type": "@id"
+    },
+    "ConnectorRefreshStats": "axonflow:ConnectorRefreshStats",
+    "cached_connectors": {
+      "@id": "axonflow:cached_connectors",
+      "@type": "xsd:integer"
+    },
+    "ConnectorCacheStats": "axonflow:ConnectorCacheStats",
+    "registry_enabled": {
+      "@id": "axonflow:registry_enabled",
+      "@type": "xsd:boolean"
+    },
+    "deployment": {
+      "@id": "axonflow:deployment"
+    },
+    "ConnectorListResponse": "axonflow:ConnectorListResponse",
+    "ConnectorHealthResponse": "axonflow:ConnectorHealthResponse",
+    "healthy": {
+      "@id": "axonflow:healthy",
+      "@type": "xsd:boolean"
+    },
+    "last_check": {
+      "@id": "axonflow:last_check",
+      "@type": "xsd:dateTime"
+    },
+    "ErrorResponse": "axonflow:ErrorResponse",
+    "JSONError": "axonflow:JSONError",
+    "RateLimitEnvelope": "axonflow:RateLimitEnvelope",
+    "limit_type": {
+      "@id": "axonflow:limit_type",
+      "@type": "xsd:string"
+    },
+    "window": {
+      "@id": "axonflow:window",
+      "@type": "xsd:string"
+    },
+    "resets_at": {
+      "@id": "axonflow:resets_at",
+      "@type": "xsd:dateTime"
+    },
+    "upgrade": {
+      "@id": "axonflow:upgrade"
+    },
+    "DecisionEntry": "axonflow:DecisionEntry",
+    "chain_id": {
+      "@id": "axonflow:chain_id",
+      "@type": "xsd:string"
+    },
+    "parent_request_id": {
+      "@id": "axonflow:parent_request_id",
+      "@type": "xsd:string"
+    },
+    "step_number": {
+      "@id": "axonflow:step_number",
+      "@type": "xsd:integer"
+    },
+    "decision_type": {
+      "@id": "axonflow:decision_type",
+      "@type": "xsd:string"
+    },
+    "decision_outcome": {
+      "@id": "axonflow:decision_outcome",
+      "@type": "xsd:string"
+    },
+    "system_id": {
+      "@id": "axonflow:system_id",
+      "@type": "xsd:string"
+    },
+    "model_provider": {
+      "@id": "axonflow:model_provider",
+      "@type": "xsd:string"
+    },
+    "model_id": {
+      "@id": "axonflow:model_id",
+      "@type": "xsd:string"
+    },
+    "policy_triggered": {
+      "@id": "axonflow:policy_triggered",
+      "@type": "xsd:string"
+    },
+    "requires_human_review": {
+      "@id": "axonflow:requires_human_review",
+      "@type": "xsd:boolean"
+    },
+    "audit_hash": {
+      "@id": "axonflow:audit_hash",
+      "@type": "xsd:string"
+    },
+    "ChainSummary": "axonflow:ChainSummary",
+    "total_steps": {
+      "@id": "axonflow:total_steps",
+      "@type": "xsd:integer"
+    },
+    "total_processing_time_ms": {
+      "@id": "axonflow:total_processing_time_ms",
+      "@type": "xsd:integer"
+    },
+    "has_blocked": {
+      "@id": "axonflow:has_blocked",
+      "@type": "xsd:boolean"
+    },
+    "requires_review": {
+      "@id": "axonflow:requires_review",
+      "@type": "xsd:boolean"
+    },
+    "highest_risk_level": {
+      "@id": "axonflow:highest_risk_level",
+      "@type": "xsd:string"
+    },
+    "first_decision_at": {
+      "@id": "axonflow:first_decision_at",
+      "@type": "xsd:dateTime"
+    },
+    "last_decision_at": {
+      "@id": "axonflow:last_decision_at",
+      "@type": "xsd:dateTime"
+    },
+    "decision_types": {
+      "@id": "axonflow:decision_types",
+      "@container": "@list"
+    },
+    "total_policies_applied": {
+      "@id": "axonflow:total_policies_applied",
+      "@type": "xsd:integer"
+    },
+    "HITLCreateRequest": "axonflow:HITLCreateRequest",
+    "original_query": {
+      "@id": "axonflow:original_query",
+      "@type": "xsd:string"
+    },
+    "request_context": {
+      "@id": "axonflow:request_context"
+    },
+    "triggered_policy_id": {
+      "@id": "axonflow:triggered_policy_id",
+      "@type": "xsd:string"
+    },
+    "triggered_policy_name": {
+      "@id": "axonflow:triggered_policy_name",
+      "@type": "xsd:string"
+    },
+    "trigger_reason": {
+      "@id": "axonflow:trigger_reason",
+      "@type": "xsd:string"
+    },
+    "eu_ai_act_article": {
+      "@id": "axonflow:eu_ai_act_article",
+      "@type": "xsd:string"
+    },
+    "compliance_framework": {
+      "@id": "axonflow:compliance_framework",
+      "@type": "xsd:string"
+    },
+    "risk_classification": {
+      "@id": "axonflow:risk_classification",
+      "@type": "xsd:string"
+    },
+    "expires_in_seconds": {
+      "@id": "axonflow:expires_in_seconds",
+      "@type": "xsd:integer"
+    },
+    "notify_url": {
+      "@id": "axonflow:notify_url",
+      "@type": "@id"
+    },
+    "HITLWebhookEnvelope": "axonflow:HITLWebhookEnvelope",
+    "decided_by": {
+      "@id": "axonflow:decided_by",
+      "@type": "xsd:string"
+    },
+    "decided_at": {
+      "@id": "axonflow:decided_at",
+      "@type": "xsd:dateTime"
+    },
+    "decision_envelope": {
+      "@id": "axonflow:decision_envelope"
+    },
+    "HITLReviewInput": "axonflow:HITLReviewInput",
+    "reviewer_id": {
+      "@id": "axonflow:reviewer_id",
+      "@type": "xsd:string"
+    },
+    "reviewer_email": {
+      "@id": "axonflow:reviewer_email",
+      "@type": "xsd:string"
+    },
+    "reviewer_role": {
+      "@id": "axonflow:reviewer_role",
+      "@type": "xsd:string"
+    },
+    "comment": {
+      "@id": "axonflow:comment",
+      "@type": "xsd:string"
+    },
+    "HITLApprovalRequest": "axonflow:HITLApprovalRequest",
+    "review_comment": {
+      "@id": "axonflow:review_comment",
+      "@type": "xsd:string"
+    },
+    "reviewed_at": {
+      "@id": "axonflow:reviewed_at",
+      "@type": "xsd:dateTime"
+    },
+    "override_justification": {
+      "@id": "axonflow:override_justification",
+      "@type": "xsd:string"
+    },
+    "override_authorized_by": {
+      "@id": "axonflow:override_authorized_by",
+      "@type": "xsd:string"
+    },
+    "HITLHistoryEntry": "axonflow:HITLHistoryEntry",
+    "actor_id": {
+      "@id": "axonflow:actor_id",
+      "@type": "xsd:string"
+    },
+    "actor_email": {
+      "@id": "axonflow:actor_email",
+      "@type": "xsd:string"
+    },
+    "actor_role": {
+      "@id": "axonflow:actor_role",
+      "@type": "xsd:string"
+    },
+    "actor_ip": {
+      "@id": "axonflow:actor_ip",
+      "@type": "xsd:string"
+    },
+    "justification": {
+      "@id": "axonflow:justification",
+      "@type": "xsd:string"
+    },
+    "previous_status": {
+      "@id": "axonflow:previous_status",
+      "@type": "xsd:string"
+    },
+    "new_status": {
+      "@id": "axonflow:new_status",
+      "@type": "xsd:string"
+    },
+    "CircuitBreakerTripRequest": "axonflow:CircuitBreakerTripRequest",
+    "scope_id": {
+      "@id": "axonflow:scope_id",
+      "@type": "xsd:string"
+    },
+    "duration_minutes": {
+      "@id": "axonflow:duration_minutes",
+      "@type": "xsd:integer"
+    },
+    "CircuitBreakerResetRequest": "axonflow:CircuitBreakerResetRequest",
+    "CircuitBreaker": "axonflow:CircuitBreaker",
+    "trip_reason": {
+      "@id": "axonflow:trip_reason",
+      "@type": "xsd:string"
+    },
+    "tripped_by": {
+      "@id": "axonflow:tripped_by",
+      "@type": "xsd:string"
+    },
+    "tripped_by_email": {
+      "@id": "axonflow:tripped_by_email",
+      "@type": "xsd:string"
+    },
+    "trip_comment": {
+      "@id": "axonflow:trip_comment",
+      "@type": "xsd:string"
+    },
+    "tripped_at": {
+      "@id": "axonflow:tripped_at",
+      "@type": "xsd:dateTime"
+    },
+    "reset_by": {
+      "@id": "axonflow:reset_by",
+      "@type": "xsd:string"
+    },
+    "error_count": {
+      "@id": "axonflow:error_count",
+      "@type": "xsd:integer"
+    },
+    "violation_count": {
+      "@id": "axonflow:violation_count",
+      "@type": "xsd:integer"
+    },
+    "CircuitBreakerConfigResponse": "axonflow:CircuitBreakerConfigResponse",
+    "error_threshold": {
+      "@id": "axonflow:error_threshold",
+      "@type": "xsd:integer"
+    },
+    "violation_threshold": {
+      "@id": "axonflow:violation_threshold",
+      "@type": "xsd:integer"
+    },
+    "window_seconds": {
+      "@id": "axonflow:window_seconds",
+      "@type": "xsd:integer"
+    },
+    "default_timeout_seconds": {
+      "@id": "axonflow:default_timeout_seconds",
+      "@type": "xsd:integer"
+    },
+    "max_timeout_seconds": {
+      "@id": "axonflow:max_timeout_seconds",
+      "@type": "xsd:integer"
+    },
+    "enable_auto_recovery": {
+      "@id": "axonflow:enable_auto_recovery",
+      "@type": "xsd:boolean"
+    },
+    "CircuitBreakerConfigUpdate": "axonflow:CircuitBreakerConfigUpdate",
+    "CircuitBreakerNotificationConfig": "axonflow:CircuitBreakerNotificationConfig",
+    "url": {
+      "@id": "axonflow:url",
+      "@type": "xsd:string"
+    },
+    "secret": {
+      "@id": "axonflow:secret",
+      "@type": "xsd:string"
+    },
+    "active": {
+      "@id": "axonflow:active",
+      "@type": "xsd:boolean"
+    },
+    "CircuitBreakerNotificationCreate": "axonflow:CircuitBreakerNotificationCreate",
+    "CircuitBreakerNotificationUpdate": "axonflow:CircuitBreakerNotificationUpdate",
+    "ChainVerificationResult": "axonflow:ChainVerificationResult",
+    "total_records": {
+      "@id": "axonflow:total_records",
+      "@type": "xsd:integer"
+    },
+    "authorship_proven": {
+      "@id": "axonflow:authorship_proven",
+      "@type": "xsd:boolean"
+    },
+    "linkage_valid": {
+      "@id": "axonflow:linkage_valid",
+      "@type": "xsd:boolean"
+    },
+    "signatures_valid": {
+      "@id": "axonflow:signatures_valid",
+      "@type": "xsd:boolean"
+    },
+    "signed_records": {
+      "@id": "axonflow:signed_records",
+      "@type": "xsd:integer"
+    },
+    "unsigned_records": {
+      "@id": "axonflow:unsigned_records",
+      "@type": "xsd:integer"
+    },
+    "first_broken_seq": {
+      "@id": "axonflow:first_broken_seq",
+      "@type": "xsd:integer"
+    },
+    "first_broken_record_id": {
+      "@id": "axonflow:first_broken_record_id",
+      "@type": "xsd:string"
+    },
+    "break_reason": {
+      "@id": "axonflow:break_reason",
+      "@type": "xsd:string"
+    },
+    "signing_key_id": {
+      "@id": "axonflow:signing_key_id",
+      "@type": "xsd:string"
+    },
+    "public_key": {
+      "@id": "axonflow:public_key",
+      "@type": "xsd:string"
+    },
+    "verified_at": {
+      "@id": "axonflow:verified_at",
+      "@type": "xsd:dateTime"
+    },
+    "RecordVerificationResult": "axonflow:RecordVerificationResult",
+    "record_id": {
+      "@id": "axonflow:record_id",
+      "@type": "xsd:string"
+    },
+    "chain_seq": {
+      "@id": "axonflow:chain_seq",
+      "@type": "xsd:integer"
+    },
+    "signed": {
+      "@id": "axonflow:signed",
+      "@type": "xsd:boolean"
+    },
+    "signature_valid": {
+      "@id": "axonflow:signature_valid",
+      "@type": "xsd:boolean"
+    },
+    "digest_preimage_b64": {
+      "@id": "axonflow:digest_preimage_b64",
+      "@type": "xsd:string"
+    },
+    "record_digest": {
+      "@id": "axonflow:record_digest",
+      "@type": "xsd:string"
+    },
+    "prev_hash": {
+      "@id": "axonflow:prev_hash",
+      "@type": "xsd:string"
+    },
+    "chain_hash": {
+      "@id": "axonflow:chain_hash",
+      "@type": "xsd:string"
+    },
+    "record_signature": {
+      "@id": "axonflow:record_signature",
+      "@type": "xsd:string"
+    },
+    "AuditSigningKeyResponse": "axonflow:AuditSigningKeyResponse",
+    "algorithm": {
+      "@id": "axonflow:algorithm",
+      "@type": "xsd:string"
+    },
+    "configured": {
+      "@id": "axonflow:configured",
+      "@type": "xsd:boolean"
+    },
+    "verification_note": {
+      "@id": "axonflow:verification_note",
+      "@type": "xsd:string"
+    },
+    "AuditVerifyError": "axonflow:AuditVerifyError",
+    "Error": "axonflow:Error",
+    "CreateRegistryRequest": "axonflow:CreateRegistryRequest",
+    "system_name": {
+      "@id": "axonflow:system_name",
+      "@type": "xsd:string"
+    },
+    "use_case": {
+      "@id": "axonflow:use_case",
+      "@type": "xsd:string"
+    },
+    "risk_rating_impact": {
+      "@id": "axonflow:risk_rating_impact",
+      "@type": "xsd:integer"
+    },
+    "risk_rating_complexity": {
+      "@id": "axonflow:risk_rating_complexity",
+      "@type": "xsd:integer"
+    },
+    "risk_rating_reliance": {
+      "@id": "axonflow:risk_rating_reliance",
+      "@type": "xsd:integer"
+    },
+    "owner_team": {
+      "@id": "axonflow:owner_team",
+      "@type": "xsd:string"
+    },
+    "owner_email": {
+      "@id": "axonflow:owner_email",
+      "@type": "xsd:string"
+    },
+    "model_type": {
+      "@id": "axonflow:model_type",
+      "@type": "xsd:string"
+    },
+    "UpdateRegistryRequest": "axonflow:UpdateRegistryRequest",
+    "AISystemRegistry": "axonflow:AISystemRegistry",
+    "materiality_classification": {
+      "@id": "axonflow:materiality_classification",
+      "@type": "xsd:string"
+    },
+    "deployment_date": {
+      "@id": "axonflow:deployment_date",
+      "@type": "xsd:dateTime"
+    },
+    "last_assessment_date": {
+      "@id": "axonflow:last_assessment_date",
+      "@type": "xsd:dateTime"
+    },
+    "next_assessment_due": {
+      "@id": "axonflow:next_assessment_due",
+      "@type": "xsd:dateTime"
+    },
+    "RegistryListResponse": "axonflow:RegistryListResponse",
+    "systems": {
+      "@id": "axonflow:systems",
+      "@container": "@list"
+    },
+    "RetireSystemResponse": "axonflow:RetireSystemResponse",
+    "RegistrySummary": "axonflow:RegistrySummary",
+    "total_systems": {
+      "@id": "axonflow:total_systems",
+      "@type": "xsd:integer"
+    },
+    "active_systems": {
+      "@id": "axonflow:active_systems",
+      "@type": "xsd:integer"
+    },
+    "high_materiality": {
+      "@id": "axonflow:high_materiality",
+      "@type": "xsd:integer"
+    },
+    "medium_materiality": {
+      "@id": "axonflow:medium_materiality",
+      "@type": "xsd:integer"
+    },
+    "low_materiality": {
+      "@id": "axonflow:low_materiality",
+      "@type": "xsd:integer"
+    },
+    "assessments_due": {
+      "@id": "axonflow:assessments_due",
+      "@type": "xsd:integer"
+    },
+    "kill_switches_triggered": {
+      "@id": "axonflow:kill_switches_triggered",
+      "@type": "xsd:integer"
+    },
+    "CreateAssessmentRequest": "axonflow:CreateAssessmentRequest",
+    "assessment_type": {
+      "@id": "axonflow:assessment_type",
+      "@type": "xsd:string"
+    },
+    "assessors": {
+      "@id": "axonflow:assessors",
+      "@container": "@list"
+    },
+    "UpdateAssessmentRequest": "axonflow:UpdateAssessmentRequest",
+    "fairness_score": {
+      "@id": "axonflow:fairness_score",
+      "@type": "xsd:decimal"
+    },
+    "ethics_score": {
+      "@id": "axonflow:ethics_score",
+      "@type": "xsd:decimal"
+    },
+    "accountability_score": {
+      "@id": "axonflow:accountability_score",
+      "@type": "xsd:decimal"
+    },
+    "transparency_score": {
+      "@id": "axonflow:transparency_score",
+      "@type": "xsd:decimal"
+    },
+    "fairness_details": {
+      "@id": "axonflow:fairness_details",
+      "@type": "@id"
+    },
+    "ethics_details": {
+      "@id": "axonflow:ethics_details",
+      "@type": "@id"
+    },
+    "accountability_details": {
+      "@id": "axonflow:accountability_details",
+      "@type": "@id"
+    },
+    "transparency_details": {
+      "@id": "axonflow:transparency_details",
+      "@type": "@id"
+    },
+    "findings": {
+      "@id": "axonflow:findings",
+      "@container": "@list"
+    },
+    "recommendations": {
+      "@id": "axonflow:recommendations",
+      "@container": "@list"
+    },
+    "RejectAssessmentRequest": "axonflow:RejectAssessmentRequest",
+    "FEATAssessment": "axonflow:FEATAssessment",
+    "assessment_date": {
+      "@id": "axonflow:assessment_date",
+      "@type": "xsd:dateTime"
+    },
+    "valid_until": {
+      "@id": "axonflow:valid_until",
+      "@type": "xsd:dateTime"
+    },
+    "overall_score": {
+      "@id": "axonflow:overall_score",
+      "@type": "xsd:decimal"
+    },
+    "submitted_at": {
+      "@id": "axonflow:submitted_at",
+      "@type": "xsd:dateTime"
+    },
+    "submitted_by": {
+      "@id": "axonflow:submitted_by",
+      "@type": "xsd:string"
+    },
+    "approved_at": {
+      "@id": "axonflow:approved_at",
+      "@type": "xsd:dateTime"
+    },
+    "approved_by": {
+      "@id": "axonflow:approved_by",
+      "@type": "xsd:string"
+    },
+    "rejected_at": {
+      "@id": "axonflow:rejected_at",
+      "@type": "xsd:dateTime"
+    },
+    "rejected_by": {
+      "@id": "axonflow:rejected_by",
+      "@type": "xsd:string"
+    },
+    "rejection_reason": {
+      "@id": "axonflow:rejection_reason",
+      "@type": "xsd:string"
+    },
+    "AssessmentListResponse": "axonflow:AssessmentListResponse",
+    "assessments": {
+      "@id": "axonflow:assessments",
+      "@container": "@list"
+    },
+    "PillarAssessment": "axonflow:PillarAssessment",
+    "score": {
+      "@id": "axonflow:score",
+      "@type": "xsd:decimal"
+    },
+    "criteria": {
+      "@id": "axonflow:criteria",
+      "@container": "@list"
+    },
+    "evidence": {
+      "@id": "axonflow:evidence",
+      "@container": "@list"
+    },
+    "notes": {
+      "@id": "axonflow:notes",
+      "@type": "xsd:string"
+    },
+    "CriterionAssessment": "axonflow:CriterionAssessment",
+    "criterion_id": {
+      "@id": "axonflow:criterion_id",
+      "@type": "xsd:string"
+    },
+    "EvidenceItem": "axonflow:EvidenceItem",
+    "title": {
+      "@id": "axonflow:title",
+      "@type": "xsd:string"
+    },
+    "file_path": {
+      "@id": "axonflow:file_path",
+      "@type": "xsd:string"
+    },
+    "uploaded_at": {
+      "@id": "axonflow:uploaded_at",
+      "@type": "xsd:dateTime"
+    },
+    "uploaded_by": {
+      "@id": "axonflow:uploaded_by",
+      "@type": "xsd:string"
+    },
+    "Finding": "axonflow:Finding",
+    "pillar": {
+      "@id": "axonflow:pillar",
+      "@type": "xsd:string"
+    },
+    "remediation": {
+      "@id": "axonflow:remediation",
+      "@type": "xsd:string"
+    },
+    "due_date": {
+      "@id": "axonflow:due_date",
+      "@type": "xsd:dateTime"
+    },
+    "ConfigureKillSwitchRequest": "axonflow:ConfigureKillSwitchRequest",
+    "auto_trigger_enabled": {
+      "@id": "axonflow:auto_trigger_enabled",
+      "@type": "xsd:boolean"
+    },
+    "accuracy_threshold": {
+      "@id": "axonflow:accuracy_threshold",
+      "@type": "xsd:decimal"
+    },
+    "bias_threshold": {
+      "@id": "axonflow:bias_threshold",
+      "@type": "xsd:decimal"
+    },
+    "error_rate_threshold": {
+      "@id": "axonflow:error_rate_threshold",
+      "@type": "xsd:decimal"
+    },
+    "trigger_conditions": {
+      "@id": "axonflow:trigger_conditions"
+    },
+    "TriggerKillSwitchRequest": "axonflow:TriggerKillSwitchRequest",
+    "RestoreKillSwitchRequest": "axonflow:RestoreKillSwitchRequest",
+    "KillSwitch": "axonflow:KillSwitch",
+    "triggered_at": {
+      "@id": "axonflow:triggered_at",
+      "@type": "xsd:dateTime"
+    },
+    "triggered_by": {
+      "@id": "axonflow:triggered_by",
+      "@type": "xsd:string"
+    },
+    "restored_at": {
+      "@id": "axonflow:restored_at",
+      "@type": "xsd:dateTime"
+    },
+    "restored_by": {
+      "@id": "axonflow:restored_by",
+      "@type": "xsd:string"
+    },
+    "restore_reason": {
+      "@id": "axonflow:restore_reason",
+      "@type": "xsd:string"
+    }
+  },
+  "@type": "schema:Dataset",
+  "schema:name": "AxonFlow API JSON-LD context",
+  "schema:description": "A JSON-LD @context for the objects AxonFlow's own API contract declares: one class per component schema, one property per declared field, typed from the contract. Derived by script (derive-json-ld.py, 2026-10-09) from openapi/axonflow-agent-openapi.yml, openapi/axonflow-masfeat-openapi.yml, openapi/axonflow-orchestrator-openapi.yml.",
+  "dcterms:created": "2026-10-09",
+  "dcterms:source": [
+    "openapi/axonflow-agent-openapi.yml",
+    "openapi/axonflow-masfeat-openapi.yml",
+    "openapi/axonflow-orchestrator-openapi.yml",
+    "openapi/axonflow-policy-openapi.yml"
+  ]
+}

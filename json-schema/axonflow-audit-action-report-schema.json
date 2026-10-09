@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-audit-action-report-schema.json",
+  "title": "AuditActionReport",
+  "description": "Per-action aggregate for a window. by_action always carries the full\ncanonical verdict set (allowed / blocked / redacted / needs_approval /\nerror) — a verdict with no rows reports 0 rather than being absent.\n",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-orchestrator-openapi.yml#/components/schemas/AuditActionReport",
+  "type": "object",
+  "properties": {
+    "tenant_id": {
+      "type": "string"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Echoed filter; omitted when not filtered"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "total": {
+      "type": "integer",
+      "description": "Governed decisions in the window (lifecycle events excluded)"
+    },
+    "by_action": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "Counts folded onto the canonical verdicts"
+    },
+    "avg_latency_ms": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double",
+      "description": "Mean ENFORCEMENT latency in milliseconds over the rows in the range\nthat carried a measurement, or `null` when none did (#3424).\n\n`null` is not `0`. Whole planes record no enforcement duration by\ndesign (HITL approvals, workflow lifecycle rows, the connector-exec\nMCP closure), and provider round trips on the LLM plane are a\ndifferent quantity and are excluded rather than averaged in, so a\nrange whose traffic was entirely one of those has nothing to report.\nIt used to be coalesced to 0, which reads exactly like a measured\nzero. Clients MUST accept null here; a strict deserializer binding\nthis to a non-optional float will raise. It can also be BELOW 1:\nresponse_time_ms is whole milliseconds, so a decision completing in\nunder a millisecond contributes a 0.\n\nRead latency_sample_count to tell \"fast\" from \"empty\".\n"
+    },
+    "latency_sample_count": {
+      "type": "integer",
+      "description": "How many rows backed avg_latency_ms. 0 exactly when avg_latency_ms\nis null. Never greater than `total`: both are narrowed to the same\nverdict rows.\n"
+    },
+    "top_policies": {
+      "type": "array",
+      "description": "Top 10 policies by trigger count. A row is counted once per DISTINCT\npolicy it recorded, so these counts do not sum to `total` and are not\na share of it. Compare the array length against `total_policies`\nbefore presenting it as the complete set.\n\nThere is no `top_policies_unavailable` flag on this endpoint, unlike\nthe compliance summary: this is the regulator-facing artifact, so a\nfailed or timed-out aggregation fails the WHOLE response with a 500\nrather than returning a table that quietly omits rows.\n",
+      "items": {
+        "type": "object",
+        "properties": {
+          "policy_name": {
+            "type": "string",
+            "description": "The policy identity resolved for this group by the shared\nidentity chain. IDENTITY-first: it carries a raw policy\nIDENTIFIER on every row whose writer stamped one, and a display\nNAME only when it did not. Read `identity_is_name` before\nrendering; styling an identifier as though it were a display\nname is exactly the defect #3347 fixed.\n"
+          },
+          "identity_is_name": {
+            "type": "boolean",
+            "description": "Whether `policy_name` holds a display NAME (true) or a raw\nIDENTIFIER (false).\n\nIt is a property of the RESOLVED STRING, NOT a claim about what\nthe writer recorded. Since #3365 a decide-plane row stamps\n`policy_names` alongside `policy_ids`, so such a row records a\nname AND reports false here, because the chain resolves the id\narm first. Render a false value with a NEUTRAL identifier\naffordance; a \"name not recorded\" affordance would assert a\nfalsehood about that row.\n"
+          },
+          "trigger_count": {
+            "type": "integer"
+          },
+          "block_count": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "total_policies": {
+      "type": "integer",
+      "description": "How many DISTINCT policies fired in the range BEFORE the 10-entry\n`top_policies` limit truncated it. 0 when nothing fired. On this\nREGULATOR-FACING report an undisclosed truncation is the sharper of\nthe two surfaces' risks: when this exceeds the array length, disclose\n\"top 10 of N\" rather than implying the remainder does not exist.\n"
+    }
+  }
+}

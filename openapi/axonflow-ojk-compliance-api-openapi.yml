@@ -1,0 +1,1437 @@
+openapi: 3.2.0
+info:
+  title: Axonflow OJK Compliance API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged OJK Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: OJK Compliance
+  description: 'OJK AI Governance + UU PDP compliance for Indonesian financial services.
+
+    Audit export, retention/readiness checks, UU PDP Art. 46 breach-notification
+
+    lifecycle, and a compliance dashboard. **Enterprise** feature.'
+paths:
+  /api/v1/ojk/audit/export:
+    post:
+      tags:
+      - OJK Compliance
+      summary: Export OJK audit data
+      description: 'Export audit data for OJK/BI regulatory submission.
+
+
+        **Compliance frameworks** — the label SELECTS the report sections when
+
+        `data_types` is omitted (#3242). It is not a cosmetic tag:
+
+
+        | Framework | Sections, in report order |
+
+        |---|---|
+
+        | `OJK_AI_GOVERNANCE` | policy_violations, llm_calls, decision_chain, hitl_oversight |
+
+        | `UU_PDP` | pii_redactions, cross_border_transfers, breach_notifications, policy_violations |
+
+        | `BI_PJP` | decision_chain, hitl_oversight, pii_redactions, cross_border_transfers, breach_notifications |
+
+        | `OJK_BI_COMBINED` (default) | all seven sections |
+
+
+        **Data types**: policy_violations, llm_calls, decision_chain,
+
+        hitl_oversight, pii_redactions, cross_border_transfers,
+
+        breach_notifications, all. All seven are implemented. An explicitly
+
+        requested section outside the selected framework''s scope is still
+
+        served, flagged `in_framework_scope: false`. An UNKNOWN data type
+
+        produces an explicit per-section error — never a silent empty section.
+
+
+        **Formats**: `format` is accepted as json (default), csv or xml, but this
+
+        endpoint PRODUCES ONLY JSON: the response is written with
+
+        `Content-Type: application/json` and the data is inline. When csv or xml
+
+        is requested the response reports `format: json` (what the body IS),
+
+        echoes the ask in `requested_format`, and explains the difference in
+
+        `format_note`. It does NOT label a JSON body as csv (#3242) - a
+
+        regulator artifact that misstates its own encoding is worse than one
+
+        that refuses. Rendered output is the compliance-report facade''s job.
+
+
+        **`report_state`** is carried per section and rolled up on the summary:
+
+        `populated` (served, has records), `enabled_empty` (served, honestly
+
+        zero for this organization and window), `not_available` (could not be
+
+        served at all — always paired with an `error` and an `error_kind` of
+
+        `section_not_implemented` / `store_absent` / `query_failed`). Read
+
+        `report_state`, not the presence of a JSON key: every data array is
+
+        `omitempty`, so absence alone is ambiguous.
+
+
+        Sections are capped at 100,000 records; a section that reaches the cap
+
+        says so in its `note`.
+
+
+        The date range may span at most 5 years, matching the OJK 5-year
+
+        (1825-day) retention requirement. `start_date` and `end_date` are dates
+
+        (`YYYY-MM-DD`) and the window is inclusive of the whole final day, **in
+
+        UTC at both ends** — a request for `2026-08-03` covers
+
+        2026-08-03T00:00Z..T23:59Z, which is 07:00..07:00 WIB. The export runs
+
+        synchronously and returns `status: completed` with the data inline.
+
+
+        `metadata.export_version` is `2.0.0` for this contract. A `1.0.0`
+
+        consumer that inferred "module not enabled" from an empty body must move
+
+        to `report_state`.
+
+
+        **Enterprise Feature**: Available only for Indonesian financial
+
+        services deployments.'
+      operationId: exportOJKAuditData
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OJKAuditExportRequest'
+            example:
+              start_date: '2025-01-01'
+              end_date: '2025-12-31'
+              format: json
+              framework: OJK_BI_COMBINED
+              data_types:
+              - policy_violations
+              - llm_calls
+              - cross_border_transfers
+      responses:
+        '200':
+          description: Export completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAuditExportResponse'
+              example:
+                export_id: 3f6d2f4e-8f2a-4a1b-9a51-1de1c1b2c3d4
+                status: completed
+                framework: OJK_BI_COMBINED
+                format: json
+                summary:
+                  total_records: 15420
+                  records_by_type:
+                    policy_violations: 142
+                    llm_calls: 15278
+                  date_range:
+                    start: '2025-01-01T00:00:00Z'
+                    end: '2025-12-31T00:00:00Z'
+                  compliance_score: 92.5
+                created_at: '2026-07-10T09:00:00Z'
+                metadata:
+                  export_version: 1.0.0
+                  generated_by: axonflow-ojk-module
+                  tenant_id: bank-indonesia-corp
+        '400':
+          description: 'Missing tenant headers (code `missing_tenant`), malformed body
+
+            (`invalid_request`), or validation failure (`validation_error`:
+
+            missing/invalid YYYY-MM-DD dates, end before start, range over
+
+            5 years, unsupported format or framework)
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '500':
+          description: Export failed (code `internal_error`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/ojk/audit/export/{id}:
+    get:
+      tags:
+      - OJK Compliance
+      summary: Get OJK export status
+      description: 'Get the status of an OJK audit export by id.
+
+
+        **Enterprise Feature**.'
+      operationId: getOJKExportStatus
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Export ID from the export request
+        schema:
+          type: string
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 'Export status. ⚠️ Current implementation is a **synchronous-echo
+
+            stub**: `GetExportStatus` performs no lookup and returns
+
+            `status: completed` for ANY id (with an empty `format` and a
+
+            fresh `created_at`) — it cannot distinguish a real export from a
+
+            fabricated id (`ojk_audit_export_service.go` GetExportStatus).
+
+            Exports run synchronously, so callers get the data inline from
+
+            the POST and normally never need this endpoint.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAuditExportResponse'
+        '400':
+          description: Missing tenant headers (`missing_tenant`) or missing export id (`missing_export_id`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '404':
+          description: 'Nominally "export not found" (code `not_found`) — in the current
+
+            stub this only fires on an internal error (e.g. database handle
+
+            unavailable), never for an unknown id.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/ojk/audit/retention:
+    get:
+      tags:
+      - OJK Compliance
+      summary: Get OJK retention status
+      description: 'Reports 5-year (1825-day) retention compliance for OJK audit data.
+
+        `compliance_status` is `non_compliant` when the configured retention
+
+        is below the 1825-day minimum.
+
+
+        **Enterprise Feature**.'
+      operationId: getOJKRetentionStatus
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      - name: data_types
+        in: query
+        required: false
+        description: 'Comma-separated list of data types to report on. Narrows the report;
+
+          omit it for every data type. Each entry is derived from its backing
+
+          store (count, oldest and newest record, and a status of `compliant` /
+
+          `short_history` / `no_data` / `unknown`); a store that cannot be read
+
+          reports `unknown`, never `no_data` (#3242).
+
+          '
+        schema:
+          type: string
+        example: policy_violations,llm_calls
+      responses:
+        '200':
+          description: Retention status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKRetentionStatusResponse'
+        '400':
+          description: Missing organization scope (code `missing_org`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '500':
+          description: Failed to get retention status (code `internal_error`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/ojk/audit/readiness:
+    get:
+      tags:
+      - OJK Compliance
+      summary: Check OJK compliance readiness
+      description: 'Validates readiness for an OJK regulatory audit across five checks:
+
+        Data Retention, PII Detection, Human Oversight, Audit Logging, and
+
+        Breach Notification.
+
+
+        Every check QUERIES the state it names or reports `unknown` (#3242) —
+
+        four of the five were previously unconditional `pass` literals. Check
+
+        statuses are `pass`, `warning`, `fail` or `unknown`, and each carries
+
+        `details` describing what was OBSERVED plus an `observed` measurement.
+
+
+        Scoring: a pass counts 1, a warning 0.5, a failure 0, and an `unknown`
+
+        check scores ZERO while STILL counting in the denominator — an
+
+        unobservable dimension must drag the score down, never inflate it.
+
+        `measured_checks` / `unknown_checks` expose the split. `ready` requires
+
+        no failures, **no unknowns**, and a score of at least 80.
+
+
+        **Enterprise Feature**.'
+      operationId: getOJKComplianceReadiness
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Compliance readiness assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKComplianceReadinessResponse'
+              example:
+                ready: true
+                score: 100
+                framework: OJK_BI_COMBINED
+                checks:
+                - name: Data Retention
+                  description: 5-year (1825-day) retention configured
+                  status: pass
+                - name: PII Detection
+                  description: Indonesian PII patterns active
+                  status: pass
+        '400':
+          description: Missing organization scope (code `missing_org`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '500':
+          description: Failed to validate readiness (code `internal_error`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/ojk/breach/notify:
+    post:
+      tags:
+      - OJK Compliance
+      summary: Submit a UU PDP breach notification
+      description: 'Submits a personal-data breach notification per UU PDP Art. 46. The
+
+        server assigns the id, sets `notification_deadline` to
+
+        `discovery_time + 72h`, defaults `notified_authority` to `MOCDA`, and
+
+        stamps `submitted_at`. The returned `status` is normally `submitted`,
+
+        or `overdue` when the 72-hour deadline had already lapsed at
+
+        submission.
+
+
+        **Enterprise Feature**.'
+      operationId: notifyOJKBreach
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OJKBreachNotification'
+            example:
+              incident_timestamp: '2026-07-08T14:00:00Z'
+              discovery_time: '2026-07-09T09:00:00Z'
+              data_subjects_affected: 1200
+              data_types_involved:
+              - nik
+              - phone_number
+              description: Misconfigured export bucket exposed customer records
+              remediation_steps:
+              - Bucket policy corrected
+              - Access keys rotated
+      responses:
+        '201':
+          description: Breach notification recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKBreachNotification'
+        '400':
+          description: 'Missing tenant headers (`missing_tenant`), malformed body
+
+            (`invalid_request`), or validation failure (`validation_error`:
+
+            incident_timestamp/discovery_time required, positive
+
+            data_subjects_affected, data_types_involved / description /
+
+            remediation_steps required per UU PDP Art. 46)
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '500':
+          description: Failed to submit breach notification (code `internal_error`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/ojk/breach/acknowledge:
+    post:
+      tags:
+      - OJK Compliance
+      summary: Acknowledge a breach notification
+      description: 'Marks a submitted breach notification as acknowledged by the
+
+        authority. Only the `submitted -> acknowledged` transition is valid;
+
+        acknowledging a draft/overdue/failed/already-acknowledged record
+
+        returns 409.
+
+
+        **Enterprise Feature**.'
+      operationId: acknowledgeOJKBreach
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - id
+              properties:
+                id:
+                  type: string
+                  description: Breach notification id
+      responses:
+        '200':
+          description: Breach notification acknowledged (returns the updated record)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKBreachNotification'
+        '400':
+          description: Missing tenant headers, malformed body, or missing id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '404':
+          description: Breach notification not found (code `not_found`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '409':
+          description: Breach cannot be acknowledged from its current status (code `invalid_transition`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '500':
+          description: Failed to acknowledge breach notification (code `internal_error`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/ojk/breach/evaluate-deadlines:
+    post:
+      tags:
+      - OJK Compliance
+      summary: Sweep lapsed breach-notification deadlines
+      description: 'Flips draft (unsubmitted) breach notifications whose 72-hour UU PDP
+
+        notification deadline has lapsed to `overdue`. Intended to be called
+
+        periodically (deadline sweep).
+
+
+        **Enterprise Feature**.'
+      operationId: evaluateOJKBreachDeadlines
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sweep result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flipped_overdue:
+                    type: integer
+                    description: Number of notifications flipped to overdue
+              example:
+                flipped_overdue: 2
+        '400':
+          description: Missing organization scope (code `missing_org`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '500':
+          description: Failed to evaluate breach deadlines (code `internal_error`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/ojk/dashboard:
+    get:
+      tags:
+      - OJK Compliance
+      summary: Get OJK compliance dashboard
+      description: 'Returns the OJK/UU PDP compliance dashboard: compliance score,
+
+        retention status, breach-notification counts (total and overdue),
+
+        active policies, and recent violations.
+
+
+        **Enterprise Feature**.'
+      operationId: getOJKDashboard
+      parameters:
+      - name: X-Tenant-ID
+        in: header
+        required: false
+        description: 'Deprecated fallback. Every OJK route is scoped to the caller''s
+
+          ORGANIZATION via `X-Org-ID` (#3242); `X-Tenant-ID` is used only when
+
+          `X-Org-ID` is absent, which covers single-identifier deployments
+
+          where the two values are the same. When both are present the
+
+          organization wins. A request carrying neither header, or a
+
+          whitespace-only value, is rejected with 400 (code `missing_org`).
+
+          '
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: false
+        description: 'Organization identifier — the authoritative OJK scope. Set by the
+
+          AxonFlow agent from the validated client credential on every proxied
+
+          route, so a caller cannot choose it.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OJK compliance dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKDashboardResponse'
+              example:
+                framework: OJK_BI_COMBINED
+                compliance_score: 100
+                total_audit_records: 0
+                active_policies: 1
+                recent_violations: 0
+                retention_status: compliant
+                breach_notifications: 3
+                overdue_breach_notifications: 0
+                last_updated: '2026-07-10T09:00:00Z'
+        '400':
+          description: Missing organization scope (code `missing_org`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+        '500':
+          description: Failed to get dashboard (code `internal_error`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OJKAPIError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    OJKAuditExportRequest:
+      type: object
+      required:
+      - start_date
+      - end_date
+      properties:
+        start_date:
+          type: string
+          format: date
+          description: Window start (YYYY-MM-DD)
+        end_date:
+          type: string
+          format: date
+          description: Window end (YYYY-MM-DD, not before start_date; range at most 5 years)
+        format:
+          type: string
+          enum:
+          - json
+          - csv
+          - xml
+          default: json
+          description: 'All three values are ACCEPTED. This endpoint PRODUCES only JSON:
+
+            a csv or xml request succeeds and returns the same JSON body, with
+
+            the response reporting `format: json`, echoing the ask in
+
+            `requested_format` and explaining it in `format_note`. It does NOT
+
+            label a JSON body as csv (#3242).
+
+            '
+        framework:
+          type: string
+          enum:
+          - OJK_AI_GOVERNANCE
+          - UU_PDP
+          - BI_PJP
+          - OJK_BI_COMBINED
+          default: OJK_BI_COMBINED
+        data_types:
+          type: array
+          description: Defaults to [all]
+          items:
+            type: string
+            enum:
+            - policy_violations
+            - llm_calls
+            - decision_chain
+            - hitl_oversight
+            - pii_redactions
+            - cross_border_transfers
+            - breach_notifications
+            - all
+        filters:
+          type: object
+          properties:
+            agent_ids:
+              type: array
+              items:
+                type: string
+            user_ids:
+              type: array
+              items:
+                type: string
+            severity:
+              type: array
+              items:
+                type: string
+            policy_types:
+              type: array
+              items:
+                type: string
+        include_pii:
+          type: boolean
+          default: false
+    OJKAuditExportResponse:
+      type: object
+      properties:
+        export_id:
+          type: string
+        status:
+          type: string
+          description: Always `completed` (the export runs synchronously)
+        framework:
+          type: string
+          enum:
+          - OJK_AI_GOVERNANCE
+          - UU_PDP
+          - BI_PJP
+          - OJK_BI_COMBINED
+        format:
+          type: string
+          enum:
+          - json
+          description: 'The format this response BODY is in, NOT the one that was
+
+            requested. Always `json`: this endpoint writes
+
+            `Content-Type: application/json` with the data inline, and no
+
+            renderer for csv or xml exists on it. Rendered output is the
+
+            compliance-report facade''s job.
+
+            '
+        requested_format:
+          type: string
+          enum:
+          - csv
+          - xml
+          description: 'Present ONLY when the caller asked for a format this endpoint
+
+            does not produce. Its presence is the signal that the body is
+
+            not what was requested. Absent on a json request.
+
+            '
+        format_note:
+          type: string
+          description: 'Prose explanation of the discrepancy, present exactly when
+
+            `requested_format` is. Exists so a human reading the artifact
+
+            does not have to infer it from two fields disagreeing.
+
+            '
+        summary:
+          type: object
+          properties:
+            total_records:
+              type: integer
+            records_by_type:
+              type: object
+              additionalProperties:
+                type: integer
+            date_range:
+              type: object
+              properties:
+                start:
+                  type: string
+                  format: date-time
+                end:
+                  type: string
+                  format: date-time
+            compliance_score:
+              type: number
+              format: double
+        data:
+          type: object
+          description: 'Inline export payload; each key is present only when its data
+
+            type was requested and rows exist
+
+            '
+          properties:
+            policy_violations:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  policy_id:
+                    type: string
+                  policy_name:
+                    type: string
+                  severity:
+                    type: string
+                  action:
+                    type: string
+                  description:
+                    type: string
+                  tenant_id:
+                    type: string
+            llm_calls:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  model_id:
+                    type: string
+                  provider:
+                    type: string
+                  input_tokens:
+                    type: integer
+                  output_tokens:
+                    type: integer
+                  cost:
+                    type: number
+                    format: double
+                  latency_ms:
+                    type: integer
+                    format: int64
+                  policy_decision:
+                    type: string
+            decision_chains:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  decision_id:
+                    type: string
+                  risk_level:
+                    type: string
+                  model_id:
+                    type: string
+                  requires_review:
+                    type: boolean
+            hitl_records:
+              type: array
+              description: 'Declared on the wire type but NEVER populated — the export
+
+                service has no hitl_oversight query implementation (field is
+
+                omitempty, so it is absent from real responses).
+
+                '
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  trigger_reason:
+                    type: string
+                  reviewer_id:
+                    type: string
+                  decision:
+                    type: string
+                  review_time_ms:
+                    type: integer
+                    format: int64
+            pii_redactions:
+              type: array
+              description: 'Declared on the wire type but NEVER populated — the export
+
+                service has no pii_redactions query implementation (field is
+
+                omitempty, so it is absent from real responses).
+
+                '
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  pii_type:
+                    type: string
+                  redaction_method:
+                    type: string
+                  confidence:
+                    type: number
+                    format: double
+            cross_border_transfers:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  data_residency:
+                    type: string
+                  transfer_basis:
+                    type: string
+                    enum:
+                    - adequacy
+                    - safeguards
+                    - pasal_56b_dpa
+                    - consent
+                  destination_country:
+                    type: string
+                  data_categories:
+                    type: array
+                    items:
+                      type: string
+                  approval_status:
+                    type: string
+            breach_notifications:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  incident_timestamp:
+                    type: string
+                    format: date-time
+                  discovery_time:
+                    type: string
+                    format: date-time
+                  notification_deadline:
+                    type: string
+                    format: date-time
+                  data_subjects_affected:
+                    type: integer
+                  data_types_involved:
+                    type: array
+                    items:
+                      type: string
+                  notified_authority:
+                    type: string
+                  status:
+                    type: string
+                    description: Effective status after deadline evaluation
+                  stored_status:
+                    type: string
+                  submitted_at:
+                    type: string
+                    format: date-time
+                  acknowledged_at:
+                    type: string
+                    format: date-time
+                  within_deadline:
+                    type: boolean
+                  created_at:
+                    type: string
+                    format: date-time
+        download_url:
+          type: string
+          description: Omitted for inline exports
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          properties:
+            export_version:
+              type: string
+              example: 1.0.0
+            generated_by:
+              type: string
+              example: axonflow-ojk-module
+            tenant_id:
+              type: string
+            checksum:
+              type: string
+              description: SHA-256 hex of the export data
+    OJKRetentionStatusResponse:
+      type: object
+      properties:
+        compliance_status:
+          type: string
+          enum:
+          - compliant
+          - non_compliant
+        framework:
+          type: string
+          example: OJK_BI_COMBINED
+        retention_days:
+          type: integer
+        min_retention_days:
+          type: integer
+          example: 1825
+        data_types:
+          type: array
+          description: '⚠️ Always empty in the current implementation — per-type
+
+            retention reporting is not implemented (`GetRetentionStatus`
+
+            returns a fixed empty slice).
+
+            '
+          items:
+            type: object
+            properties:
+              data_type:
+                type: string
+              status:
+                type: string
+              oldest_record:
+                type: string
+                format: date-time
+              newest_record:
+                type: string
+                format: date-time
+              total_records:
+                type: integer
+                format: int64
+        next_cleanup:
+          type: string
+          format: date-time
+          description: Never set by the current implementation (omitted)
+    OJKAPIError:
+      type: object
+      description: OJK module error envelope
+      properties:
+        code:
+          type: string
+          description: 'Machine-readable error code (e.g. missing_tenant,
+
+            invalid_request, validation_error, missing_export_id, not_found,
+
+            invalid_transition, internal_error, method_not_allowed)
+
+            '
+        message:
+          type: string
+        details:
+          type: string
+          description: Omitted when empty
+    OJKDashboardResponse:
+      type: object
+      properties:
+        framework:
+          type: string
+          example: OJK_BI_COMBINED
+        compliance_score:
+          type: integer
+        total_audit_records:
+          type: integer
+          format: int64
+        active_policies:
+          type: integer
+          description: 'Indonesia-PII policies (category pii-indonesia) in force on the organization''s proxy request plane, read from its activation: a shipped control its policy document disabled is not counted. -1 when the policies in force could not be read.'
+        recent_violations:
+          type: integer
+        retention_status:
+          type: string
+        breach_notifications:
+          type: integer
+        overdue_breach_notifications:
+          type: integer
+        last_updated:
+          type: string
+          format: date-time
+    OJKBreachNotification:
+      type: object
+      description: 'UU PDP Art. 46 breach notification. On submission the server assigns
+
+        id / created_at / submitted_at and computes notification_deadline
+
+        (discovery_time + 72h) — client-supplied values for those fields
+
+        are ignored. notified_authority defaults to MOCDA only when the
+
+        client omits it; a supplied value is honored.
+
+        '
+      required:
+      - incident_timestamp
+      - discovery_time
+      - data_subjects_affected
+      - data_types_involved
+      - description
+      - remediation_steps
+      properties:
+        id:
+          type: string
+          description: Server-assigned
+        incident_timestamp:
+          type: string
+          format: date-time
+        discovery_time:
+          type: string
+          format: date-time
+        notification_deadline:
+          type: string
+          format: date-time
+          description: Server-computed (discovery_time + 72h)
+        data_subjects_affected:
+          type: integer
+          minimum: 1
+        data_types_involved:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        description:
+          type: string
+        remediation_steps:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        notified_authority:
+          type: string
+          description: Defaults to MOCDA
+        status:
+          type: string
+          enum:
+          - draft
+          - submitted
+          - acknowledged
+          - overdue
+          - failed
+        submitted_at:
+          type: string
+          format: date-time
+        acknowledged_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    OJKComplianceReadinessResponse:
+      type: object
+      properties:
+        ready:
+          type: boolean
+          description: True at score 80+
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        framework:
+          type: string
+          example: OJK_BI_COMBINED
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              status:
+                type: string
+                enum:
+                - pass
+                - fail
+                - warning
+                - unknown
+                description: '`unknown` was MISSING and is emitted routinely (#3435 R8),
+
+                  the same defect corrected on SEBIComplianceCheck.status in
+
+                  the same PR. `OJKCheckUnknown = "unknown"` (ojk/types.go) is
+
+                  assigned by every check in ojk/readiness.go that could not
+
+                  MEASURE the control it names, and four of the five checks
+
+                  read the database, so an unreachable database puts four of
+
+                  them here. The exception is the first, Data Retention, which
+
+                  reads configuration rather than a table and is therefore only
+
+                  ever `pass` or `fail`.
+
+                  '
+              details:
+                type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

@@ -1,0 +1,324 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Cost Management API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Cost Management across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Cost Management
+paths:
+  /api/v1/plans/estimate:
+    post:
+      tags:
+      - Cost Management
+      summary: Estimate the cost of a plan before running it
+      description: 'Estimate token usage and cost for a list of workflow steps. `breakdown`
+
+        is returned on Evaluation tier and above; Community receives the total
+
+        only. A response header warns when the daily estimate quota is 80%
+
+        consumed.'
+      operationId: estimatePlanCost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CostEstimateRequest'
+      responses:
+        '200':
+          description: Cost estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostEstimateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Tenant scope required. NOTE - this refusal uses a third envelope, `{error, code, message}`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    example: TENANT_REQUIRED
+                  message:
+                    type: string
+        '429':
+          description: Daily cost-estimate quota exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodedErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plans/{id}/cost:
+    get:
+      tags:
+      - Cost Management
+      summary: Get the cost estimate for a stored plan
+      operationId: getPlanCost
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        required: true
+        description: Organization scope. Stamped by the AxonFlow Agent gateway from the validated client credential.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Cost estimate for the plan, with `plan_id` populated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostEstimateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          description: Daily cost-estimate quota exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodedErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: Planning is not enabled on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    CostEstimateResponse:
+      type: object
+      properties:
+        plan_id:
+          type: string
+          description: 'Present only on GET /api/v1/plans/{id}/cost. The estimate endpoint
+
+            has no plan to name and omits it.
+
+            '
+        estimated_cost_usd:
+          type: number
+          format: double
+        currency:
+          type: string
+        breakdown:
+          type: array
+          description: 'Per-step breakdown. Populated for Evaluation tier and above; omitted
+
+            on Community, where only the total is returned.
+
+            '
+          items:
+            $ref: '#/components/schemas/StepCostEstimate'
+      required:
+      - estimated_cost_usd
+      - currency
+    WorkflowStep:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - mcp_query
+          - llm
+          - api_call
+          - transform
+        connector:
+          type: string
+        query:
+          type: string
+        prompt:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+    CodedErrorResponse:
+      type: object
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+
+        screaming-snake string enum. This is what the per-handler `writeError`
+
+        methods emit across the policy API, the LLM provider API, the agents,
+
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
+
+
+        It is one of TWO error SHAPES this document describes. `code` is a
+
+        STRING on this envelope; it is never an HTTP status integer.
+
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+
+        the five values the LLM-provider handlers emit.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
+    StepCostEstimate:
+      type: object
+      properties:
+        step_name:
+          type: string
+        provider:
+          type: string
+        model:
+          type: string
+        estimated_tokens_in:
+          type: integer
+        estimated_tokens_out:
+          type: integer
+        estimated_cost_usd:
+          type: number
+          format: double
+    CostEstimateRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+        model:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStep'
+      required:
+      - steps
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Internal server error
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Resource not found
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-apply-template-request-schema.json",
+  "title": "ApplyTemplateRequest",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-policy-openapi.yml#/components/schemas/ApplyTemplateRequest",
+  "type": "object",
+  "required": [
+    "policy_name",
+    "variables"
+  ],
+  "properties": {
+    "policy_name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 100,
+      "description": "Name for the new policy"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Optional policy description"
+    },
+    "variables": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Variable values for the template"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to enable the policy immediately"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000,
+      "description": "Policy priority (overrides template default)"
+    }
+  }
+}

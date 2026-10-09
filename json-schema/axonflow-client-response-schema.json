@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-client-response-schema.json",
+  "title": "ClientResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-agent-openapi.yml#/components/schemas/ClientResponse",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean"
+    },
+    "data": {
+      "description": "Response data (varies by request type)"
+    },
+    "result": {
+      "type": "string",
+      "description": "Result string for multi-agent planning"
+    },
+    "plan_id": {
+      "type": "string",
+      "description": "Plan ID for multi-agent planning"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Execution metadata for multi-agent planning"
+    },
+    "error": {
+      "type": "string",
+      "description": "Error message if success is false"
+    },
+    "code": {
+      "type": "string",
+      "enum": [
+        "ERR_TIER_LIMIT_HUMAN_PRINCIPAL",
+        "ERR_TIER_LIMIT_SERVICE_PRINCIPAL",
+        "ERR_TIER_LIMIT_ORG_ROOT_POLICY",
+        "ERR_TIER_LIMIT_NODE"
+      ],
+      "description": "The refusal's machine-readable code, present on a licence-ceiling\n(tier-limit) refusal: one code per admission dimension. On\n`/api/request` only the two principal codes occur. Omitted on\nevery other response.\n"
+    },
+    "blocked": {
+      "type": "boolean",
+      "description": "True if the request was blocked, by policy, a cost budget or the licence's ceiling"
+    },
+    "block_reason": {
+      "type": "string",
+      "description": "Reason for blocking"
+    },
+    "policy_info": {
+      "$ref": "#/$defs/PolicyEvaluationInfo"
+    },
+    "budget_info": {
+      "type": "object",
+      "description": "Budget enforcement status (Issue #1082) — present when a\nbudget check ran. Surfaces current usage vs limits so\ncallers can render budget-aware UI without a separate\n/api/v1/budgets call.\n",
+      "additionalProperties": true
+    },
+    "media_analysis": {
+      "type": "object",
+      "description": "Media-governance analysis result — populated when the\nrequest carried a `media` payload. Shape mirrors\n`MediaAnalysisResponse`.\n",
+      "additionalProperties": true
+    },
+    "engine": {
+      "type": "string",
+      "enum": [
+        "anchored"
+      ],
+      "description": "Which policy engine authored this verdict: `anchored`, the\nADR-065 decision plane, which authors every verdict on this route\n(PRD v11 §1.1). Since v11.0.0 (#4253) `legacy` is never written:\nthe tier engine that authored it after an anchored approval is\nretired. Omitted on a refusal no engine decided.\n"
+    },
+    "subject_type": {
+      "type": "string",
+      "description": "The type of principal the verdict was decided for (PRD v11 §1.6):\n`User` for a verified user token, `Client` when the request\npresented no user identity and its client credential is the\nprincipal. Omitted wherever `engine` is.\n"
+    },
+    "policy_bundle": {
+      "type": "string",
+      "description": "The digest of the policy set that decided: the system corpus's\nrestriction for this route and the organization root - the\norganization's active typed document composed with the\ndeployment's baseline permission pack, or, while it has published\nnothing, the implicit bundle of that pack and the organization\ntemplate. A rollback reinstates an earlier digest. Omitted wherever\n`engine` is.\n"
+    },
+    "policy_packs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The add-on policy packs (PRD v11 §1.9) whose controls composed\ninto `policy_bundle` on this route, each as `<pack id>@<digest of\nthe pack document the deployment instantiated>`, sorted. Omitted\nwhen the deployment installs no pack or none binds on this route.\n"
+    },
+    "legacy_validators": {
+      "type": "array",
+      "description": "A checksum validator that acted BEFORE the anchored engine decided\n(#4122): under an organization's recorded `pii=block` or\n`pii=redact` detection override, the Indonesia or India validator\nblocked the request or masked the response ahead of the decision\nplane. Present on this envelope only for an MCP connector route's\nresponse-pass refusal, and never on `/api/request`, whose request pass\nruns no checksum validator. Omitted when none did, which is every request without\nsuch an override.\n",
+      "items": {
+        "type": "object",
+        "required": [
+          "validator",
+          "action"
+        ],
+        "properties": {
+          "validator": {
+            "type": "string",
+            "enum": [
+              "indonesia_pii",
+              "india_pii"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "masked"
+            ]
+          }
+        }
+      }
+    },
+    "response_plane": {
+      "type": "object",
+      "description": "The orchestrator response plane's decision on the LLM response\n`/api/request` forwarded (PRD v11 §1.1). It is a SEPARATE decision\nfrom the top-level `engine`, `subject_type` and `policy_bundle`,\nwhich name the request pass that let the request through: the\nresponse is decided afterwards, on the orchestrator, for the client\ncredential the agent forwarded. Omitted on a response no\nresponse-plane decision covers, including every refusal of the\nrequest itself.\n",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": [
+            "anchored"
+          ]
+        },
+        "subject_type": {
+          "type": "string",
+          "description": "The principal type the response was decided for: `Client` on every edition."
+        },
+        "policy_bundle": {
+          "type": "string",
+          "description": "The digest of the policy set that decided the response."
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "allowed",
+            "redacted",
+            "blocked"
+          ],
+          "description": "`allowed` (the response as the provider sent it), `redacted`\n(`data` carries it masked) or `blocked` (withheld: `success` is\nfalse, `blocked` is true, and the refusal is not counted against\nthe client's circuit breaker, because the caller did not cause it).\n"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "PolicyEvaluationInfo": {
+      "type": "object",
+      "properties": {
+        "matched_policies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The policies that matched the request, the deciding one first.\n`policies_evaluated` carries the same list under its older name.\n"
+        },
+        "policies_evaluated": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The same list as `matched_policies`, kept under its older name for existing consumers."
+        },
+        "static_checks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of static checks performed"
+        },
+        "processing_time": {
+          "type": "string",
+          "description": "Time taken for policy evaluation"
+        },
+        "tenant_id": {
+          "type": "string",
+          "description": "Tenant ID for the request"
+        },
+        "code_artifact": {
+          "type": "object",
+          "description": "Code-artifact metadata captured by the code-governance\nevaluation path when the request carried code content\n(LLM-generated or user-provided). Mirrors the SDK's\n`CodeArtifact` type — language, code_type, size_bytes,\nline_count, secrets_detected, unsafe_patterns,\npolicies_checked.\n",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

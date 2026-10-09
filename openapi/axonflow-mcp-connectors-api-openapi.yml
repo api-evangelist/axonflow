@@ -1,0 +1,3044 @@
+openapi: 3.2.0
+info:
+  title: Axonflow MCP Connectors API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged MCP Connectors across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: MCP Connectors
+  description: Model Context Protocol data connector operations
+paths:
+  /mcp/connectors:
+    get:
+      tags:
+      - MCP Connectors
+      summary: List the caller's MCP connectors
+      description: 'Returns the MCP connectors the **authenticated tenant** may reach,
+
+        with their health status. Deployment-shared connectors (those
+
+        registered under the wildcard tenancy `*`) are included for every
+
+        tenant; another tenant''s connectors are not
+
+        (`platform/agent/mcp_handler.go:612-620`).
+
+
+        Connectors provide access to external data sources:
+
+        - PostgreSQL
+
+        - Cassandra
+
+        - Salesforce
+
+        - Snowflake
+
+        - Amadeus (travel API)
+
+        - Slack
+
+
+        **Authentication.** Wrapped in `apiAuthMiddleware`
+
+        (`platform/agent/mcp_handler.go:581`); the tenancy comes from the
+
+        credential, never from a caller-supplied header or path segment.
+
+        Registered for `GET` only — `apiAuthMiddleware` forwards CORS
+
+        preflights unauthenticated, so registering `OPTIONS` would reach the
+
+        handler with no identity in context.
+
+
+        *(Behaviour change in #3067: this route was previously registered
+
+        with no auth middleware and returned every tenant''s connector names,
+
+        types, versions, capabilities, health and raw driver error strings to
+
+        an anonymous caller.)*'
+      operationId: listMCPConnectors
+      security:
+      - BasicAuth: []
+      - InternalServiceID: []
+        InternalServiceToken: []
+      responses:
+        '200':
+          description: List of connectors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorListResponse'
+              example:
+                connectors:
+                - name: postgres_main
+                  type: postgres
+                  version: 1.0.0
+                  healthy: true
+                  latency_ms: 5
+                  capabilities:
+                  - query
+                  - execute
+                - name: amadeus
+                  type: amadeus
+                  version: 1.0.0
+                  healthy: true
+                  latency_ms: 120
+                  capabilities:
+                  - search_flights
+                  - search_hotels
+                count: 2
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: MCP registry not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: MCP registry not initialized
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /mcp/connectors/{name}/health:
+    get:
+      tags:
+      - MCP Connectors
+      summary: Check connector health
+      description: 'Returns health status for one of the **authenticated tenant''s**
+
+        connectors (or a deployment-shared one).
+
+
+        Naming another tenant''s connector returns the same `404` as a
+
+        nonexistent one — there is no existence oracle, and no live
+
+        connection is opened with the other tenant''s credentials
+
+        (`platform/agent/mcp_handler.go:665-676`).
+
+
+        **Authentication.** Wrapped in `apiAuthMiddleware`
+
+        (`platform/agent/mcp_handler.go:584`), `GET` only.
+
+
+        *(Behaviour change in #3067: this route was previously registered
+
+        with no auth middleware, so an anonymous caller could name any
+
+        tenant''s connector and have the agent open a live connection with
+
+        that tenant''s decrypted credentials.)*'
+      operationId: getMCPConnectorHealth
+      security:
+      - BasicAuth: []
+      - InternalServiceID: []
+        InternalServiceToken: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        description: 'Connector name. Resolved within the authenticated tenancy, with a
+
+          fallback to the deployment-shared (`*`) tenancy.
+
+          '
+        schema:
+          type: string
+        example: postgres_main
+      responses:
+        '200':
+          description: Connector health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorHealthResponse'
+              example:
+                healthy: true
+                latency_ms: 5
+                last_check: '2025-01-15T10:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: 'Connector not found **within the caller''s tenancy**. Returned
+
+            both for a name that does not exist and for a name that belongs
+
+            to another tenant.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Connector not found
+        '503':
+          description: MCP registry not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: MCP registry not initialized
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /mcp/resources/query:
+    post:
+      tags:
+      - MCP Connectors
+      summary: Execute MCP query (read-only)
+      description: 'Execute a read-only query via an MCP connector.
+
+
+        This follows the MCP Resource pattern for data retrieval.
+
+        For write operations, use `/mcp/tools/execute`.
+
+
+        ## Audit Logging
+
+
+        All MCP queries are automatically logged to the `mcp_query_audits` table with:
+
+        - **Request phase**: SQLi detection results, PII blocking decisions
+
+        - **Response phase**: PII redaction details, redacted field paths
+
+        - **Exfiltration checks**: Row counts, volume limit violations
+
+        - **Result**: Success/failure, error messages, duration
+
+
+        Each audit entry includes `audit_id` for correlation with SDK `PolicyInfo`.
+
+        Statement content is stored as SHA256 hash for privacy.'
+      operationId: mcpQuery
+      parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+      - $ref: '#/components/parameters/LicenseKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MCPQueryRequest'
+            examples:
+              sqlQuery:
+                summary: SQL query
+                value:
+                  client_id: analytics-app
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  connector: postgres_main
+                  statement: SELECT * FROM orders WHERE status = $1
+                  parameters:
+                    '1': completed
+                  limit: 100
+                  timeout: 10s
+              amadeusSearch:
+                summary: Flight search
+                value:
+                  client_id: travel-app
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  connector: amadeus
+                  operation: search_flights
+                  parameters:
+                    origin: NYC
+                    destination: LAX
+                    departure_date: '2025-01-20'
+                  timeout: 15s
+      responses:
+        '200':
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPQueryResponse'
+              example:
+                success: true
+                connector: amadeus
+                data:
+                - flight_number: UA123
+                  departure: '2025-01-20T08:00:00Z'
+                  arrival: '2025-01-20T11:00:00Z'
+                  price: 299.99
+                row_count: 5
+                duration_ms: 450
+                engine: anchored
+                subject_type: User
+                policy_bundle: sha256:4b8f2a7c9e1d3f5a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a
+                policy_packs:
+                - rbi@sha256:7d1e9a3c5b7f9d1e3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MCPPerUserTokenUnauthorized'
+        '403':
+          $ref: '#/components/responses/MCPSegmentForbidden'
+        '404':
+          description: Connector not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /mcp/tools/execute:
+    post:
+      tags:
+      - MCP Connectors
+      summary: Execute MCP command (write)
+      description: 'Execute a write command via an MCP connector.
+
+
+        This follows the MCP Tool pattern for data modification.
+
+        For read operations, use `/mcp/resources/query`.
+
+
+        ## Audit Logging
+
+
+        All MCP execute operations are automatically logged to the `mcp_query_audits` table with:
+
+        - **Request phase**: SQLi detection results, dangerous operation blocking
+
+        - **Result**: Rows affected, success/failure, error messages, duration
+
+
+        Each audit entry includes `audit_id` for correlation. Operation type (INSERT, UPDATE, DELETE)
+
+        is stored in the `operation` field.'
+      operationId: mcpExecute
+      parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+      - $ref: '#/components/parameters/LicenseKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MCPExecuteRequest'
+            example:
+              client_id: order-service
+              user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+              connector: postgres_main
+              action: UPDATE
+              statement: UPDATE orders SET status = $1 WHERE id = $2
+              parameters:
+                '1': shipped
+                '2': ord-12345
+              timeout: 5s
+      responses:
+        '200':
+          description: Command executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPExecuteResponse'
+              example:
+                success: true
+                connector: postgres_main
+                rows_affected: 1
+                duration_ms: 15
+                message: Update successful
+                engine: anchored
+                subject_type: User
+                policy_bundle: sha256:4b8f2a7c9e1d3f5a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a
+                policy_packs:
+                - rbi@sha256:7d1e9a3c5b7f9d1e3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MCPPerUserTokenUnauthorized'
+        '403':
+          $ref: '#/components/responses/MCPSegmentForbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/mcp/check-input:
+    post:
+      tags:
+      - MCP Connectors
+      summary: Validate MCP input against policies
+      description: 'Validate an MCP request (query or command) against configured policies **without executing it**.
+
+
+        This endpoint enables external orchestrators (LangGraph, CrewAI, custom pipelines) to use
+
+        AxonFlow as a policy gate while managing MCP connector execution themselves.
+
+
+        ## Policy Evaluation
+
+
+        The anchored decision engine (ADR-065) decides the request from the organization''s active typed policy document: the system detectors (SQL injection, dangerous queries, PII) run over the statement and its parameters, and the engine''s verdict is the response. Tenant dynamic policies no longer decide MCP requests (PRD v11 §1.2).
+
+
+        If the engine denies the request, the response returns `allowed: false` with a `block_reason`. A request the engine cannot decide is refused with 503; it is never let through (PRD v11 §1.7).
+
+
+        ## When to Use
+
+
+        Use `check-input` + `check-output` when your orchestrator manages MCP execution natively.
+
+        Use `/mcp/resources/query` or `/mcp/tools/execute` when you want AxonFlow to handle both
+
+        policy enforcement and connector execution.
+
+
+        ## Audit Logging
+
+
+        All check-input evaluations are logged to the `mcp_query_audits` table with
+
+        `operation: "check-input"` for compliance tracking. Audit entries include
+
+        `parameters_hash` (SHA-256) and `parameter_count` for forensic analysis.'
+      operationId: mcpCheckInput
+      parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/AxonflowPEPHandshake'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MCPCheckInputRequest'
+            examples:
+              cleanQuery:
+                summary: Clean SQL query (passes all policies)
+                value:
+                  client_id: analytics-app
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  tenant_id: tenant-123
+                  connector_type: postgres
+                  statement: SELECT name, email FROM users WHERE id = $1
+                  parameters:
+                    '1': usr-001
+                  operation: query
+              sqliAttempt:
+                summary: SQL injection attempt (blocked)
+                value:
+                  client_id: analytics-app
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  tenant_id: tenant-123
+                  connector_type: postgres
+                  statement: SELECT * FROM users; DROP TABLE users--
+              toolParametersWithPII:
+                summary: A tool's name as the statement, the PII in its parameters (#4264)
+                description: The ADK plugin's shape. Under an organization's pii=redact posture the redaction masks the parameter. It is handed back in redacted_parameters only to an enforcement point whose PEP handshake declares field_redact at versions 1 and 2, on Enterprise; every other caller is refused 403 unsupported_obligation.
+                value:
+                  connector_type: adk-tool
+                  statement: mail
+                  parameters:
+                    command: mail -s statement jane.doe@example.com
+                  operation: execute
+      responses:
+        '200':
+          description: Input passed all policy checks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPCheckInputResponse'
+              examples:
+                clean:
+                  summary: A clean request
+                  value:
+                    allowed: true
+                    policies_evaluated: 12
+                redactedParameters:
+                  summary: The PII in a parameter, handed back masked (#4264)
+                  description: The answer to toolParametersWithPII under pii=redact, sent by an enforcement point that declared field_redact@1 and field_redact@2 (Enterprise). The statement carried no PII, so redacted_statement is absent; the parameter comes back as the masked text the request pass scanned it as.
+                  value:
+                    allowed: true
+                    policies_evaluated: 12
+                    redacted: true
+                    redacted_parameters:
+                      command: mail -s statement j******************m
+                    redaction_evaluated: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MCPPerUserTokenUnauthorized'
+        '403':
+          description: 'Input blocked by policy.
+
+
+            **`segment_resolution_failed` is no longer a cause** (it was one
+
+            from #3447). No segment gate stands here any more: the anchored
+
+            engine authors the request pass''s verdict (PRD v11 §1.1) and reads
+
+            no segments, as on decide.
+
+
+            **`unsupported_obligation`: a redaction this route cannot
+
+            discharge** (#4264). Under an organization''s `pii=redact` posture a
+
+            permit composes a mandatory redaction of the request. This route
+
+            hands back the masked statement (`redacted_statement`), so a
+
+            redaction of the statement alone is answered 200. A redaction that
+
+            masks a request parameter is answered 200, with each masked
+
+            parameter in `redacted_parameters`, ONLY to an enforcement point
+
+            whose PEP handshake (`X-Axonflow-PEP-Handshake`) declares
+
+            `field_redact` at version 2 as well as version 1, and only on
+
+            Enterprise: a caller that does not substitute the masked
+
+            parameters would run its tool on the originals. Every other caller
+
+            is refused, the masked statement included. So is a redaction that
+
+            masks nothing in the statement or in any parameter. The refusal is
+
+            `allowed: false` with a `block_reason` that starts
+
+            `unsupported_obligation:` and names the obligation, the policy that
+
+            attached it and why: for a parameter, its key (never its value or
+
+            its masked text) and the missing `field_redact@2`. A redaction the
+
+            platform could not attempt (no redaction engine installed, the
+
+            policies unreadable, a requirement or detector the engine no longer
+
+            holds) is a 503.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPCheckInputResponse'
+              example:
+                allowed: false
+                block_reason: SQL injection detected in statement
+                policies_evaluated: 3
+                policy_info:
+                  policies_evaluated: 3
+                  blocked: true
+                  block_reason: SQL injection detected in statement
+        '415':
+          description: 'Unregistered `content_type` (ADR-056). The request named a
+
+            content type that no registered detector handles. A canonical
+
+            blocked audit row tagged `content_type_unsupported` is written
+
+            before the error returns — the request is treated as blocked,
+
+            not silently skipped.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: The policy engine could not decide the request (for example, the organization's active policy document could not be read). The request is refused, never let through (PRD v11 §1.7).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/mcp/check-output:
+    post:
+      tags:
+      - MCP Connectors
+      summary: Validate MCP output against policies
+      description: 'Validate MCP response data against configured policies **without having executed the query
+
+        through AxonFlow**.
+
+
+        This endpoint enables external orchestrators to apply AxonFlow''s output-side policy
+
+        enforcement (PII redaction, exfiltration limits, SQLi response scanning) to data they
+
+        fetched from MCP connectors independently.
+
+
+        ## Policy Evaluation
+
+
+        The following checks are applied in order:
+
+        1. **SQLi response scanning**: Detects SQL injection artifacts in response data
+
+        2. **Static response policies**: PII detection and redaction (SSN, credit card, Aadhaar, etc.)
+
+        3. **Exfiltration limits** (query-style only): Row count and byte size limits
+
+
+        If PII is detected, the response includes `redacted_data` with masked values.
+
+        If exfiltration limits are exceeded, the response returns `allowed: false`.
+
+
+        ## Query vs Execute Responses
+
+
+        - **Query responses** (`response_data`): Full policy evaluation including exfiltration checks
+
+        - **Execute responses** (`message`): SQLi scanning and PII checks only (no exfiltration limits)
+
+
+        ## Audit Logging
+
+
+        All check-output evaluations are logged to the `mcp_query_audits` table with
+
+        `operation: "check-output"` for compliance tracking.'
+      operationId: mcpCheckOutput
+      parameters:
+      - $ref: '#/components/parameters/AxonflowClient'
+      - $ref: '#/components/parameters/AxonflowPEPHandshake'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MCPCheckOutputRequest'
+            examples:
+              cleanData:
+                summary: Clean query response (passes all policies)
+                value:
+                  client_id: analytics-app
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  tenant_id: tenant-123
+                  connector_type: postgres
+                  tool: query
+                  response_data:
+                  - id: 1
+                    name: Alice Johnson
+                    department: Engineering
+                  row_count: 1
+              piiData:
+                summary: Response containing PII (redacted)
+                value:
+                  client_id: analytics-app
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  tenant_id: tenant-123
+                  connector_type: postgres
+                  response_data:
+                  - id: 1
+                    name: Alice Johnson
+                    ssn: 123-45-6789
+                  row_count: 1
+              executeResponse:
+                summary: Execute-style response (message only)
+                value:
+                  client_id: analytics-app
+                  user_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  tenant_id: tenant-123
+                  connector_type: postgres
+                  message: 3 rows updated
+                  metadata:
+                    query: UPDATE users SET status = 'active' WHERE region = 'us'
+      responses:
+        '200':
+          description: Output passed all policy checks (may include redacted data)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPCheckOutputResponse'
+              examples:
+                clean:
+                  summary: No issues found
+                  value:
+                    allowed: true
+                    policies_evaluated: 8
+                    engine: anchored
+                    subject_type: User
+                    policy_bundle: sha256:4b8f2a7c9e1d3f5a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a
+                    policy_packs:
+                    - rbi@sha256:7d1e9a3c5b7f9d1e3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f
+                redacted:
+                  summary: PII detected and redacted
+                  value:
+                    allowed: true
+                    redacted_data:
+                    - id: 1
+                      name: Alice Johnson
+                      ssn: XXX-XX-6789
+                    policies_evaluated: 8
+                    policy_info:
+                      policies_evaluated: 8
+                      blocked: false
+                      redactions_applied: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MCPPerUserTokenUnauthorized'
+        '403':
+          description: 'Output blocked by policy (exfiltration limit exceeded or SQLi
+
+            detected).
+
+
+            **`segment_resolution_failed` is no longer a cause** (it was one
+
+            from #3447). The route resolved the caller''s governance segments
+
+            and refused the request when that failed, on behalf of an
+
+            organization''s segment-scoped static rows, and those rows no
+
+            longer decide: the anchored engine authors this verdict and reads
+
+            no segments (PRD v11 §1.1, §1.2). So the shared engine''s detector
+
+            pass runs with no segment set, and a segment resolution that
+
+            would fail changes nothing.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MCPCheckOutputResponse'
+              example:
+                allowed: false
+                block_reason: 'Exfiltration limit exceeded: row_count 15000 > limit 10000'
+                policies_evaluated: 3
+                exfiltration_info:
+                  within_limits: false
+                  rows_returned: 15000
+                  row_limit: 10000
+                  bytes_returned: 5242880
+                  byte_limit: 10485760
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /mcp/health:
+    get:
+      tags:
+      - MCP Connectors
+      summary: Overall MCP health
+      description: 'Unauthenticated liveness probe.
+
+
+        ⚠️ **`healthy_count` + `unhealthy_count` do not sum to
+
+        `total_connectors`, by design** (`platform/agent/mcp_handler.go:3377-3405`).
+
+        Because this route is anonymous, the live health checks it performs
+
+        are limited to the **deployment-shared** (operator-configured,
+
+        wildcard-tenancy `*`) connectors, while `total_connectors` keeps its
+
+        pre-existing deployment-wide meaning so operator dashboards do not
+
+        silently change scale. A deployment consisting only of tenant-owned
+
+        connectors therefore reports `healthy: true` with zero counts even if
+
+        every backend is down.
+
+
+        Use the authenticated `GET /mcp/connectors` for per-tenant connector
+
+        health.
+
+
+        *(Behaviour change in #3067: this route previously opened a live
+
+        connection to **every** tenant''s backend on every anonymous GET —
+
+        cross-tenant credential use plus a free amplification lever.)*'
+      operationId: getMCPHealth
+      responses:
+        '200':
+          description: MCP system health
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    description: 'True when no deployment-shared connector reported
+
+                      unhealthy. Says nothing about tenant-owned connectors.
+
+                      '
+                  total_connectors:
+                    type: integer
+                    description: 'Deployment-wide cached-connector count
+
+                      (`registry.Count()`) — a different scale from the two
+
+                      counts below.
+
+                      '
+                  healthy_count:
+                    type: integer
+                    description: Healthy **deployment-shared** connectors only
+                  unhealthy_count:
+                    type: integer
+                    description: Unhealthy **deployment-shared** connectors only
+                  timestamp:
+                    type: string
+                    format: date-time
+              example:
+                healthy: true
+                total_connectors: 3
+                healthy_count: 1
+                unhealthy_count: 0
+                timestamp: '2026-07-28T10:30:00Z'
+        '503':
+          description: MCP registry not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: MCP registry not initialized
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/connectors/refresh:
+    post:
+      tags:
+      - MCP Connectors
+      summary: Refresh the caller's connector caches
+      description: 'Invalidates and refreshes cached connector instances.
+
+        Use this after configuration changes or deployments.
+
+
+        **The scope depends on which credential you present**
+
+        (`platform/agent/connector_refresh_api.go:184-216`):
+
+
+        | Credential | Scope | `message` | `tenant_id` |
+
+        |---|---|---|---|
+
+        | Basic auth (tenant) | the authenticated tenant''s connectors only | `Tenant connector caches refreshed` | present |
+
+        | Internal-service | every tenant''s connectors | `All connector caches refreshed` | **absent** |
+
+
+        **Performance impact:** the next request for each evicted connector
+
+        incurs factory-creation overhead.
+
+
+        **Authentication.** This route is wrapped in `apiAuthMiddleware`
+
+        (`platform/agent/connector_refresh_api.go:123`) and the tenancy comes
+
+        from the authenticated identity — a caller can no longer evict another
+
+        tenant''s pool. Supply **either**:
+
+
+        - `Authorization: Basic base64(clientId:clientSecret)` — the tenant
+
+        lane (no credentials are required when
+
+        `DEPLOYMENT_MODE=community`); or
+
+        - `X-Internal-Service-ID` + `X-Internal-Service-Token` — the
+
+        operator lane, which is the only way to trigger a deployment-wide
+
+        eviction.
+
+
+        *(Historical note: these four routes were registered with no auth
+
+        middleware at all — #2883. They are authenticated as of #3067; the
+
+        pre-#3067 "deploy behind network-level controls" advisory no longer
+
+        applies.)*
+
+
+        `stats.cached_connectors` is **structurally 0** on this route: the
+
+        refresh empties the scope immediately before the count is taken. That
+
+        is the success signal, not a failure.'
+      operationId: refreshAllConnectors
+      security:
+      - BasicAuth: []
+      - InternalServiceID: []
+        InternalServiceToken: []
+      responses:
+        '200':
+          description: Connectors refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorRefreshResponse'
+              examples:
+                tenantCredential:
+                  summary: Basic auth — the caller's own pool
+                  value:
+                    success: true
+                    message: Tenant connector caches refreshed
+                    scope: all
+                    tenant_id: acme-corp
+                    duration: 12.345ms
+                    stats:
+                      cached_connectors: 0
+                internalServiceCredential:
+                  summary: Internal-service credential — deployment-wide
+                  value:
+                    success: true
+                    message: All connector caches refreshed
+                    scope: all
+                    duration: 12.345ms
+                    stats:
+                      cached_connectors: 0
+        '401':
+          description: 'No usable credential. Written by the auth middleware as
+
+            `JSONError` (`platform/agent/auth.go:602`), or — when the
+
+            middleware admitted the caller but resolved no tenancy — by the
+
+            handler as `ErrorResponse`
+
+            (`platform/agent/connector_refresh_api.go:148`).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: authenticated tenant required
+        '500':
+          description: Refresh failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Failed to refresh connectors: connection refused'
+        '503':
+          description: Registry not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: TenantConnectorRegistry not initialized
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/connectors/refresh/{tenant_id}:
+    post:
+      tags:
+      - MCP Connectors
+      summary: Refresh tenant connector caches
+      description: 'Invalidates and refreshes all cached connector instances for a tenant.
+
+        Use this after updating a tenant''s connector configuration.
+
+
+        **`{tenant_id}` is not a selector.** It is validated against the
+
+        identity `apiAuthMiddleware` resolved and a mismatch is `403`
+
+        (`platform/agent/connector_refresh_api.go:152-156`); the tenancy that
+
+        is actually refreshed always comes from the credential.
+
+
+        - **Basic auth:** the resolved identity is your licensed org, so this
+
+        route can only ever refresh your own pool.
+
+        - **Internal-service credential:** the resolved identity is whatever
+
+        `X-Tenant-ID` you send (`platform/agent/authenticator.go:127-130`),
+
+        so an operator targets a named tenant by sending that header *and*
+
+        the matching path segment. Naming a tenant in the path with no
+
+        `X-Tenant-ID` is `403`, because the identity then falls back to the
+
+        synthetic `orchestrator-internal` client id.
+
+
+        `stats.cached_connectors` is **structurally 0** on this route — the
+
+        refresh empties the tenant''s scope immediately before the count is
+
+        taken.'
+      operationId: refreshTenantConnectors
+      security:
+      - BasicAuth: []
+      - InternalServiceID: []
+        InternalServiceToken: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        description: 'The tenant whose connectors should be refreshed. Must equal the
+
+          authenticated tenant — see the description.
+
+          '
+        schema:
+          type: string
+        example: acme-corp
+      responses:
+        '200':
+          description: Tenant connectors refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorRefreshResponse'
+              example:
+                success: true
+                message: Tenant connector caches refreshed
+                scope: tenant
+                tenant_id: acme-corp
+                duration: 2.456ms
+                stats:
+                  cached_connectors: 0
+        '400':
+          description: Missing tenant_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: tenant_id is required
+        '401':
+          description: 'No usable credential. Written by the auth middleware as
+
+            `JSONError` (`platform/agent/auth.go:602`), or — when the
+
+            middleware admitted the caller but resolved no tenancy — by the
+
+            handler as `ErrorResponse`
+
+            (`platform/agent/connector_refresh_api.go:148`).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: authenticated tenant required
+        '403':
+          description: 'The `{tenant_id}` path segment does not match the authenticated
+
+            tenant (`platform/agent/connector_refresh_api.go:152-156`).
+
+            Refused rather than silently downgraded to the caller''s own scope,
+
+            so an operator who mistypes a tenant learns about it.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: tenant_id does not match the authenticated tenant
+        '500':
+          description: Refresh failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Failed to refresh tenant connectors: connection refused'
+        '503':
+          description: Registry not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: TenantConnectorRegistry not initialized
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/connectors/refresh/{tenant_id}/{connector_name}:
+    post:
+      tags:
+      - MCP Connectors
+      summary: Refresh specific connector cache
+      description: 'Invalidates and refreshes a specific connector instance for a tenant.
+
+        Use this after updating a single connector''s credentials or configuration.
+
+
+        **`{tenant_id}` is not a selector** — same contract as
+
+        `POST /api/v1/connectors/refresh/{tenant_id}`: the segment is
+
+        validated against the authenticated identity and a mismatch is `403`
+
+        (`platform/agent/connector_refresh_api.go:152-156`).
+
+
+        Unlike the two broader refresh routes, `stats.cached_connectors` here
+
+        is informative: it is the caller''s **remaining** cached-connector
+
+        count after this one connector was evicted
+
+        (`platform/agent/connector_refresh_api.go:314,404-408`).'
+      operationId: refreshConnector
+      security:
+      - BasicAuth: []
+      - InternalServiceID: []
+        InternalServiceToken: []
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        description: 'The tenant that owns the connector. Must equal the authenticated
+
+          tenant — see the description.
+
+          '
+        schema:
+          type: string
+        example: acme-corp
+      - name: connector_name
+        in: path
+        required: true
+        description: The connector name to refresh
+        schema:
+          type: string
+        example: customer-db
+      responses:
+        '200':
+          description: Connector refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorRefreshResponse'
+              example:
+                success: true
+                message: Connector cache refreshed
+                scope: connector
+                tenant_id: acme-corp
+                connector: customer-db
+                duration: 0.789ms
+                stats:
+                  cached_connectors: 1
+        '400':
+          description: Missing required parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: tenant_id and connector_name are required
+        '401':
+          description: 'No usable credential. Written by the auth middleware as
+
+            `JSONError` (`platform/agent/auth.go:602`), or — when the
+
+            middleware admitted the caller but resolved no tenancy — by the
+
+            handler as `ErrorResponse`
+
+            (`platform/agent/connector_refresh_api.go:148`).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: authenticated tenant required
+        '403':
+          description: 'The `{tenant_id}` path segment does not match the authenticated
+
+            tenant (`platform/agent/connector_refresh_api.go:152-156`).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: tenant_id does not match the authenticated tenant
+        '500':
+          description: Refresh failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Failed to refresh connector: connection refused'
+        '503':
+          description: Registry not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: TenantConnectorRegistry not initialized
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/connectors/cache/stats:
+    get:
+      tags:
+      - MCP Connectors
+      summary: Get connector cache statistics
+      description: 'Returns the caller''s cached-connector count. **The response is
+
+        tenant-scoped** (`platform/agent/connector_refresh_api.go:350-355`):
+
+        `cached_connectors` is the authenticated tenant''s own count, not the
+
+        deployment''s.
+
+
+        **The cache-health counters are operator telemetry.** `hits`,
+
+        `misses`, `evictions`, `factory_creations`, `factory_failures`,
+
+        `connection_errors`, `hit_rate_percent`, `last_eviction` and
+
+        `last_factory_create` are deployment-wide figures. They appear here
+
+        **only** inside a `deployment` object, and **only** for the
+
+        internal-service credential
+
+        (`platform/agent/connector_refresh_api.go:356-369`). A tenant caller
+
+        must not read their absence as zero — it has no cache-health data on
+
+        this surface.
+
+
+        Un-scoped equivalents for five of them are always available to
+
+        operators on `/prometheus` as
+
+        `axonflow_connector_cache_stats{stat="cached_connectors"|"hits"|"misses"|"evictions"|"hit_rate"}`,
+
+        refreshed on every call to this endpoint
+
+        (`platform/agent/connector_refresh_api.go:338-342`).
+
+        `factory_creations`, `factory_failures`, `connection_errors`,
+
+        `last_eviction` and `last_factory_create` have **no** Prometheus
+
+        series — the `deployment` block is their only surface.
+
+
+        **Authentication.** Wrapped in `apiAuthMiddleware`
+
+        (`platform/agent/connector_refresh_api.go:132`). This route takes no
+
+        `{tenant_id}` path segment, so it never returns `403`.
+
+
+        *(Historical note: this route was registered with no auth middleware
+
+        at all and served the deployment-wide counters to anonymous callers —
+
+        #2883, where the `evictions` delta was an existence oracle for
+
+        `(tenant, connector)` pairs. Authenticated and scoped as of #3067.)*'
+      operationId: getConnectorCacheStats
+      security:
+      - BasicAuth: []
+      - InternalServiceID: []
+        InternalServiceToken: []
+      responses:
+        '200':
+          description: Cache statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorCacheStats'
+              examples:
+                tenantCredential:
+                  summary: Basic auth — four fields, and only these four
+                  value:
+                    cached_connectors: 15
+                    registry_enabled: true
+                    tenant_id: acme-corp
+                    timestamp: '2026-07-28T14:25:00.123456Z'
+                internalServiceCredential:
+                  summary: Internal-service credential — adds the deployment block
+                  value:
+                    cached_connectors: 0
+                    registry_enabled: true
+                    tenant_id: orchestrator-internal
+                    timestamp: '2026-07-28T14:25:00.123456Z'
+                    deployment:
+                      cached_connectors: 15
+                      hits: 12345
+                      misses: 234
+                      evictions: 12
+                      factory_creations: 246
+                      factory_failures: 0
+                      connection_errors: 2
+                      hit_rate_percent: 98.1
+                      last_eviction: '2026-07-28T10:30:00Z'
+                      last_factory_create: '2026-07-28T14:20:00Z'
+        '401':
+          description: 'No usable credential. Written by the auth middleware as
+
+            `JSONError` (`platform/agent/auth.go:602`), or — when the
+
+            middleware admitted the caller but resolved no tenancy — by the
+
+            handler as `ErrorResponse`
+
+            (`platform/agent/connector_refresh_api.go:148`).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: authenticated tenant required
+        '503':
+          description: Registry not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: TenantConnectorRegistry not initialized
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  schemas:
+    MCPExecuteRequest:
+      type: object
+      required:
+      - client_id
+      - connector
+      - action
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: 'The approval a retry spends (#4370), for a client that cannot set
+
+            the `X-Axonflow-Approval-Id` header (see that parameter). Never
+
+            part of what the approval binds.
+
+            '
+        client_id:
+          type: string
+        license_key:
+          type: string
+        user_token:
+          type: string
+        connector:
+          type: string
+        operation:
+          type: string
+        action:
+          type: string
+          enum:
+          - INSERT
+          - UPDATE
+          - DELETE
+        statement:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        timeout:
+          type: string
+    PolicyInfo:
+      type: object
+      description: Policy evaluation information included in MCP responses
+      properties:
+        policies_evaluated:
+          type: integer
+          description: Number of policies evaluated during request/response processing
+        blocked:
+          type: boolean
+          description: Whether the request was blocked by policy
+        block_reason:
+          type: string
+          description: Reason if the request was blocked
+        redactions_applied:
+          type: integer
+          description: Number of field redactions applied to the response
+        processing_time_ms:
+          type: integer
+          description: Time spent on policy evaluation in milliseconds
+        matched_policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyMatchInfo'
+          description: Policies that matched during evaluation
+        exfiltration_check:
+          $ref: '#/components/schemas/ExfiltrationCheckInfo'
+    ConnectorRefreshStats:
+      type: object
+      description: 'Cache statistics after refresh. Source of truth:
+
+        `platform/agent/connector_refresh_api.go` (`RefreshStatsInfo`, lines
+
+        83-88).
+
+
+        This object carries `cached_connectors` **and nothing else**. It used
+
+        to also declare `hits`, `misses`, `evictions` and `hit_rate_percent`;
+
+        no producer ever set them, so they always serialized as misleading
+
+        hard zeros, and they are deployment-wide figures that disclose other
+
+        tenants'' cache activity. They were removed from the struct in #3067 —
+
+        read them from the `deployment` block of
+
+        `GET /api/v1/connectors/cache/stats` (internal-service credential) or
+
+        from the un-scoped `/prometheus` gauges.
+
+        '
+      properties:
+        cached_connectors:
+          type: integer
+          format: int64
+          description: 'Cached-connector count *after* the eviction, scoped to the work
+
+            just done: the caller''s own count on a tenant refresh
+
+            (`tenantRefreshStats`, lines 404-408), the deployment-wide count
+
+            on an internal-service deployment-wide refresh
+
+            (`deploymentRefreshStats`, lines 415-419).
+
+
+            Structurally `0` on `POST /api/v1/connectors/refresh` and
+
+            `POST /api/v1/connectors/refresh/{tenant_id}` — those routes evict
+
+            the whole scope immediately before counting it. Only informative
+
+            on `.../{tenant_id}/{connector_name}`.
+
+            '
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+    MCPQueryRequest:
+      type: object
+      required:
+      - client_id
+      - connector
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: 'The approval a retry spends (#4370), for a client that cannot set
+
+            the `X-Axonflow-Approval-Id` header (see that parameter). Never
+
+            part of what the approval binds.
+
+            '
+        client_id:
+          type: string
+        license_key:
+          type: string
+          description: Can also be provided in X-License-Key header
+        user_token:
+          type: string
+        connector:
+          type: string
+          description: Connector name
+        operation:
+          type: string
+          description: Operation name (for API connectors like Amadeus)
+        statement:
+          type: string
+          description: SQL/CQL statement (for database connectors)
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Query parameters
+        limit:
+          type: integer
+          description: Maximum rows to return
+        timeout:
+          type: string
+          description: Timeout duration (e.g., "10s")
+    ConnectorHealthResponse:
+      type: object
+      properties:
+        healthy:
+          type: boolean
+        latency_ms:
+          type: integer
+        last_check:
+          type: string
+          format: date-time
+        error:
+          type: string
+    MCPExecuteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        connector:
+          type: string
+        rows_affected:
+          type: integer
+        duration_ms:
+          type: integer
+        message:
+          type: string
+        redacted:
+          type: boolean
+          description: Whether any fields in the response were redacted by policy
+        redacted_fields:
+          type: array
+          items:
+            type: string
+          description: JSON paths of fields that were redacted
+        policy_info:
+          $ref: '#/components/schemas/PolicyInfo'
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'Which policy engine authored this verdict: the ADR-065 decision
+
+            plane, the only author on this route (PRD v11 §1.1).
+
+            It rides this body and the 403 envelope of a refusal by the
+
+            same pass. Omitted
+
+            on a refusal no engine decided - an authentication failure, or a
+
+            request refused before the policy pass ran.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
+
+            `User` for a verified user token, `Client` when the request
+
+            presented no user identity and its client credential is the
+
+            principal. Omitted wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided: the system corpus''s
+
+            restriction for this route and the organization root - the
+
+            organization''s active typed document composed with the
+
+            deployment''s baseline permission pack, or, while it has published
+
+            nothing, the implicit bundle of that pack and the organization
+
+            template. A rollback reinstates an earlier digest. Omitted wherever
+
+            `engine` is.
+
+            '
+        policy_packs:
+          type: array
+          items:
+            type: string
+          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
+
+            into `policy_bundle` on the response pass, each as `<pack id>@<digest
+
+            of the pack document the deployment instantiated>`, sorted. Omitted
+
+            when the deployment installs no pack or none binds on this route.
+
+            '
+        legacy_validators:
+          type: array
+          description: 'A checksum validator that acted BEFORE the anchored engine decided
+
+            (#4122): under an organization''s recorded `pii=block` or
+
+            `pii=redact` detection override, the Indonesia or India validator
+
+            blocked the request or masked the response ahead of the decision
+
+            plane. Omitted when none did, which is every request without
+
+            such an override.
+
+            '
+          items:
+            type: object
+            required:
+            - validator
+            - action
+            properties:
+              validator:
+                type: string
+                enum:
+                - indonesia_pii
+                - india_pii
+              action:
+                type: string
+                enum:
+                - blocked
+                - masked
+    MCPCheckOutputRequest:
+      type: object
+      required:
+      - connector_type
+      anyOf:
+      - required:
+        - response_data
+      - required:
+        - message
+      properties:
+        client_id:
+          type: string
+          description: Client identifier (required in Enterprise mode)
+        user_token:
+          type: string
+          description: JWT user token (required in Enterprise mode)
+        tenant_id:
+          type: string
+          description: Tenant identifier (required in Enterprise mode, defaults to "default" in Community)
+        user_id:
+          type: string
+          description: Optional user identifier
+        connector_type:
+          type: string
+          description: MCP connector/server type (e.g., "postgres", "snowflake", "salesforce")
+        tool:
+          type: string
+          description: Optional tool identifier whose output is being validated, distinct from connector_type/server (#2904/#2955). Feeds capability-scoped response evaluation when set (a text-document tool's output skips execution-class detectors); omitted → full (fail-closed) evaluation, no fallback from connector_type.
+        response_data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          description: Query-style response rows to validate
+        message:
+          type: string
+          description: Execute-style response message (e.g., "5 rows affected")
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Connector metadata for SQLi response scanning (e.g., query echo, database name)
+        row_count:
+          type: integer
+          description: Total number of rows returned (used for exfiltration limit checks)
+    ConnectorRefreshResponse:
+      type: object
+      description: 'Response from connector cache refresh operations. Source of truth:
+
+        `platform/agent/connector_refresh_api.go` (`ConnectorRefreshResponse`,
+
+        lines 61-69).
+
+        '
+      properties:
+        success:
+          type: boolean
+          description: Whether the refresh operation succeeded
+        message:
+          type: string
+          description: 'Human-readable status message. Also the signal for which scope
+
+            the credential bought: `Tenant connector caches refreshed` vs
+
+            `All connector caches refreshed`.
+
+            '
+        scope:
+          type: string
+          enum:
+          - all
+          - tenant
+          - connector
+          description: Which route produced this response
+        tenant_id:
+          type: string
+          description: 'The authenticated tenant. Omitted on a deployment-wide refresh
+
+            (internal-service credential on `POST /api/v1/connectors/refresh`),
+
+            because no single tenancy describes the work done.
+
+            '
+        connector:
+          type: string
+          description: Connector name (when scope is connector)
+        duration:
+          type: string
+          description: Duration of the refresh operation
+          example: 12.345ms
+        stats:
+          $ref: '#/components/schemas/ConnectorRefreshStats'
+      required:
+      - success
+      - message
+      - scope
+      - duration
+    ConnectorCacheStats:
+      type: object
+      description: 'Connector cache statistics. Source of truth:
+
+        `platform/agent/connector_refresh_api.go`
+
+        (`connectorCacheStatsHandler`, lines 350-369).
+
+
+        **Tenant-scoped.** A Basic-auth caller receives exactly four
+
+        top-level fields — `cached_connectors`, `registry_enabled`,
+
+        `tenant_id`, `timestamp` — and no cache-health counters at all. The
+
+        counters live in `deployment`, which is present **only** for the
+
+        internal-service credential.
+
+
+        Before #3067 all of the counters were served flat at the top level to
+
+        anonymous callers; the flat shape no longer exists on any code path.
+
+        '
+      properties:
+        tenant_id:
+          type: string
+          description: 'The authenticated tenant `cached_connectors` is scoped to. For an
+
+            internal-service caller this is whatever `X-Tenant-ID` was sent,
+
+            or the synthetic `orchestrator-internal` client id when it was
+
+            not (`platform/agent/authenticator.go:127-130`).
+
+            '
+          example: acme-corp
+        cached_connectors:
+          type: integer
+          description: 'The number of connectors cached **for `tenant_id`**
+
+            (`registry.CountByTenant`), not for the deployment. It is
+
+            typically `0` for an internal-service caller that sent no
+
+            `X-Tenant-ID` — read `deployment.cached_connectors` instead.
+
+            '
+        registry_enabled:
+          type: boolean
+          description: 'Always `true` when the endpoint answers 200 — a disabled or
+
+            uninitialized registry returns 503 before this body is built.
+
+            '
+        timestamp:
+          type: string
+          format: date-time
+          description: Server time (UTC) at which the body was built
+        deployment:
+          type: object
+          description: 'Deployment-wide operator telemetry. **Present only for the
+
+            internal-service credential**
+
+            (`platform/agent/connector_refresh_api.go:356`). Absent for every
+
+            tenant caller; its absence must not be read as zero.
+
+
+            Counter values come from `TenantRegistryStats`
+
+            (`platform/agent/tenant_connector_registry.go:131-141`).
+
+            '
+          properties:
+            cached_connectors:
+              type: integer
+              description: Deployment-wide cached-connector count (`registry.Count()`)
+            hits:
+              type: integer
+              format: int64
+              description: Total cache hits, deployment-wide
+            misses:
+              type: integer
+              format: int64
+              description: Total cache misses, deployment-wide
+            evictions:
+              type: integer
+              format: int64
+              description: Total manual evictions, deployment-wide
+            factory_creations:
+              type: integer
+              format: int64
+              description: Successful connector factory creations
+            factory_failures:
+              type: integer
+              format: int64
+              description: Failed connector factory creations
+            connection_errors:
+              type: integer
+              format: int64
+              description: Connector initialization errors
+            hit_rate_percent:
+              type: number
+              format: double
+              description: '`hits / (hits + misses) * 100`, deployment-wide; `0` when
+
+                neither counter has moved
+
+                (`platform/agent/tenant_connector_registry.go:525-534`).
+
+                '
+            last_eviction:
+              type: string
+              format: date-time
+              description: 'Timestamp of the last eviction. Serializes as the Go zero
+
+                time `0001-01-01T00:00:00Z` when nothing has been evicted yet.
+
+                '
+            last_factory_create:
+              type: string
+              format: date-time
+              description: 'Timestamp of the last factory creation. Serializes as the Go
+
+                zero time `0001-01-01T00:00:00Z` when no connector has been
+
+                created yet.
+
+                '
+    ConnectorListResponse:
+      type: object
+      properties:
+        connectors:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+              version:
+                type: string
+              healthy:
+                type: boolean
+              latency_ms:
+                type: integer
+              capabilities:
+                type: array
+                items:
+                  type: string
+              error:
+                type: string
+        count:
+          type: integer
+    MCPCheckInputResponse:
+      type: object
+      properties:
+        pending_approval:
+          $ref: '#/components/schemas/PendingApproval'
+          description: Set when the call is held for a person's approval (#4370); `allowed` is false and nothing ran.
+        approval_id:
+          type: string
+          format: uuid
+          description: On an allow, the approval that admitted this call (#4370).
+        allowed:
+          type: boolean
+          description: Whether the input passed all policy checks
+        block_reason:
+          type: string
+          description: Human-readable reason if blocked (omitted when allowed)
+        policies_evaluated:
+          type: integer
+          description: Total number of policies evaluated
+        policy_info:
+          $ref: '#/components/schemas/PolicyInfo'
+        decision_id:
+          type: string
+          description: 'Unique audit correlator for this policy decision. Links the gate
+
+            response to its row in the audit log; surfaceable to end users
+
+            for explainability ("decision: dec_abc123").
+
+            '
+        risk_level:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+          description: 'Highest risk level across all matched policies. Plugins use this
+
+            to map the block reason to severity (warning vs hard error).
+
+            '
+        policy_matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/RicherPolicyMatch'
+          description: 'Per-policy explainability records (ADR-043). Surfaced on a
+
+            refusal: the controls that determined the anchored engine''s
+
+            verdict. Source of truth:
+
+            `platform/agent/mcp_request_enforcing_seam.go` (`anchoredPolicyMatches`).
+
+            '
+        override_available:
+          type: boolean
+          description: 'Not set from v11.0.0: session overrides are retired (PRD v11
+
+            §1.5, #4252), so the block offers none and a plugin renders no
+
+            override hint.
+
+            '
+        override_existing_id:
+          type: string
+          description: 'Not set from v11.0.0: no override is offered, and the step gate
+
+            no longer reads a session override (#4252).
+
+            '
+        redacted:
+          type: boolean
+          description: 'Whether the engine masked any PII in the request statement or in
+
+            any parameter. Omitted (false) when nothing was redacted.
+
+            '
+        redacted_statement:
+          type: string
+          description: 'The request statement with PII fields masked. A PEP fulfilling a
+
+            Decision Mode redact_pii obligation forwards THIS value instead of
+
+            the original. Omitted when the statement was not masked, including
+
+            a redaction of the parameters alone (`redacted: true` with only
+
+            `redacted_parameters`). Source of truth:
+
+            `platform/agent/mcp_handler.go` (MCPCheckInputResponse).
+
+            '
+        redacted_parameters:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Each request parameter the redaction masked, keyed by parameter,
+
+            as the text the request pass scanned it as: the string itself, or
+
+            a map or list parameter''s JSON serialisation, masked as one text so
+
+            a span across the serialisation is masked as it was matched. The
+
+            caller decodes it where it decodes the parameter and forwards the
+
+            masked value. A string or number parameter comes back as its text
+
+            (a number''s decimal text) masked in place, unquoted, as a string.
+
+            Present only for an enforcement point whose PEP handshake declares
+
+            `field_redact` at version 2, on Enterprise; any other caller whose
+
+            parameter the redaction masks is refused 403
+
+            `unsupported_obligation`. Omitted when no parameter was masked, so
+
+            a caller that never carries PII in its parameters gets a
+
+            byte-identical response (#4264, since v11.1.0).
+
+            '
+        redaction_evaluated:
+          type: boolean
+          description: 'Whether the redaction detector actually ran (regardless of whether
+
+            it masked anything). A PEP fulfilling a redact_pii obligation MUST
+
+            fail closed when this is false — it means no detection config was
+
+            enabled, so `redacted: false` is indistinguishable from "looked,
+
+            found nothing" and the request must not be forwarded as clean.
+
+            '
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'Which policy engine authored this verdict: the ADR-065 decision
+
+            plane, the only author on this route (PRD v11 §1.1). Omitted
+
+            on a refusal no engine decided - an authentication failure, or a
+
+            request refused before the policy pass ran.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
+
+            `User` for a verified user token, `Client` when the request
+
+            presented no user identity and its client credential is the
+
+            principal. Omitted wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided: the system corpus''s
+
+            restriction for this route and the organization root - the
+
+            organization''s active typed document composed with the
+
+            deployment''s baseline permission pack, or, while it has published
+
+            nothing, the implicit bundle of that pack and the organization
+
+            template. A rollback reinstates an earlier digest. Omitted wherever
+
+            `engine` is.
+
+            '
+        policy_packs:
+          type: array
+          items:
+            type: string
+          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
+
+            into `policy_bundle` on this route, each as `<pack id>@<digest of
+
+            the pack document the deployment instantiated>`, sorted. Omitted
+
+            when the deployment installs no pack or none binds on this route.
+
+            '
+        legacy_validators:
+          type: array
+          description: 'A checksum validator that acted BEFORE the anchored engine decided
+
+            (#4122): under the organization''s recorded `pii=redact` detection
+
+            override, the Indonesia validator masked the statement ahead of
+
+            the decision plane. Omitted when none did.
+
+            '
+          items:
+            type: object
+            required:
+            - validator
+            - action
+            properties:
+              validator:
+                type: string
+                enum:
+                - indonesia_pii
+                - india_pii
+              action:
+                type: string
+                enum:
+                - blocked
+                - masked
+    PendingApproval:
+      type: object
+      description: 'A call held for a person''s approval (#4370, PRD v11 §1.13). Pending
+
+        is NOT allow: nothing ran, and the enforcement point must not
+
+        forward. An approver approves the queue entry in the portal
+
+        (Approvals), and the caller retries the same call naming
+
+        `approval_id` (see the `X-Axonflow-Approval-Id` parameter).
+
+
+        The approval expires at `expires_at`: the approval requirement''s
+
+        own deadline, which the engine stamps 15 minutes after the decision
+
+        on v11. It is never extended; a retry after it is refused
+
+        `approval_expired`.
+
+        '
+      required:
+      - approval_id
+      - status
+      - plane
+      - retry
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: The queue entry's id; the retry names it.
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          description: '`pending`: nobody has decided it yet. `approved`: a person
+
+            approved it and it is waiting for this caller''s retry, which
+
+            must name the id.
+
+            '
+        plane:
+          type: string
+          enum:
+          - mcp:request
+          - decide
+        expires_at:
+          type: string
+          format: date-time
+          description: When the approval lapses. Omitted on a retry of a still-pending approval.
+        retry:
+          type: object
+          required:
+          - header
+          properties:
+            header:
+              type: string
+              enum:
+              - X-Axonflow-Approval-Id
+            argument:
+              type: string
+              enum:
+              - approval_id
+              description: The MCP tool argument / MCP route body field that carries the id.
+            body_field:
+              type: string
+              enum:
+              - approval_id
+              description: The decide request field that carries the id.
+    ExfiltrationCheckInfo:
+      type: object
+      description: Information about exfiltration limit checks (v3.2.0+)
+      properties:
+        rows_returned:
+          type: integer
+          description: Number of rows in the response
+        row_limit:
+          type: integer
+          description: Configured row limit (MCP_MAX_ROWS_PER_QUERY)
+        bytes_returned:
+          type: integer
+          description: Response size in bytes
+        byte_limit:
+          type: integer
+          description: Configured byte limit (MCP_MAX_BYTES_PER_QUERY)
+        within_limits:
+          type: boolean
+          description: True when the response stayed within every configured limit
+    MCPCheckInputRequest:
+      type: object
+      required:
+      - connector_type
+      - statement
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: 'The approval a retry spends (#4370), for a client that cannot set
+
+            the `X-Axonflow-Approval-Id` header (see that parameter). Never
+
+            part of what the approval binds.
+
+            '
+        client_id:
+          type: string
+          description: Client identifier (required in Enterprise mode)
+        user_token:
+          type: string
+          description: JWT user token (required in Enterprise mode)
+        tenant_id:
+          type: string
+          description: Tenant identifier (required in Enterprise mode, defaults to "default" in Community)
+        user_id:
+          type: string
+          description: Optional end-user identifier. Honored only for internal-service callers, which may assert the end user; it attributes the decision's audit row
+        user_role:
+          type: string
+          description: Optional end-user role (e.g., "admin", "analyst"). Honored only for internal-service callers; recorded on the decision's audit row
+        connector_type:
+          type: string
+          description: MCP connector/server type (e.g., "postgres", "snowflake", "salesforce")
+        tool:
+          type: string
+          description: Optional tool identifier being invoked, distinct from connector_type/server (#2904). Feeds capability-scoped policy evaluation when set.
+        statement:
+          type: string
+          description: The SQL query or command to validate against policies
+        parameters:
+          type: object
+          additionalProperties: true
+          description: 'Optional query parameters. Values are individually scanned for SQLi,
+
+            PII, and compliance violations by the static policy engine. String
+
+            values are scanned directly; nested objects/arrays are JSON-serialized
+
+            before scanning; numeric values are converted to strings for
+
+            PII/compliance detection. Boolean values are skipped.
+
+            '
+        operation:
+          type: string
+          enum:
+          - query
+          - execute
+          default: execute
+          description: Operation type. Under the read-only posture it classifies the call as a read or a write (`classifyMCPCall` in `platform/agent/mcp_handler.go`)
+        content_type:
+          type: string
+          description: 'Declared content type of `statement` (ADR-056). Defaults to
+
+            `text/plain` when omitted. When set to a value no registered
+
+            detector handles, the request is rejected with **415** and a
+
+            canonical blocked audit row tagged `content_type_unsupported`
+
+            is written (fail-closed; see the 415 response). Source of
+
+            truth: `platform/agent/mcp_handler.go` (MCPCheckInputRequest).
+
+            '
+    PolicyMatchInfo:
+      type: object
+      description: Information about a policy match during evaluation
+      properties:
+        policy_id:
+          type: string
+          description: Unique policy identifier
+        policy_name:
+          type: string
+          description: Human-readable policy name
+        category:
+          type: string
+          description: Policy category (e.g., "pii-us", "security-sqli")
+        severity:
+          type: string
+          description: Match severity (low, medium, high, critical)
+        action:
+          type: string
+          description: Action taken (block, redact, warn, log)
+    RicherPolicyMatch:
+      type: object
+      description: 'Per-policy match record on MCP check-input responses
+
+        (`platform/agent/mcp_handler.go`).
+
+        '
+      properties:
+        policy_id:
+          type: string
+          description: Unique policy identifier.
+        policy_name:
+          type: string
+          description: Human-readable policy name. Omitted when unknown.
+        risk_level:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+          description: Risk level configured on this policy. Omitted when unset.
+        allow_override:
+          type: boolean
+          description: Whether this policy permits a session override.
+        policy_version:
+          type: integer
+          description: Policy version that matched. Omitted when zero.
+    MCPCheckOutputResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the output passed all policy checks
+        block_reason:
+          type: string
+          description: Human-readable reason if blocked (omitted when allowed)
+        redacted_data:
+          description: 'Response data with PII fields masked. For query-style checks
+
+            (tabular `response_data`) this carries the masked rows; for
+
+            execute-style checks (`message`) it carries the masked message
+
+            string. Omitted if no redaction was needed.
+
+
+            ⚠️ **Contract pending (#2870):** unlike the `/api/v1/mcp-server`
+
+            JSON-RPC `check_output` tool (which returns a separate
+
+            `redacted_message` field), this standalone REST endpoint returns
+
+            only `redacted_data` — it never emits `redacted_message`, even
+
+            though several SDK response types model that field. Do not rely
+
+            on `redacted_message` here until #2870 lands. Source of truth:
+
+            `platform/agent/mcp_handler.go` (MCPCheckOutputResponse).
+
+            '
+        policies_evaluated:
+          type: integer
+          description: Total number of policies evaluated
+        exfiltration_info:
+          $ref: '#/components/schemas/ExfiltrationCheckInfo'
+        policy_info:
+          $ref: '#/components/schemas/PolicyInfo'
+        decision_id:
+          type: string
+          description: Unique audit correlator for this policy decision.
+        redaction_evaluated:
+          type: boolean
+          description: 'Whether the response-phase redaction pipeline actually ran
+
+            (#2865). Mirrors MCPCheckInputResponse.redaction_evaluated for the
+
+            response leg. A PEP fulfilling a response-phase redact_pii
+
+            obligation MUST fail closed when this is false/absent — the
+
+            redactor did not run (detection disabled for the connector, or no
+
+            policy engine), so absence of `redacted_data` cannot be trusted as
+
+            "nothing to mask." Omitted (false) preserves the pre-#2865 shape.
+
+            '
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'Which policy engine authored this verdict: the ADR-065 decision
+
+            plane, the only author on this route (PRD v11 §1.1).
+
+            It rides this body and the 403 envelope of a refusal by the
+
+            same pass. Omitted
+
+            on a refusal no engine decided - an authentication failure, or a
+
+            request refused before the policy pass ran.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
+
+            `User` for a verified user token, `Client` when the request
+
+            presented no user identity and its client credential is the
+
+            principal. Omitted wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided: the system corpus''s
+
+            restriction for this route and the organization root - the
+
+            organization''s active typed document composed with the
+
+            deployment''s baseline permission pack, or, while it has published
+
+            nothing, the implicit bundle of that pack and the organization
+
+            template. A rollback reinstates an earlier digest. Omitted wherever
+
+            `engine` is.
+
+            '
+        policy_packs:
+          type: array
+          items:
+            type: string
+          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
+
+            into `policy_bundle` on the response pass, each as `<pack id>@<digest
+
+            of the pack document the deployment instantiated>`, sorted. Omitted
+
+            when the deployment installs no pack or none binds on this route.
+
+            '
+        legacy_validators:
+          type: array
+          description: 'A checksum validator that acted BEFORE the anchored engine decided
+
+            (#4122): under an organization''s recorded `pii=block` or
+
+            `pii=redact` detection override, the Indonesia or India validator
+
+            blocked the request or masked the response ahead of the decision
+
+            plane. Omitted when none did, which is every request without
+
+            such an override.
+
+            '
+          items:
+            type: object
+            required:
+            - validator
+            - action
+            properties:
+              validator:
+                type: string
+                enum:
+                - indonesia_pii
+                - india_pii
+              action:
+                type: string
+                enum:
+                - blocked
+                - masked
+    MCPQueryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        connector:
+          type: string
+        data:
+          type: array
+          items:
+            type: object
+          description: Query results
+        row_count:
+          type: integer
+        duration_ms:
+          type: integer
+        redacted:
+          type: boolean
+          description: Whether any fields in the response were redacted by policy enforcement
+        redacted_fields:
+          type: array
+          items:
+            type: string
+          description: JSON paths of fields that were redacted (e.g., "data.rows[0].ssn")
+        policy_info:
+          $ref: '#/components/schemas/PolicyInfo'
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'Which policy engine authored this verdict: the ADR-065 decision
+
+            plane, the only author on this route (PRD v11 §1.1).
+
+            It rides this body and the 403 envelope of a refusal by the
+
+            same pass. Omitted
+
+            on a refusal no engine decided - an authentication failure, or a
+
+            request refused before the policy pass ran.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
+
+            `User` for a verified user token, `Client` when the request
+
+            presented no user identity and its client credential is the
+
+            principal. Omitted wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided: the system corpus''s
+
+            restriction for this route and the organization root - the
+
+            organization''s active typed document composed with the
+
+            deployment''s baseline permission pack, or, while it has published
+
+            nothing, the implicit bundle of that pack and the organization
+
+            template. A rollback reinstates an earlier digest. Omitted wherever
+
+            `engine` is.
+
+            '
+        policy_packs:
+          type: array
+          items:
+            type: string
+          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
+
+            into `policy_bundle` on the response pass, each as `<pack id>@<digest
+
+            of the pack document the deployment instantiated>`, sorted. Omitted
+
+            when the deployment installs no pack or none binds on this route.
+
+            '
+        legacy_validators:
+          type: array
+          description: 'A checksum validator that acted BEFORE the anchored engine decided
+
+            (#4122): under an organization''s recorded `pii=block` or
+
+            `pii=redact` detection override, the Indonesia or India validator
+
+            blocked the request or masked the response ahead of the decision
+
+            plane. Omitted when none did, which is every request without
+
+            such an override.
+
+            '
+          items:
+            type: object
+            required:
+            - validator
+            - action
+            properties:
+              validator:
+                type: string
+                enum:
+                - indonesia_pii
+                - india_pii
+              action:
+                type: string
+                enum:
+                - blocked
+                - masked
+  responses:
+    MCPSegmentForbidden:
+      description: "Access denied. Causes on these routes:\n\n- **Tenant mismatch**, or a connector this tenant may not access.\n- **A policy refusal**: `error` is `Request blocked: <reason>`, the\n  reason code first.\n- **A call held for a person's approval** (#4370, Enterprise):\n  `error` is `Request blocked: approval_pending: ...` and\n  `pending_approval` names the approval the retry spends (see the\n  `X-Axonflow-Approval-Id` parameter). Nothing ran.\n\n`segment_resolution_failed` is no longer a cause (it was one from\n#3447). No segment gate stands on these routes any more: the anchored\nengine reads no segments, as on decide.\n"
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: '#/components/schemas/ErrorResponse'
+            - type: object
+              properties:
+                pending_approval:
+                  $ref: '#/components/schemas/PendingApproval'
+          example:
+            success: false
+            error: Tenant mismatch
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Internal server error
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    MCPPerUserTokenUnauthorized:
+      description: "Missing or invalid authentication on an MCP REST route. FOUR distinct\ncauses; the status code is the same for all four, and the audit row is\nwhat distinguishes the last two.\n\n1. **Credentials.** No usable Basic auth / license credential.\n2. **A tenant the credential may not act for.**\n3. **`user_token_rejected`** -- a `user_token` WAS supplied in the\n   request body and failed to validate: malformed, expired, signed\n   with the wrong algorithm, carrying a bad signature, or revoked by\n   `jti`. **This is new behaviour on these four routes.** Previously\n   ANY user-token failure in enterprise mode was answered by\n   synthesizing a service identity and serving the request, so\n   revocation and expiry had no effect here; a presented token that\n   fails to validate is now a refused access attempt, audited and\n   returned as `401`. This is not opt-in and no flag restores the old\n   behaviour.\n4. **`user_token_required`** (#3476) -- NO `user_token` was supplied\n   and the caller's organisation requires one. **Off by default**;\n   this cause cannot occur unless an operator has set\n   `organizations.require_user_token` for that organisation, or the\n   deployment-wide `AXONFLOW_REQUIRE_USER_TOKEN` default. With the\n   posture off, a token-less enterprise caller is still served under a\n   synthetic service identity, which is the correct answer for an\n   infrastructure gateway that has no end-user token to forward.\n\nCauses 3 and 4 are recorded as reserved identifiers in the audit row's\npolicy ids and MUST NOT be collapsed: they have opposite operator\nremedies (repair the caller's token, versus provision one at all).\nQuery them with JSONB containment against\n`policy_details->'policy_ids'`, never with `LIKE` -- `_` is a\nsingle-character wildcard, so a `%user_token_required%` pattern also\nmatches unrelated prose in the same row.\n\nThese routes read the per-user token from the `user_token` field of\nthe request body. They do not read the `X-User-Token` header; that\nheader belongs to the MCP-server JSON-RPC envelope.\n\nHandler-written 401s use the `{success, error}` envelope; 401s written\nby the auth middleware use the `{\"error\": {\"code\", \"message\"}}`\nenvelope (JSONError).\n"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Invalid user token: token has expired'
+  parameters:
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
+    ApprovalId:
+      name: X-Axonflow-Approval-Id
+      in: header
+      required: false
+      description: 'The approval a retry spends (#4370). A call held for a person''s
+
+        approval is answered a `pending_approval` naming an id; once a
+
+        person approves it in the portal, the caller retries the SAME call
+
+        naming that id here (or in the body''s `approval_id` field, for a
+
+        client that cannot set headers - a header and a field naming
+
+        different ids are refused `approval_not_found`).
+
+
+        The retry is decided exactly as the first call was. Only when it is
+
+        again held for approval, and the approval is approved by a person
+
+        who is not the caller, before its expiry, unspent, and granted for
+
+        this very call (the same input, tool, route, requester and
+
+        requirement), does it pass - and the approval is spent: it admits
+
+        exactly one call. A call that is allowed anyway spends nothing; no
+
+        approval lifts a deny. Every other outcome is refused with one of
+
+        the `ApprovalHoldReason` codes. Enterprise; the Community build has
+
+        no approval queue and ignores the header.
+
+
+        WHAT "THE SAME CALL" MEANS. On the MCP routes: the connector, the
+
+        tool, the operation, the statement and its parameters (and the row
+
+        limit on `/mcp/resources/query`). On `/api/v1/decide`: the WHOLE
+
+        request the engine decided - `stage`, `target`, `query` AND
+
+        `context`. A retry that changes any of it is refused
+
+        `bound_input_changed`: resend the same `context`, and carry
+
+        per-request values (request ids, timestamps) in headers, never in
+
+        `context` - the correlation id is a header.
+
+        '
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: 'Optional per-request dedup token. When supplied on POST /api/v1/mcp/check-input,
+
+        POST /api/v1/audit/tool-call, or POST /api/v1/hitl/queue, the platform caches
+
+        the original response for 24h and returns it byte-for-byte on subsequent
+
+        requests carrying the same key + same authenticated tenant + same endpoint.
+
+
+        Format: 1-256 chars, `^[A-Za-z0-9_.:\-/]+$`. Workflow IDs from n8n, ADK,
+
+        or generic SDKs all fall inside this set. A malformed key returns 400
+
+        before the handler runs.
+
+
+        Cache rules: 2xx + 4xx responses are cached; 5xx is NOT cached so the
+
+        caller''s retry can hit a fresh attempt. A cache hit returns the original
+
+        response plus an `Idempotent-Replayed: true` response header.
+
+
+        Cross-tenant collisions are impossible: tenant_id participates in the
+
+        primary key + an RLS policy on the storage table. Two tenants using
+
+        the same key value get distinct rows.
+
+        '
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
+        pattern: ^[A-Za-z0-9_.:\-/]+$
+        example: n8n-exec-abc123-node-Approve
+    AxonflowPEPHandshake:
+      name: X-Axonflow-PEP-Handshake
+      in: header
+      required: false
+      description: 'The ADR-065 **PEP capability handshake**: base64url of a compact JSON
+
+        document in which an external enforcement point declares what it is and
+
+        which obligations it can discharge. See `PEPHandshake` for the document.
+
+
+        **Absent is the default and changes nothing.** A caller that omits the
+
+        header takes byte-for-byte the path it took before this header existed.
+
+
+        **What an absent header means for a redaction depends on the plane, by
+
+        design (PRD v11 section 1 item 16, #4257).** The MCP passes discharge a
+
+        redaction of the content they hand back: the request pass
+
+        (`check-input`, `check_policy`) masks the statement, and a redaction
+
+        that masks nothing in the statement is refused `unsupported_obligation`
+
+        to every caller, and one that masks a request parameter to every caller
+
+        that has not declared `field_redact` at version 2 (on Community, to
+
+        every caller) (#4264);
+
+        the response passes (`check-output`, the MCP server''s `check_output`)
+
+        mask the rows or the message. `/api/v1/decide` and the gateway
+
+        pre-check return a decision rather than content, so a required
+
+        redaction is a `field_redact` obligation for the enforcement point, and
+
+        a caller that has not declared `field_redact` is refused
+
+        `unsupported_obligation`. A caller that declares NO redaction
+
+        (`capabilities: []`) is refused on each of these planes; on
+
+        Community the MCP passes still return a checksum validator''s masked
+
+        content to it (reachable only through a directly inserted
+
+        `detection_action_overrides` row) until #4122.
+
+
+        A header that is PRESENT and cannot be read is **refused**, never
+
+        treated as absent: degrading a malformed declaration to "legacy caller"
+
+        would go on handing an enforcement point obligations it had just said it
+
+        cannot discharge. The refusal is `400` and its message names this header,
+
+        which matters on `/api/v1/access/evaluation` where the refusal is
+
+        rendered through that surface''s existing `incomplete_evaluation` code and
+
+        the message is the only thing distinguishing a malformed HEADER from a
+
+        malformed body ENVELOPE.
+
+
+        Present more than once is refused: RFC 7230 permits an intermediary to
+
+        join repeated field lines with a comma, and a comma is outside the
+
+        base64 alphabet, so a joined pair can only decode to malformed. That is
+
+        why the document is base64 rather than raw JSON, which would join into
+
+        something a lenient parser might accept.
+
+
+        When a decision carries a **mandatory** obligation the declared set does
+
+        not cover, the request is answered `200` with `verdict: deny` and the
+
+        reason `unsupported_obligation` (ADR-065 invariant 8) - a decision about
+
+        the request, not a transport error. That holds on every edition. An
+
+        Enterprise deployment adds a second reason beginning
+
+        `pep_capability_unsupported` naming the gap, and refuses a checksum
+
+        validator''s mask on the MCP passes; a Community deployment hands that
+
+        masked content over (#4257 split 2, #4122).
+
+        '
+      schema:
+        type: string
+        maxLength: 4096
+        description: base64url (padding optional) of the PEPHandshake document.
+    AxonflowClient:
+      name: X-Axonflow-Client
+      in: header
+      required: false
+      description: 'Optional client-version telemetry header (`<client>/<version>`,
+
+        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
+
+        deployments with the `client_version_telemetry` capability count
+
+        validated values in the `axonflow_client_version_requests_total`
+
+        metric on the decide and MCP check-output planes. Telemetry only —
+
+        never used for authentication or authorization; invalid values are
+
+        ignored.
+
+        '
+      schema:
+        type: string
+        example: mcp-proxy/0.3.1
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

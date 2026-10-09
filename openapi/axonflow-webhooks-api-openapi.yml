@@ -1,0 +1,373 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Webhooks API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Webhooks across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Webhooks
+  description: 'Webhook subscription management for real-time event notifications.
+
+    Subscribe to events like policy violations, workflow completions, budget alerts, etc.'
+paths:
+  /api/v1/webhooks:
+    post:
+      tags:
+      - Webhooks
+      summary: Create webhook subscription
+      description: 'Create a new webhook subscription to receive real-time event notifications.
+
+        Events are delivered as HTTP POST requests to the specified URL with HMAC-SHA256
+
+        signatures when a secret is provided.'
+      operationId: createWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+            example:
+              url: https://example.com/webhooks/axonflow
+              events:
+              - policy.violation
+              - workflow.completed
+              - budget.exceeded
+              secret: whsec_example_placeholder
+              active: true
+      responses:
+        '201':
+          description: Webhook subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookSubscription'
+              example:
+                id: wh_abc123
+                url: https://example.com/webhooks/axonflow
+                events:
+                - policy.violation
+                - workflow.completed
+                - budget.exceeded
+                active: true
+                tenant_id: tenant-1
+                org_id: org-1
+                secret: whsec_example_placeholder
+                created_at: '2026-01-17T10:00:00Z'
+                updated_at: '2026-01-17T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      tags:
+      - Webhooks
+      summary: List webhook subscriptions
+      description: List all webhook subscriptions for the current tenant
+      operationId: listWebhooks
+      responses:
+        '200':
+          description: List of webhook subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWebhookSubscriptionsResponse'
+              example:
+                subscriptions:
+                - id: wh_abc123
+                  url: https://example.com/webhooks/axonflow
+                  events:
+                  - policy.violation
+                  - workflow.completed
+                  active: true
+                  tenant_id: tenant-1
+                  org_id: org-1
+                  created_at: '2026-01-17T10:00:00Z'
+                  updated_at: '2026-01-17T10:00:00Z'
+                total: 1
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/webhooks/{id}:
+    get:
+      tags:
+      - Webhooks
+      summary: Get webhook subscription
+      description: Retrieve a specific webhook subscription by ID
+      operationId: getWebhook
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Webhook subscription ID
+        schema:
+          type: string
+        example: wh_abc123
+      responses:
+        '200':
+          description: Webhook subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookSubscription'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Webhooks
+      summary: Update webhook subscription
+      description: Update an existing webhook subscription
+      operationId: updateWebhook
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Webhook subscription ID
+        schema:
+          type: string
+        example: wh_abc123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+            example:
+              url: https://example.com/webhooks/axonflow-v2
+              events:
+              - policy.violation
+              - workflow.completed
+              - workflow.failed
+              active: true
+      responses:
+        '200':
+          description: Webhook subscription updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookSubscription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - Webhooks
+      summary: Delete webhook subscription
+      description: Delete a webhook subscription. Events will no longer be delivered to this URL.
+      operationId: deleteWebhook
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Webhook subscription ID
+        schema:
+          type: string
+        example: wh_abc123
+      responses:
+        '204':
+          description: Webhook subscription deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    WebhookSubscription:
+      type: object
+      description: A webhook subscription for receiving event notifications
+      properties:
+        id:
+          type: string
+          description: Unique subscription identifier
+          example: wh_abc123
+        url:
+          type: string
+          format: uri
+          description: URL that receives webhook event payloads
+          example: https://example.com/webhooks/axonflow
+        events:
+          type: array
+          items:
+            type: string
+          description: Event types this subscription listens for
+          example:
+          - policy.violation
+          - workflow.completed
+        active:
+          type: boolean
+          description: Whether the subscription is currently active
+          example: true
+        tenant_id:
+          type: string
+          description: Tenant ID that owns this subscription
+          example: tenant-1
+        org_id:
+          type: string
+          description: Organization ID that owns this subscription
+          example: org-1
+        secret:
+          type: string
+          description: Secret key for HMAC-SHA256 signature verification
+          example: whsec_example_placeholder
+        created_at:
+          type: string
+          format: date-time
+          description: When the subscription was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the subscription was last updated
+    ListWebhookSubscriptionsResponse:
+      type: object
+      description: List of webhook subscriptions
+      properties:
+        subscriptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookSubscription'
+        total:
+          type: integer
+          description: Total number of subscriptions
+    CreateWebhookRequest:
+      type: object
+      required:
+      - url
+      - events
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL to receive webhook event payloads
+          example: https://example.com/webhooks/axonflow
+        events:
+          type: array
+          items:
+            type: string
+          description: 'List of event types to subscribe to. Available events:
+
+            - `policy.violation` — Policy violation detected
+
+            - `policy.created` / `policy.updated` / `policy.deleted` — Policy lifecycle
+
+            - `workflow.completed` / `workflow.failed` / `workflow.aborted` — Workflow lifecycle
+
+            - `workflow.approval_required` — Step requires human approval
+
+            - `budget.threshold_reached` / `budget.exceeded` / `budget.blocked` — Budget alerts
+
+            - `plan.completed` / `plan.failed` — Plan lifecycle
+
+            '
+          example:
+          - policy.violation
+          - workflow.completed
+        secret:
+          type: string
+          description: Secret key for HMAC-SHA256 signature verification of webhook payloads
+          example: whsec_example_placeholder
+        active:
+          type: boolean
+          default: true
+          description: Whether the subscription is active
+    UpdateWebhookRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Updated URL to receive webhook event payloads
+        events:
+          type: array
+          items:
+            type: string
+          description: Updated list of event types to subscribe to
+        active:
+          type: boolean
+          description: Whether the subscription is active
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Resource not found
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

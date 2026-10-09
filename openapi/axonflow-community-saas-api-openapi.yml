@@ -1,0 +1,264 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Community SaaS API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Community SaaS across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: Community SaaS
+  description: 'Self-registration on the hosted Community SaaS deployment
+
+    (`DEPLOYMENT_MODE=community-saas` only).'
+paths:
+  /api/v1/register:
+    post:
+      tags:
+      - Community SaaS
+      summary: Register a Community SaaS tenant (hosted deployment only)
+      description: 'Creates a free-tier tenant on the hosted Community SaaS deployment
+
+        and returns its credentials once. Mounted only under
+
+        `DEPLOYMENT_MODE=community-saas`; every other deployment answers
+
+        404. Not authenticated: it is the bootstrap that creates the
+
+        credential every other route needs. Limited to 5 registrations per
+
+        client IP per hour.
+
+
+        EVERY FIELD IS OPTIONAL (#4249 row 5764325123). `{}`, an empty body
+
+        and no body register an unlabelled tenant with no email; the Go and
+
+        Java SDKs'' `RegisterTry("")` send exactly `{}`. A field the route
+
+        does not know is ignored. Every refusal below is decided before
+
+        anything is written, and discloses no credential.'
+      operationId: registerCommunitySaasTenant
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  maxLength: 255
+                  description: An operator-readable name for the tenant.
+                email:
+                  type: string
+                  format: email
+                  description: 'Binds the tenant to this address for the free recovery
+
+                    flow (`/api/v1/recover`). At most 3 active tenants per
+
+                    email.
+
+                    '
+                internal_tenant_id_prefix:
+                  type: string
+                  description: 'AxonFlow''s own internal callers only: one of a fixed
+
+                    allowlist of `axonflow-internal-*` prefixes. Any other
+
+                    value is refused 400.
+
+                    '
+      responses:
+        '201':
+          description: The tenant was created; the secret is shown only this once.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenant_id:
+                    type: string
+                    example: cs_3f0c2a9e-1b7d-4c5e-9a41-6d2f8e0b7c13
+                  secret:
+                    type: string
+                  secret_prefix:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+                  endpoint:
+                    type: string
+                  note:
+                    type: string
+        '400':
+          description: 'The body is not JSON, or a field is invalid. The message names
+
+            it: `Invalid JSON in request body`, `Label too long (max 255
+
+            characters)`, `Invalid email format`, or `Unsupported
+
+            internal_tenant_id_prefix value`.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+        '405':
+          description: GET, PUT, DELETE or PATCH.
+        '409':
+          description: The email already holds the maximum of 3 active tenants.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+        '413':
+          description: The body is over 1024 bytes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+        '415':
+          description: A Content-Type other than `application/json` (with optional parameters). An absent Content-Type is accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+        '429':
+          description: More than 5 registrations from this client IP in the hour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+        '500':
+          description: The registration could not be created; no credential is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+        '503':
+          description: The database is not available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JSONError'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  schemas:
+    JSONError:
+      type: object
+      description: 'Middleware-written error envelope (auth middleware 401s, static
+
+        policy API errors). Source of truth:
+
+        `platform/agent/static_policy_api_handlers.go` (writeJSONError).
+
+        One exception on the system-policy routes: the v11 legacy policy
+
+        freeze answers with the same two keys and a STRING code - see the
+
+        `LegacyPolicyWriteFrozen` response.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: HTTP status code
+            message:
+              type: string
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

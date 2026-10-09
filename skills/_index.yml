@@ -1,0 +1,42 @@
+generated: '2026-10-09'
+method: generated
+source: Packaged Agent Skills generated from the AxonFlow OpenAPI set under openapi/. No provider-published skills/AGENTS.md
+  was found in the docs llms.txt index; the Codex plugin uses advisory skills that are not published as files here.
+skills:
+- file: axonflow-gateway-precheck-and-audit.md
+  name: axonflow-gateway-precheck-and-audit
+  api: openapi/axonflow-agent-openapi.yml
+  operations:
+  - gatewayPreCheck
+  - auditLLMCall
+- file: axonflow-govern-mcp-tool-call.md
+  name: axonflow-govern-mcp-tool-call
+  api: openapi/axonflow-agent-openapi.yml
+  operations:
+  - mcpCheckInput
+  - mcpCheckOutput
+- file: axonflow-governed-workflow-step-gates.md
+  name: axonflow-governed-workflow-step-gates
+  api: openapi/axonflow-orchestrator-openapi.yml
+  operations:
+  - createControlPlaneWorkflow
+  - checkStepGate
+  - markStepCompleted
+  - completeControlPlaneWorkflow
+  - failControlPlaneWorkflow
+- file: axonflow-review-hitl-approval.md
+  name: axonflow-review-hitl-approval
+  api: openapi/axonflow-agent-openapi.yml
+  operations:
+  - listHITLDecisions
+  - getHITLDecision
+  - approveHITLDecision
+  - rejectHITLDecision
+  - getHITLDecisionHistory
+- file: axonflow-explain-a-blocked-decision.md
+  name: axonflow-explain-a-blocked-decision
+  api: openapi/axonflow-orchestrator-openapi.yml
+  operations:
+  - listDecisions
+  - explainDecision
+  - searchAuditLogs

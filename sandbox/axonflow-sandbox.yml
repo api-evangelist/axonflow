@@ -1,0 +1,20 @@
+generated: '2026-10-09'
+method: searched
+source:
+- https://docs.getaxonflow.com/docs/sdk/authentication/
+- https://docs.getaxonflow.com/docs/features/policy-simulation/
+- https://getaxonflow.com/pricing/
+name: AxonFlow Sandbox and Testing
+description: There is no separate test-mode API. AxonFlow offers a free hosted trial server at try.getaxonflow.com (set AXONFLOW_TRY=1 to auto-connect; requires AXONFLOW_CLIENT_ID and AXONFLOW_CLIENT_SECRET from registration), a free self-hosted Community edition for local/dev use, a free 90-day Evaluation License, and Policy Simulation which runs all active policies against one input as a dry run.
+docs: https://docs.getaxonflow.com/docs/sdk/authentication/
+environments:
+- name: Free trial server
+  url: https://try.getaxonflow.com
+  activation: AXONFLOW_TRY=1
+- name: Community (self-hosted)
+  description: 'self-hosted local/dev usage, no license required'
+- name: Evaluation License
+  description: free evaluation license with elevated limits, policy simulation and evidence export (90 days)
+dry_run:
+  operation: POST /api/v1/policies/simulate
+  docs: https://docs.getaxonflow.com/docs/features/policy-simulation/

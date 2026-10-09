@@ -1,0 +1,16 @@
+overlay: 1.0.0
+info:
+  title: AxonFlow AxonFlow Policy Management API enhancements
+  version: 1.0.0
+extends: ../openapi/_original/axonflow-policy-openapi.yml
+x-generated: '2026-10-09'
+x-method: generated
+x-source: Generated from openapi/axonflow-policy-openapi.yml, mcp/axonflow-mcp.yml and https://docs.getaxonflow.com/llms.txt
+actions:
+- target: $.info
+  update:
+    x-provider: AxonFlow
+    x-docs: https://docs.getaxonflow.com/docs/orchestration/api-reference/
+    x-llms-txt: https://docs.getaxonflow.com/llms.txt
+    x-deployment: Self-hosted in the customer environment; the agent defaults to http://localhost:8080 and the orchestrator to http://localhost:8081.
+      The *.getaxonflow.com servers listed in the spec returned NXDOMAIN on 2026-10-09.

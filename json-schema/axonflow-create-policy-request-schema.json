@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-create-policy-request-schema.json",
+  "title": "CreatePolicyRequest",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-policy-openapi.yml#/components/schemas/CreatePolicyRequest",
+  "type": "object",
+  "required": [
+    "name",
+    "type",
+    "conditions",
+    "actions"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 100
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "type": {
+      "$ref": "#/$defs/PolicyType"
+    },
+    "category": {
+      "type": "string",
+      "description": "Policy category (dynamic-risk, dynamic-compliance, media-safety, etc.).\nRequired on the /api/v1/dynamic-policies surface, where it must\nstart with `dynamic-` or `media-`.\n"
+    },
+    "tier": {
+      "type": "string",
+      "enum": [
+        "organization",
+        "tenant"
+      ],
+      "description": "Policy tier. Only organization or tenant is allowed via the API."
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PolicyCondition"
+      },
+      "minItems": 1
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PolicyAction"
+      },
+      "minItems": 1
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000,
+      "default": 0
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags for categorization"
+    }
+  },
+  "$defs": {
+    "ActionType": {
+      "type": "string",
+      "enum": [
+        "block",
+        "require_approval",
+        "redact",
+        "warn",
+        "alert",
+        "log",
+        "route",
+        "modify_risk"
+      ],
+      "description": "Action to take when policy matches:\n- `block`: Block the request with message\n- `require_approval`: Hold the request for human approval (HITL)\n- `redact`: Redact sensitive content from response\n- `warn`: Allow the request but attach a warning\n- `alert`: Send alert to configured channel\n- `log`: Log to audit trail\n- `route`: Route to specific provider\n- `modify_risk`: Adjust risk score\n"
+    },
+    "ConditionOperator": {
+      "type": "string",
+      "enum": [
+        "equals",
+        "not_equals",
+        "contains",
+        "not_contains",
+        "contains_any",
+        "regex",
+        "greater_than",
+        "less_than",
+        "in",
+        "not_in"
+      ],
+      "description": "Comparison operator for conditions"
+    },
+    "PolicyAction": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ActionType"
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Action-specific configuration"
+        }
+      }
+    },
+    "PolicyCondition": {
+      "type": "object",
+      "required": [
+        "field",
+        "operator",
+        "value"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Field to evaluate. `media.*` fields apply to media governance\npolicies (multimodal image governance); `step.*` fields are\nretry-aware workflow step fields for WCP policies.\n",
+          "enum": [
+            "query",
+            "response",
+            "user.email",
+            "user.role",
+            "user.department",
+            "user.tenant_id",
+            "risk_score",
+            "request_type",
+            "connector",
+            "cost_estimate",
+            "media.has_faces",
+            "media.face_count",
+            "media.has_biometric_data",
+            "media.nsfw_score",
+            "media.violence_score",
+            "media.content_safe",
+            "media.document_type",
+            "media.is_sensitive_document",
+            "media.has_pii",
+            "media.pii_types",
+            "media.has_extracted_text",
+            "media.extracted_text_length",
+            "step.gate_count",
+            "step.completion_count",
+            "step.prior_completion_status",
+            "step.prior_output_available",
+            "step.last_decision",
+            "step.first_attempt_age_seconds",
+            "step.idempotency_key"
+          ]
+        },
+        "operator": {
+          "$ref": "#/$defs/ConditionOperator"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Value to compare against"
+        }
+      }
+    },
+    "PolicyType": {
+      "type": "string",
+      "enum": [
+        "content",
+        "user",
+        "risk",
+        "cost",
+        "context_aware",
+        "media",
+        "rate-limit",
+        "budget",
+        "time-access",
+        "role-access",
+        "mcp",
+        "connector"
+      ],
+      "description": "Policy type determines evaluation context:\n- `content`: Evaluates request/response content\n- `user`: Evaluates user attributes\n- `risk`: Evaluates risk scores\n- `cost`: Evaluates cost estimates\n- `context_aware`: Context-aware controls (tenant isolation, debug restriction, sensitive-data control)\n- `media`: Media governance policies (multimodal image governance)\n- `rate-limit`, `budget`, `time-access`: MCP rate/budget controls\n- `role-access`, `mcp`, `connector`: MCP access controls\n"
+    }
+  }
+}

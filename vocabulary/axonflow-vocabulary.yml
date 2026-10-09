@@ -1,0 +1,472 @@
+generated: '2026-10-09'
+method: derived
+generator: derive-vocabulary.py
+source:
+- openapi/axonflow-agent-openapi.yml
+- openapi/axonflow-masfeat-openapi.yml
+- openapi/axonflow-orchestrator-openapi.yml
+- openapi/axonflow-policy-openapi.yml
+vocabulary:
+  name: AxonFlow Domain Vocabulary
+  description: 'Terms declared by AxonFlow''s own API contract: its resource groups, objects and enumerations, with the contract''s definitions.
+    Derived, not authored.'
+  version: '2026-10-09'
+  terms:
+  - term: Health
+    definition: Service health and readiness checks
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Proxy Mode
+    definition: Full request interception and processing
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Gateway Mode
+    definition: Pre-check and audit for SDK-managed LLM calls
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Decision Mode
+    definition: Synchronous policy decision endpoint (ADR-056). Called by an infrastructure gateway acting as a Policy Enforcement Point (PEP);
+      AxonFlow returns a verdict (`allow` or `deny`) and the PEP enforces it. Same shared-policy engine as Gateway Mode pre-check; difference
+      is the caller.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: MCP Connectors
+    definition: Model Context Protocol data connector operations
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Metrics
+    definition: Performance monitoring and observability
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: HITL
+    definition: Human-in-the-Loop decision queue (EU AI Act Article 14). Route high-risk AI decisions for human review before execution.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: EU AI Act (Proxied)
+    definition: EU AI Act compliance module (conformity assessments, accuracy monitoring, evidence exports). Served by the orchestrator and PROXIED
+      through the agent (`/api/v1/euaiact/*`) per the single-entry-point architecture — clients call the agent, never the orchestrator. Canonical
+      operation schemas live in orchestrator-api.yaml. Enterprise only.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Circuit Breaker
+    definition: Emergency circuit breaker for AI operations (EU AI Act Article 14). Instantly halt AI operations with two-person deactivation
+      requirement.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: OpenAI Compatible
+    definition: 'OpenAI-compatible gateway endpoint (Issue #2351). Accepts standard OpenAI Chat Completions requests, runs AxonFlow policy checks,
+      forwards to the upstream provider, records audit, and returns an OpenAI-compatible response. Customers change only `baseURL` in their OpenAI
+      SDK setup.'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: System Policies
+    definition: 'System policy management (ADR-019), served at `/api/v1/system-policies`. Pattern-based enforcement rules for SQL injection detection,
+      PII detection and similar checks, resolved across the system, organization and tenant tiers. **v11: writes to this family are refused by
+      the legacy policy freeze.** `migrations/core/172` makes `static_policies` read-only to the application roles, and create, update,'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Static Policies
+    definition: 'DEPRECATED spelling of System Policies, served at `/api/v1/static-policies`. Every operation is the same handler as its `/api/v1/system-policies`
+      counterpart and returns the same status code and body. In v11 BOTH spellings are the deprecated export surface (PRD §1.11): reads are served,
+      and every response carries `Link: ; rel="successor-version"` and `X-AxonFlow-Removed-In: v12.0`, plus an RFC 974'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Audit Verification
+    definition: Non-repudiation verification of the signed decision chain (#2722). Read-only endpoints that re-verify per-record Ed25519 signatures
+      and the prev_hash linkage of a tenant's decision records, and publish the current public signing key for offline verification. These are
+      not Policy Enforcement Points (no decision-engine call); they are org-scoped via the authenticated request context and read under R
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: MCP Server
+    definition: Streamable-HTTP MCP server (spec 2025-06-18) exposing AxonFlow governance as MCP tools (check_policy, check_output, audit_tool_call,
+      list_policies, get_policy_stats, explain_decision + Pro tools). Consumed by the Claude Code / Cursor / Codex plugins and any MCP client.
+      Authentication is HTTP Basic (org:license-key) — NOT OAuth; the `/.well-known/oauth-*` discovery paths deliberately return an advi
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Community SaaS
+    definition: Self-registration on the hosted Community SaaS deployment (`DEPLOYMENT_MODE=community-saas` only).
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: OTLP Ingest
+    definition: OpenTelemetry OTLP/HTTP ingest for Claude Code (cowork) telemetry (#2832). **Enterprise only** — community builds mount the routes
+      but return 501. Org/tenant identity always comes from the authenticated license, never from OTLP resource attributes.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-agent-openapi.yml
+  - term: Registry
+    definition: AI System Registry management
+    tags:
+    - Resource Group
+    source: openapi/axonflow-masfeat-openapi.yml
+  - term: Assessments
+    definition: FEAT Assessment lifecycle
+    tags:
+    - Resource Group
+    source: openapi/axonflow-masfeat-openapi.yml
+  - term: Kill Switch
+    definition: Emergency system disable mechanism
+    tags:
+    - Resource Group
+    source: openapi/axonflow-masfeat-openapi.yml
+  - term: Processing
+    definition: Main request processing pipeline
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Multi-Agent Planning
+    definition: LLM-powered task decomposition and execution
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Agents
+    definition: Agent configuration management (MAP 0.8). **Enterprise only** — the `/api/v1/agents` route family is registered only in Enterprise
+      builds with a database connection; Community returns 404.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: LLM Providers
+    definition: LLM provider management
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Dynamic Policies
+    definition: Legacy policy management on `/api/v1/policies`. Reads, tests and simulation are served; writes answer `409 LEGACY_POLICY_WRITE_FROZEN`
+      in v11 (see the `LegacyPolicyWriteFrozen` response) - author policy through Typed Policy Authoring instead.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Typed Policy Authoring
+    definition: 'The ADR-065 typed policy authoring surface, available on EVERY edition (#3907). It is the write path a deployment without the
+      Enterprise customer portal uses, and the portal is one client of the same library rather than the only way in. What an edition may express
+      is bounded by CONSTRUCTS - scope kinds, the request-context attribute namespaces, obligation families - and not by the signing root: ev'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Workflows
+    definition: Workflow execution engine
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Workflow Control Plane
+    definition: 'Governance gates for external orchestrators (LangChain, LangGraph, CrewAI). "LangChain runs the workflow. AxonFlow decides when
+      it''s allowed to move forward." Features: - Register workflows from external orchestrators - Check step gates before each workflow step
+      - Apply policies at step transitions (allow/block/require_approval) - Track workflow lifecycle (in_progress/completed/aborted/failed)'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Connectors
+    definition: Connector marketplace
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Audit
+    definition: Audit log search and retrieval
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: SEBI Compliance
+    definition: SEBI AI/ML Guidelines compliance and DPDP Act 2023 audit exports. Enterprise feature for Indian financial services compliance.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: RBI Compliance
+    definition: RBI FREE-AI Framework compliance for Indian banking institutions. Enterprise feature providing AI System Registry, Model Validation,
+      Incident Management, Kill Switch, Board Reporting, and Audit Export.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: EU AI Act
+    definition: EU AI Act compliance endpoints for technical documentation export, conformity assessments (Article 43), and accuracy/bias tracking
+      (Article 15). Enterprise feature for EU regulatory compliance.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: OJK Compliance
+    definition: OJK AI Governance + UU PDP compliance for Indonesian financial services. Audit export, retention/readiness checks, UU PDP Art.
+      46 breach-notification lifecycle, and a compliance dashboard. **Enterprise** feature.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: US Insurance Compliance
+    definition: 'NAIC AI Systems Evaluation Tool exhibit evidence for US insurers, with the NYDFS Circular Letter No. 7 and Colorado Regulation
+      10-1-1 annexes. Read-only: these routes report AI system surfaces, human oversight and consumer data classes observed in governed traffic.
+      AxonFlow performs no statistical fairness testing and designates no system as high risk.'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: US Banking Compliance
+    definition: 'US federal banking and Farm Credit examination evidence (ADR-063). One read: the examination-readiness summary. The evidence
+      itself is produced by the compliance report facade with `regulator=usbanking`; this module owns no tables and adds no second path to the
+      underlying rows. **Enterprise** feature.'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: US Securities Compliance
+    definition: 'SEC adviser and FINRA broker-dealer examination evidence (ADR-064). One read: the examination-readiness summary. The evidence
+      itself is produced by the compliance report facade with `regulator=ussecurities`; this module owns no tables and adds no second path to
+      the underlying rows. The supervised population is DERIVED from the framework a report requests, so the same evidence is cited against the '
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Decisions & Overrides
+    definition: Decision explainability (ADR-043) and session-scoped policy overrides (ADR-044). List recent governance decisions, explain a specific
+      decision, and create/list/revoke time-boxed policy overrides.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Decision & Execution Replay
+    definition: Decision & Execution Replay API for debugging, auditing, and compliance. Captures every step of workflow execution with full input/output
+      snapshots and policy decisions.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Webhooks
+    definition: Webhook subscription management for real-time event notifications. Subscribe to events like policy violations, workflow completions,
+      budget alerts, etc.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Cost Controls
+    definition: Budget management and LLM usage tracking for cost optimization. Supports budgets at organization, team, agent, workflow, and user
+      scopes. Provides usage summaries, breakdowns, and pre-request budget checks.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Unified Executions
+    definition: 'Unified execution tracking and real-time streaming for MAP plans and WCP workflows. SSE streaming provides real-time status updates.
+      Community: 5 concurrent connections per tenant. Enterprise: Unlimited.'
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Media Governance
+    definition: Multimodal image governance for LLM requests. Analyzes images for PII (via OCR), content safety, face/biometric detection, and
+      document classification. Community tier provides fail-open governance with audit trail. Enterprise tier adds configurable enforcement and
+      cloud analyzers.
+    tags:
+    - Resource Group
+    source: openapi/axonflow-orchestrator-openapi.yml
+  - term: Tenant Policies
+    definition: Tenant policy CRUD via the ADR-024 `/api/v1/tenant-policies` surface (Orchestrator, proxied by the Agent). On create, update and
+      import it accepts only policies whose category starts with `dynamic-` or `media-`; the list and the export return the caller's rows whatever
+      their category (#4293). Note the category prefixes keep their original spelling. The terminology migration renamed the PATHS only;
+    tags:
+    - Resource Group
+    source: openapi/axonflow-policy-openapi.yml
+  - term: Policies
+    definition: Dynamic policy CRUD operations (Orchestrator)
+    tags:
+    - Resource Group
+    source: openapi/axonflow-policy-openapi.yml
+  - term: Testing
+    definition: Policy testing and validation
+    tags:
+    - Resource Group
+    source: openapi/axonflow-policy-openapi.yml
+  - term: Simulation
+    definition: Policy simulation, impact reports, and conflict detection. **Evaluation tier and above.**
+    tags:
+    - Resource Group
+    source: openapi/axonflow-policy-openapi.yml
+  - term: Bulk Operations
+    definition: Import and export policies
+    tags:
+    - Resource Group
+    source: openapi/axonflow-policy-openapi.yml
+  - term: Templates
+    definition: Policy templates for quick policy creation
+    tags:
+    - Resource Group
+    source: openapi/axonflow-policy-openapi.yml
+  - term: OAuthDiscoveryNotSupported
+    definition: The body both `/.well-known/oauth-*` endpoints return. Shaped to RFC 6749 section 5.2 so a client that parses discovery failures
+      as OAuth errors renders it instead of choking on a plaintext 404.
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/OAuthDiscoveryNotSupported
+  - term: HealthResponse
+    definition: 'Object declared by the contract with fields: status, service, timestamp, version, tier, capabilities, sdk_compatibility, plugin_compatibility,
+      upstream.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/HealthResponse
+  - term: PlatformCapability
+    definition: 'Object declared by the contract with fields: name, since, description.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PlatformCapability
+  - term: SDKCompatInfo
+    definition: 'SDK version compatibility information. Each key in the maps below is one of `python` / `typescript` / `go` / `java` / `rust`.
+      SDKs that find their own runtime version below `min_sdk_version[]` log a one-time upgrade warning; below `recommended_sdk_version` is informational
+      only. The examples below are the values this platform actually serves. They are not illustrative: a regression test compares t'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/SDKCompatInfo
+  - term: PluginCompatInfo
+    definition: Plugin version compatibility information. Mirrors `SDKCompatInfo` for the seven AxonFlow clients (`openclaw`, `claude-code`, `cursor`,
+      `codex`, `claude-desktop`, `n8n`, `google-adk`). The first four read this from `/health` and warn when their runtime version is below `min_plugin_version[]`.
+      Keys match the canonical plugin IDs the agent tracks in `integration_activation.go::knownIntegrations`. The
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PluginCompatInfo
+  - term: StaticPolicy
+    definition: A static policy with three-tier hierarchy support (v2.0.0). System policies are immutable; Organization/Tenant policies can be
+      customized.
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/StaticPolicy
+  - term: StaticPoliciesListResponse
+    definition: 'Object declared by the contract with fields: policies, pagination.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/StaticPoliciesListResponse
+  - term: StaticPolicyPagination
+    definition: 'Object declared by the contract with fields: page, page_size, total, total_pages.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/StaticPolicyPagination
+  - term: PolicyOverride
+    definition: Override configuration for system policies (Enterprise only)
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PolicyOverride
+  - term: CreateStaticPolicyRequest
+    definition: Request body for creating a static policy
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/CreateStaticPolicyRequest
+  - term: UpdateStaticPolicyRequest
+    definition: Request body for updating a static policy (all fields optional)
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/UpdateStaticPolicyRequest
+  - term: CreateOverrideRequest
+    definition: Request body for creating a policy override
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/CreateOverrideRequest
+  - term: TestPatternRequest
+    definition: Request body for testing a regex pattern
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/TestPatternRequest
+  - term: TestPatternResponse
+    definition: Response from pattern testing
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/TestPatternResponse
+  - term: EffectivePoliciesResponse
+    definition: Effective policies with overrides resolved
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/EffectivePoliciesResponse
+  - term: PolicyVersionsResponse
+    definition: Version history for a policy
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PolicyVersionsResponse
+  - term: PolicyVersion
+    definition: A version snapshot of a policy
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PolicyVersion
+  - term: PolicyOverridesListResponse
+    definition: List of policy overrides
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PolicyOverridesListResponse
+  - term: MetricsResponse
+    definition: 'Object declared by the contract with fields: agent_metrics, health, request_types, connectors, timestamp.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/MetricsResponse
+  - term: ClientRequest
+    definition: 'Object declared by the contract with fields: query, user_token, client_id, request_type, skip_llm, context, media.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/ClientRequest
+  - term: PolicyTestResponse
+    definition: '`POST /api/policies/test`''s preview of `/api/request`''s verdict for the authenticated credential (#4253).'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PolicyTestResponse
+  - term: ClientResponse
+    definition: 'Object declared by the contract with fields: success, data, result, plan_id, metadata, error, code, blocked, block_reason, policy_info,
+      budget_info, media_analysis. (6 more)'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/ClientResponse
+  - term: PolicyEvaluationInfo
+    definition: 'Object declared by the contract with fields: matched_policies, policies_evaluated, static_checks, processing_time, tenant_id,
+      code_artifact.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PolicyEvaluationInfo
+  - term: PreCheckRequest
+    definition: 'Object declared by the contract with fields: query, user_token, client_id, data_sources, context.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PreCheckRequest
+  - term: PreCheckResponse
+    definition: 'Object declared by the contract with fields: decision_id, verdict, approved, context_id, approved_data, policies, rate_limit,
+      expires_at, block_reason, trace_id, engine, subject_type. (2 more)'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PreCheckResponse
+  - term: RateLimitInfo
+    definition: 'Object declared by the contract with fields: limit, remaining, reset_at.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/RateLimitInfo
+  - term: PEPHandshake
+    definition: 'What an external enforcement point declares about itself. Carried base64url-encoded on `X-Axonflow-PEP-Handshake`, never as a
+      body member: one governed route (`/api/v1/access/evaluation`) carries the standardised AuthZEN envelope, which this platform does not own.
+      **Every member is required, and an unknown member is refused.** There is deliberately no `edition`, `realm`, `tier` or `license` member'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PEPHandshake
+  - term: PendingApproval
+    definition: 'A call held for a person''s approval (#4370, PRD v11 §1.13). Pending is NOT allow: nothing ran, and the enforcement point must
+      not forward. An approver approves the queue entry in the portal (Approvals), and the caller retries the same call naming `approval_id` (see
+      the `X-Axonflow-Approval-Id` parameter). The approval expires at `expires_at`: the approval requirement''s own deadline, which the engi'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/PendingApproval
+  - term: ApprovalHoldReason
+    definition: 'The reason code a held call, or its retry, is answered with (#4370). It leads the refusal text (`: ...`) on every route. None
+      admits anything. - `approval_pending`: an approval for this call is queued and has not been decided; retry naming it once a person approves.
+      - `approval_rejected`: the approval this retry names was rejected. - `approval_already_consumed`: the approval this retry names has a'
+    tags:
+    - Enumeration
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/ApprovalHoldReason
+  - term: DecideRequest
+    definition: 'Object declared by the contract with fields: approval_id, stage, caller_identity, target, query, user_token, context, fulfillment_capabilities.'
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/DecideRequest
+  - term: DecisionCallerIdentity
+    definition: Gateway-asserted caller identity. `org_id` and `tenant_id` are OPTIONAL in the body -- the auth-derived identity from `apiAuthMiddleware`
+      is authoritative. In non-community mode, body-supplied values MUST match the authenticated identity or the request is rejected with HTTP
+      403.
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/DecisionCallerIdentity
+  - term: DecisionTarget
+    definition: What the gateway is about to call.
+    tags:
+    - Object
+    source: openapi/axonflow-agent-openapi.yml#/components/schemas/DecisionTarget

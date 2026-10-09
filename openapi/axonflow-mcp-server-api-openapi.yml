@@ -1,0 +1,571 @@
+openapi: 3.2.0
+info:
+  title: Axonflow MCP Server API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged MCP Server across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (SaaS)
+- url: https://axonflow.example.com
+  description: Self-hosted deployment (agent single entry point, ADR-024)
+- url: http://localhost:8080
+  description: Local Development
+tags:
+- name: MCP Server
+  description: 'Streamable-HTTP MCP server (spec 2025-06-18) exposing AxonFlow
+
+    governance as MCP tools (check_policy, check_output, audit_tool_call,
+
+    list_policies, get_policy_stats, explain_decision + Pro tools).
+
+    Consumed by the Claude Code / Cursor / Codex plugins and any MCP
+
+    client. Authentication is HTTP Basic (org:license-key) — NOT OAuth;
+
+    the `/.well-known/oauth-*` discovery paths deliberately return an
+
+    advisory 404 saying so.'
+paths:
+  /.well-known/oauth-protected-resource:
+    get:
+      tags:
+      - MCP Server
+      summary: OAuth protected-resource metadata (always 404, by design)
+      description: 'Always answers `404` with an OAuth-shaped JSON error stating that this
+
+        server uses HTTP Basic authentication. No authorization server is
+
+        advertised. Any path under this prefix answers identically.'
+      operationId: getOAuthProtectedResourceMetadata
+      security: []
+      responses:
+        '404':
+          description: 'No OAuth metadata exists for this resource. This is the only
+
+            response; it is not an error condition.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthDiscoveryNotSupported'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /.well-known/oauth-authorization-server:
+    get:
+      tags:
+      - MCP Server
+      summary: OAuth authorization-server metadata (always 404, by design)
+      description: 'Always answers `404` with an OAuth-shaped JSON error stating that this
+
+        server uses HTTP Basic authentication. Any path under this prefix
+
+        answers identically.'
+      operationId: getOAuthAuthorizationServerMetadata
+      security: []
+      responses:
+        '404':
+          description: 'This deployment is not an OAuth authorization server. This is the
+
+            only response; it is not an error condition.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthDiscoveryNotSupported'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+  /api/v1/mcp-server:
+    post:
+      tags:
+      - MCP Server
+      summary: MCP JSON-RPC endpoint
+      description: Single Streamable-HTTP endpoint for the built-in MCP server.
+      operationId: mcpServerJSONRPC
+      parameters:
+      - $ref: '#/components/parameters/ApprovalId'
+      - $ref: '#/components/parameters/LicenseKey'
+      - $ref: '#/components/parameters/AxonflowPEPHandshake'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: MCP JSON-RPC 2.0 message
+              properties:
+                jsonrpc:
+                  type: string
+                  enum:
+                  - '2.0'
+                id:
+                  description: Request ID (absent for notifications)
+                method:
+                  type: string
+                  example: tools/call
+                params:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: JSON-RPC response (errors are carried in the JSON-RPC error member)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: 'Community SaaS rate limit (#4261): the per-minute limit
+
+            (`limit_type: per_minute`), including a credential refused by
+
+            the pre-credential limiter, or the daily quota
+
+            (`limit_type: daily_quota`). Also, on any method, a tier
+
+            admission refusal while the admission ledger cannot be reached
+
+            (`limit_type: service_principal` or `human_principal`, `code`
+
+            `ERR_TIER_LIMIT_<DIMENSION>`, #4249 row 5682255301). The body is
+
+            a JSON-RPC response whose `result.content[0].text` is the
+
+            `RateLimitEnvelope` as JSON text, with `result.isError: true`.
+
+            Sent with `Retry-After`, `X-Axonflow-Tier-Limit` and
+
+            `X-Axonflow-Upgrade-URL`.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '403':
+          description: 'Community SaaS `tools/call` tier gate (#4274): a tool above the
+
+            caller''s tier (`limit_type: feature_pro_only`) or the rolling
+
+            approval window (`limit_type: hitl_approvals_window`). The body is a JSON-RPC
+
+            response whose `result.content[0].text` is the `RateLimitEnvelope`
+
+            as JSON text, with `result.isError: true`. Sent with
+
+            `X-Axonflow-Tier-Limit` and `X-Axonflow-Upgrade-URL`, and with
+
+            `Retry-After` only for `hitl_approvals_window`.
+
+
+            Also, on any method (`initialize` included), a tier admission
+
+            refusal (#4249 row 5682255301): a valid credential whose
+
+            organization is at its service-principal ceiling
+
+            (`limit_type: service_principal`), or a validated per-user token
+
+            past the human-principal ceiling (`limit_type: human_principal`).
+
+            The envelope''s `code` is `ERR_TIER_LIMIT_<DIMENSION>` and its
+
+            `error` the refusal''s message; no `Retry-After`. The REST routes
+
+            answer the same refusal 402. It is never a 401: the credential
+
+            was valid.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    get:
+      tags:
+      - MCP Server
+      summary: Not supported (405)
+      description: 'The MCP server does not offer a server-initiated SSE stream; GET
+
+        always returns 405 Method Not Allowed.'
+      operationId: mcpServerGet
+      responses:
+        '405':
+          description: Method not allowed
+    delete:
+      tags:
+      - MCP Server
+      summary: Terminate MCP session
+      description: Terminates the MCP session identified by the `Mcp-Session-Id` header.
+      operationId: mcpServerDelete
+      parameters:
+      - $ref: '#/components/parameters/LicenseKey'
+      - name: Mcp-Session-Id
+        in: header
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Session terminated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 'A tier admission refusal of the caller (#4249 row 5682255301):
+
+            no body; `X-Axonflow-Tier-Limit` (`service_principal` or
+
+            `human_principal`) and `X-Axonflow-Upgrade-URL`.
+
+            '
+        '429':
+          description: 'The pre-credential per-minute limit (#4261), or a tier admission
+
+            refusal while the admission ledger cannot be reached (#4249 row
+
+            5682255301, with `X-Axonflow-Tier-Limit`). No body; `Retry-After`.
+
+            '
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (SaaS)
+    - url: https://axonflow.example.com
+      description: Self-hosted deployment (agent single entry point, ADR-024)
+    - url: http://localhost:8080
+      description: Local Development
+components:
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+  parameters:
+    ApprovalId:
+      name: X-Axonflow-Approval-Id
+      in: header
+      required: false
+      description: 'The approval a retry spends (#4370). A call held for a person''s
+
+        approval is answered a `pending_approval` naming an id; once a
+
+        person approves it in the portal, the caller retries the SAME call
+
+        naming that id here (or in the body''s `approval_id` field, for a
+
+        client that cannot set headers - a header and a field naming
+
+        different ids are refused `approval_not_found`).
+
+
+        The retry is decided exactly as the first call was. Only when it is
+
+        again held for approval, and the approval is approved by a person
+
+        who is not the caller, before its expiry, unspent, and granted for
+
+        this very call (the same input, tool, route, requester and
+
+        requirement), does it pass - and the approval is spent: it admits
+
+        exactly one call. A call that is allowed anyway spends nothing; no
+
+        approval lifts a deny. Every other outcome is refused with one of
+
+        the `ApprovalHoldReason` codes. Enterprise; the Community build has
+
+        no approval queue and ignores the header.
+
+
+        WHAT "THE SAME CALL" MEANS. On the MCP routes: the connector, the
+
+        tool, the operation, the statement and its parameters (and the row
+
+        limit on `/mcp/resources/query`). On `/api/v1/decide`: the WHOLE
+
+        request the engine decided - `stage`, `target`, `query` AND
+
+        `context`. A retry that changes any of it is refused
+
+        `bound_input_changed`: resend the same `context`, and carry
+
+        per-request values (request ids, timestamps) in headers, never in
+
+        `context` - the correlation id is a header.
+
+        '
+      schema:
+        type: string
+        format: uuid
+    AxonflowPEPHandshake:
+      name: X-Axonflow-PEP-Handshake
+      in: header
+      required: false
+      description: 'The ADR-065 **PEP capability handshake**: base64url of a compact JSON
+
+        document in which an external enforcement point declares what it is and
+
+        which obligations it can discharge. See `PEPHandshake` for the document.
+
+
+        **Absent is the default and changes nothing.** A caller that omits the
+
+        header takes byte-for-byte the path it took before this header existed.
+
+
+        **What an absent header means for a redaction depends on the plane, by
+
+        design (PRD v11 section 1 item 16, #4257).** The MCP passes discharge a
+
+        redaction of the content they hand back: the request pass
+
+        (`check-input`, `check_policy`) masks the statement, and a redaction
+
+        that masks nothing in the statement is refused `unsupported_obligation`
+
+        to every caller, and one that masks a request parameter to every caller
+
+        that has not declared `field_redact` at version 2 (on Community, to
+
+        every caller) (#4264);
+
+        the response passes (`check-output`, the MCP server''s `check_output`)
+
+        mask the rows or the message. `/api/v1/decide` and the gateway
+
+        pre-check return a decision rather than content, so a required
+
+        redaction is a `field_redact` obligation for the enforcement point, and
+
+        a caller that has not declared `field_redact` is refused
+
+        `unsupported_obligation`. A caller that declares NO redaction
+
+        (`capabilities: []`) is refused on each of these planes; on
+
+        Community the MCP passes still return a checksum validator''s masked
+
+        content to it (reachable only through a directly inserted
+
+        `detection_action_overrides` row) until #4122.
+
+
+        A header that is PRESENT and cannot be read is **refused**, never
+
+        treated as absent: degrading a malformed declaration to "legacy caller"
+
+        would go on handing an enforcement point obligations it had just said it
+
+        cannot discharge. The refusal is `400` and its message names this header,
+
+        which matters on `/api/v1/access/evaluation` where the refusal is
+
+        rendered through that surface''s existing `incomplete_evaluation` code and
+
+        the message is the only thing distinguishing a malformed HEADER from a
+
+        malformed body ENVELOPE.
+
+
+        Present more than once is refused: RFC 7230 permits an intermediary to
+
+        join repeated field lines with a comma, and a comma is outside the
+
+        base64 alphabet, so a joined pair can only decode to malformed. That is
+
+        why the document is base64 rather than raw JSON, which would join into
+
+        something a lenient parser might accept.
+
+
+        When a decision carries a **mandatory** obligation the declared set does
+
+        not cover, the request is answered `200` with `verdict: deny` and the
+
+        reason `unsupported_obligation` (ADR-065 invariant 8) - a decision about
+
+        the request, not a transport error. That holds on every edition. An
+
+        Enterprise deployment adds a second reason beginning
+
+        `pep_capability_unsupported` naming the gap, and refuses a checksum
+
+        validator''s mask on the MCP passes; a Community deployment hands that
+
+        masked content over (#4257 split 2, #4122).
+
+        '
+      schema:
+        type: string
+        maxLength: 4096
+        description: base64url (padding optional) of the PEPHandshake document.
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
+  schemas:
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+    OAuthDiscoveryNotSupported:
+      type: object
+      description: 'The body both `/.well-known/oauth-*` endpoints return. Shaped to RFC
+
+        6749 section 5.2 so a client that parses discovery failures as OAuth
+
+        errors renders it instead of choking on a plaintext 404.
+
+        '
+      properties:
+        error:
+          type: string
+          enum:
+          - oauth_not_supported
+          description: Always this value.
+        error_description:
+          type: string
+          description: 'Names the mechanism this server does use - HTTP Basic with
+
+            `base64(org_id:license_key)` - and links the setup documentation.
+
+            '
+      required:
+      - error
+      - error_description
+      example:
+        error: oauth_not_supported
+        error_description: AxonFlow's MCP server uses HTTP Basic authentication (base64(org_id:license_key)), not OAuth. Set AXONFLOW_ENDPOINT and AXONFLOW_AUTH in the environment that launches your MCP client.
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: "OAuth2-style Basic authentication using `clientId:clientSecret` credentials.\n\n**Header format:** `Authorization: Basic base64(clientId:clientSecret)`\n\n- `clientId` (required): Your organization/client identifier\n- `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.\n\n**Example:**\n```bash\n# With clientSecret (enterprise)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:AXON-V2-xxx' | base64)\" ...\n\n# Without clientSecret (community mode)\ncurl -H \"Authorization: Basic $(echo -n 'my-org:' | base64)\" ...\n```\n\n## Per-user identity behind a shared credential\n\nThis credential authenticates an ORGANIZATION or client, not a person.\nBehind one such credential can sit many human principals, each\noptionally forwarding a **per-user token** that proves who they are.\nWhere that token is read depends on the envelope: the `user_token`\nfield of the request body on `POST /api/v1/decide` and the four MCP\nREST routes, and the `X-User-Token` header on the MCP-server JSON-RPC\nplane. The two spellings are deliberately not interchangeable.\n\n**A presented per-user token that fails to validate is a refused\naccess attempt, not a legacy caller** (`401`, audited\n`user_token_rejected`). It is never downgraded to a shared service\nidentity, so revocation, expiry, algorithm pinning and signature\nchecks take effect on every plane that reads one.\n\n**Whether presenting a token is REQUIRED is a per-organization\nposture, `require_user_token`, and it is off by default (#3476).**\nWith it off, an enterprise caller that presents no token at all is\nserved under a synthetic org-scoped service identity\n(`<client-id>@axonflow.local`, role `service`), which is the correct\nanswer for an infrastructure gateway acting as a Policy Enforcement\nPoint with no end-user token to forward. With it on, that caller is\nrefused at AUTHENTICATION, before any policy is evaluated (`401`,\naudited `user_token_required`).\n\nThe posture exists because a policy that names a PERSON - a\nprincipal-scoped constraint or permission in the organization's typed\ndocument (PRD v11 §1.6) - is only meaningful if a caller cannot CHOOSE\nto arrive without an identity: with the posture off such a policy\nstill applies to everyone who presents a token, but a caller can\ndecline to present one and be decided as the credential\n(`subject_type=Client`). Governance segments (ADR-060) decide on no\nagent route since v11.0.0 (#4253). Two levers set it, and an explicit\nper-organization row wins over the deployment-wide default in EITHER\ndirection:\n\n- `organizations.require_user_token`, per organization, default\n  `false`.\n- `AXONFLOW_REQUIRE_USER_TOKEN`, deployment-wide, default `false`.\n\nA posture change takes up to one cache window to become live\n(`AXONFLOW_REQUIRE_USER_TOKEN_TTL_SECONDS`, default 60 seconds,\nclamped to `[5, 600]`). A posture that cannot be READ resolves to\nREQUIRED rather than not-required, so a database outage cannot\nquietly switch the control off; a genuinely absent organization row\nis not a read failure and falls through to the deployment default.\n\n`POST /v1/chat/completions` is outside this guarantee: it mirrors\nOpenAI's wire shape and carries no per-user token field at all, so it\nkeeps the synthetic-identity fallback regardless of the posture.\nCommunity and community-SaaS deployments never reach any of the above.\n"
+    InternalServiceID:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-ID
+      description: 'Internal-service (operator lane) credential — **part one of two**.
+
+        Must be sent together with `X-Internal-Service-Token`; either header
+
+        alone is not a credential.
+
+
+        This is the HMAC identity the Orchestrator and the Enterprise
+
+        customer-portal use to call agent endpoints without holding a
+
+        customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+        optional `X-Tenant-ID` scope) into `AuthHints`
+
+        (`internalServiceHints` in `platform/agent/auth.go`) and
+
+        `Authenticate()` validates them before any mode-specific auth
+
+        (`platform/agent/authenticator.go:120-155`).
+
+
+        Value: the service id, `orchestrator-internal`.
+
+
+        ⚠️ An invalid or expired token is **not** an error by itself — it
+
+        falls through to the deployment''s normal auth
+
+        (`platform/agent/authenticator.go:153-154`). Send the internal-service
+
+        headers on their own: paired with an `Authorization: Basic` header, a
+
+        stale token silently yields a *tenant*-scoped answer that looks like a
+
+        successful operator call.
+
+        '
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: 'Internal-service (operator lane) credential — **part two of two**.
+
+        Must be sent together with `X-Internal-Service-ID`.
+
+
+        Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+        hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+        keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+        `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+        it must be re-minted per session. See
+
+        `technical-docs/runbooks/RUNBOOK_CONNECTOR_CONFIGURATION.md` for the
+
+        exact minting snippet.
+
+        '
+x-refined-from:
+- axonflow-agent-api.yaml
+- axonflow-agent-openapi.yml

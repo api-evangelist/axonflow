@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-step-gate-response-schema.json",
+  "title": "StepGateResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-orchestrator-openapi.yml#/components/schemas/StepGateResponse",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "type": "string",
+      "description": "Gate decision",
+      "enum": [
+        "allow",
+        "block",
+        "require_approval"
+      ]
+    },
+    "step_id": {
+      "type": "string",
+      "description": "Step identifier"
+    },
+    "decision_id": {
+      "type": "string",
+      "description": "Unique decision identifier for auditing"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for block or approval requirement"
+    },
+    "policy_ids": {
+      "type": "array",
+      "description": "IDs of policies that matched",
+      "items": {
+        "type": "string"
+      }
+    },
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Deterministic HITL queue entry UUID of the step's current hold,\npresent on a `require_approval` decision whose queue entry\nexists. A step can be held more than once: hold 1 is UUID v5 over\n`workflow_id + \":\" + step_id`, and hold n >= 2 (a step held again\nafter its earlier hold was decided) is UUID v5 over\n`workflow_id + \":\" + step_id + \"#\" + n`. The approve and reject\nresponses carry the step's current hold's id (see their\n`approval_id`). Returned by this route since #1082 but never\nspecced; added with `approval_enqueue` below,\nwhich is only meaningful alongside it. Empty when no entry was\ncreated (see `approval_enqueue`) AND on a cached replay\n(`cached: true`, the default `retry_policy: \"idempotent\"` on a\nstep that was already evaluated), which reproduces the stored\ndecision without re-running the enqueue.\n"
+    },
+    "approval_enqueue": {
+      "type": "string",
+      "enum": [
+        "created",
+        "reused",
+        "cap_reached",
+        "tier_disabled",
+        "error"
+      ],
+      "description": "What the HITL enqueue did for this gate. Present only on a\n`require_approval` decision where an enqueue was attempted;\nomitted otherwise.\n\nA `require_approval` decision ALWAYS holds the step. This field is\nhow a client distinguishes \"held, and there is a review entry to\napprove\" (`created` / `reused`) from \"held, and there is nothing\nto approve\" (`cap_reached` / `tier_disabled` / `error`) - before\n#3408's sibling fix those were the same response.\n\n- `created` - a new queue entry was written. That includes a\n  step held AGAIN after its earlier hold was decided (approved,\n  rejected, expired or overridden): the re-hold is a new entry\n  under the next hold's `approval_id`, with its own expiry and\n  its own review, and the decided entry is kept unchanged as the\n  record of that decision.\n- `reused` - the gate resolved to the step's still-PENDING entry\n  an earlier call created. The `approval_id` is the same. Reached\n  only by a gate that is evaluated again while that entry is\n  pending (`retry_policy: \"reevaluate\"`, a gate override, or\n  concurrent gates of the step, where the gate admits them); the\n  default `retry_policy: \"idempotent\"` replays the stored\n  decision and carries `cached: true` with neither this field\n  nor `approval_id`. A gate whose entry is already decided is\n  never `reused`: it writes a new entry (`created`), or reports\n  `error` when the queue refuses (for example, the hold id names\n  an entry that belongs to another step, or the step has a queue\n  entry outside its hold ids).\n- `cap_reached` - the tenant is at its licence tier's\n  `MaxPendingApprovals`. No entry was created and none will be\n  until a pending one is resolved. **Not reachable by any shipped\n  tier**: since HITL became Enterprise-only (2026-08-26) every\n  entitled tier resolves `MaxPendingApprovals` to `-1`, and every\n  tier with a finite cap is refused by the tier gate first.\n  Documented because the mechanism is retained.\n- `tier_disabled` - the deployment's licence tier does not enable\n  HITL approvals. Entitled tiers are `Professional`, `Enterprise`\n  and `Enterprise Plus`; `Community`, `Free`, `Pro`, `Premium` and\n  `Evaluation` are refused. Approve, reject and the pending\n  listings remain reachable on a refused tier so existing entries\n  can still be drained.\n- `error` - the enqueue failed for another reason; the detail is\n  in `reason`.\n"
+    },
+    "approval_url": {
+      "type": "string",
+      "description": "URL for human approval (Enterprise)",
+      "format": "uri"
+    },
+    "policies_evaluated": {
+      "type": "array",
+      "description": "All policies that were checked during evaluation (Issue",
+      "items": {
+        "$ref": "#/$defs/PolicyMatch"
+      }
+    },
+    "policies_matched": {
+      "type": "array",
+      "description": "Policies that matched and contributed to the decision (Issue",
+      "items": {
+        "$ref": "#/$defs/PolicyMatch"
+      }
+    },
+    "engine": {
+      "type": "string",
+      "enum": [
+        "anchored"
+      ],
+      "description": "The engine that decided the step: `anchored`, the ADR-065 decision\nplane (PRD v11 §1.1). Omitted on a cached replay (`cached: true`),\nwhich reproduces a stored decision without deciding again.\n"
+    },
+    "subject_type": {
+      "type": "string",
+      "description": "The type of principal the step was decided for. Omitted on a\ndecision made before a subject was admitted, and wherever `engine`\nis.\n"
+    },
+    "policy_bundle": {
+      "type": "string",
+      "description": "The digest of the policy set that decided the step. Omitted\nwherever `subject_type` is.\n"
+    },
+    "cached": {
+      "type": "boolean",
+      "deprecated": true,
+      "description": "**Deprecated (Issue #1673).** Whether this response was served from\na prior decision rather than a fresh policy evaluation. Use\n`retry_context.gate_count > 1` instead — `cached` conflates\nfirst-call-no vs many-retries-yes into a single bit. Kept\npopulated on every response for back-compat; removal planned\nfor a future major version.\n"
+    },
+    "decision_source": {
+      "type": "string",
+      "deprecated": true,
+      "description": "**Deprecated (Issue #1673).** \"fresh\" or \"cached\". Use\n`retry_context.prior_completion_status` for the distinction\nagents and policies actually need. Kept populated on every\nresponse for back-compat; removal planned for a future major.\n",
+      "enum": [
+        "fresh",
+        "cached"
+      ]
+    },
+    "retry_context": {
+      "$ref": "#/$defs/RetryContext"
+    }
+  },
+  "$defs": {
+    "PolicyMatch": {
+      "type": "object",
+      "description": "Details of a policy match during evaluation (Issue",
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "description": "Unique identifier for the policy"
+        },
+        "policy_name": {
+          "type": "string",
+          "description": "Human-readable name of the policy"
+        },
+        "action": {
+          "type": "string",
+          "description": "Action taken by this policy",
+          "enum": [
+            "allow",
+            "block",
+            "require_approval",
+            "redact"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the policy match"
+        }
+      }
+    },
+    "RetryContext": {
+      "type": "object",
+      "description": "First-class retry and execution state (Issue #1673 Phase 1). Always\npresent on every `StepGateResponse`, including the first gate call.\nReplaces the ambiguous `cached: bool` signal with unambiguous state\nthe agent and policy engine can reason about.\n",
+      "required": [
+        "gate_count",
+        "completion_count",
+        "prior_completion_status",
+        "prior_output_available",
+        "prior_output",
+        "prior_completion_at",
+        "first_attempt_at",
+        "last_attempt_at",
+        "last_decision",
+        "idempotency_key"
+      ],
+      "properties": {
+        "gate_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of /gate calls for this (workflow_id, step_id), including\nthe current call. First call returns 1.\n"
+        },
+        "completion_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of /complete calls for this (workflow_id, step_id). Normally\n0 on first gate, 1 after the step completes.\n"
+        },
+        "prior_completion_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "completed",
+            "gated_not_completed"
+          ],
+          "description": "\"none\" on first gate call. \"completed\" when a prior /gate + /complete\nboth landed. \"gated_not_completed\" when a prior /gate landed but no\n/complete followed — uncertain territory the agent needs to reconcile\nagainst the downstream system before re-executing.\n"
+        },
+        "prior_output_available": {
+          "type": "boolean",
+          "description": "True iff prior_completion_status == \"completed\". Mirrors whether\nprior_output *could* be returned if include_prior_output=true.\n"
+        },
+        "prior_output": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true,
+          "description": "Always present in the schema. Populated only when the caller set\n?include_prior_output=true AND prior_output_available is true.\nOtherwise null.\n"
+        },
+        "prior_completion_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Timestamp of the prior /complete call, if any."
+        },
+        "first_attempt_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the first /gate call for this step. On the first call,\nequals last_attempt_at.\n"
+        },
+        "last_attempt_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of this /gate call."
+        },
+        "last_decision": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "block",
+            "require_approval"
+          ],
+          "description": "Decision of the immediately prior /gate call. On the first call\n(gate_count == 1), equals the current decision (first-call\ninvariant).\n"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "description": "The caller-supplied business-level key recorded on this step\n(Issue #1673 Phase 2). Always present in the schema — empty\nstring `\"\"` if the caller never supplied one.\n"
+        }
+      }
+    }
+  }
+}

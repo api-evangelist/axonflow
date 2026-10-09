@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-policy-evaluation-result-schema.json",
+  "title": "PolicyEvaluationResult",
+  "description": "The policy verdict carried on every orchestrator response. Its property\nSET is held equal to the Go type's JSON members by\n`TestThePublishedSchemasMatchTheTypesThePlatformMarshals`, which\ncompares the two by reflection, so a field added to one and not the\nother fails CI rather than reaching a spec-generated client (#3724).\nThe properties are also written in the Go type's declaration order as a\ncourtesy to a reader diffing the two; nothing enforces that, and order\nis not part of the contract.\n",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-orchestrator-openapi.yml#/components/schemas/PolicyEvaluationResult",
+  "type": "object",
+  "properties": {
+    "allowed": {
+      "type": "boolean"
+    },
+    "applied_policies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ],
+      "description": "Highest severity among the matched policies."
+    },
+    "severity_policy_id": {
+      "type": "string",
+      "description": "The policy that contributed `severity`."
+    },
+    "required_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "processing_time_ms": {
+      "type": "integer"
+    },
+    "database_accessed": {
+      "type": "boolean"
+    },
+    "evaluation_error": {
+      "type": "boolean",
+      "description": "Distinguishes **could not govern** from **a policy said block**,\nand is the only signal that does. True when the engine could NOT\ncomplete evaluation because governance-segment resolution failed\n(a resolver or storage error -- never \"the caller belongs to zero\nsegments\"). `allowed` is always false when this is set, because the\nengine fails CLOSED on that error, so a consumer reading only\n`allowed` still behaves safely; a consumer that audits or alerts\nMUST read this field to tell an availability failure apart from a\ngenuine policy match. Before it existed the only signal was the\nmagic string `applied_policies: [\"segment_resolution_failed\"]`.\n"
+    },
+    "segments_resolved": {
+      "type": "boolean",
+      "description": "True only when a resolved, non-empty governance-segment set was\nactually factored into this verdict. False covers every legitimate\norganisation-only case -- no identity supplied, no resolver wired\n(community, or no SCIM), or the caller belongs to zero segments --\nas well as the `evaluation_error` case. None of those are failures:\nthe flag exists so a reader of a policy-simulation preview does not\nmistake a legitimate org-only allow for a segment-aware one.\n"
+    },
+    "applied_policies_detail": {
+      "type": "array",
+      "description": "Structured mirror of `applied_policies` carrying each matched\npolicy's risk level and allow_override metadata, without a second\nquery. No session override is applied to a result in v11 (#4252).\n",
+      "items": {
+        "$ref": "#/$defs/AppliedPolicyDetail"
+      }
+    },
+    "preferred_provider": {
+      "type": "string",
+      "description": "LLM provider a matched routing policy prefers. When more than one\napplying route row names one, the LAST applying row in evaluation\norder wins it and the routing reason: rows are walked by priority,\nhighest first, then newest first, so the winner is the\nlowest-priority applying row (#4249).\n"
+    },
+    "allowed_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Strict provider allow-list for compliance routing. Failover stays\nwithin this list. It is the intersection of every applying route\nrow's list, whatever their order; an empty intersection refuses the\nrequest (`no_compliant_provider`).\n"
+    },
+    "routing_reason": {
+      "type": "string",
+      "description": "Why routing was changed."
+    }
+  },
+  "$defs": {
+    "AppliedPolicyDetail": {
+      "type": "object",
+      "description": "One structured per-policy match inside `PolicyEvaluationResult`.\n",
+      "properties": {
+        "policy_id": {
+          "type": "string"
+        },
+        "policy_name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "risk_level": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "allow_override": {
+          "type": "boolean",
+          "description": "False if and only if the policy forbids a session override."
+        },
+        "matched_rule": {
+          "type": "string"
+        },
+        "segment_id": {
+          "type": "string",
+          "description": "The governance segment this policy is scoped to, or absent when it\nis not segment-scoped. ATTRIBUTION AND AUDIT ONLY -- it is not an\noverride-eligibility signal anywhere: a segment-scoped policy uses\nthe same `allow_override` contract as a tenant policy.\n"
+        }
+      }
+    }
+  }
+}

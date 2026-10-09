@@ -1,0 +1,558 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Decision & Execution Replay API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Decision & Execution Replay across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Decision & Execution Replay
+  description: 'Decision & Execution Replay API for debugging, auditing, and compliance.
+
+    Captures every step of workflow execution with full input/output snapshots and policy decisions.'
+paths:
+  /api/v1/executions:
+    get:
+      tags:
+      - Decision & Execution Replay
+      summary: List workflow executions
+      description: 'List all workflow executions with optional filtering and pagination.
+
+        Supports filtering by status, workflow, tenant, time range.'
+      operationId: listExecutions
+      parameters:
+      - name: limit
+        in: query
+        description: Maximum number of results (default 50)
+        schema:
+          type: integer
+          default: 50
+      - name: offset
+        in: query
+        description: Pagination offset (default 0)
+        schema:
+          type: integer
+          default: 0
+      - name: status
+        in: query
+        description: Filter by execution status
+        schema:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+      - name: workflow_id
+        in: query
+        description: Filter by workflow name
+        schema:
+          type: string
+      - name: start_time
+        in: query
+        description: Filter by start time (RFC3339 format)
+        schema:
+          type: string
+          format: date-time
+      - name: end_time
+        in: query
+        description: Filter by end time (RFC3339 format)
+        schema:
+          type: string
+          format: date-time
+      - name: X-Tenant-ID
+        in: header
+        description: Filter by tenant ID
+        schema:
+          type: string
+      - name: X-Org-ID
+        in: header
+        description: Filter by organization ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of executions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionListResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/executions/{id}:
+    get:
+      tags:
+      - Decision & Execution Replay
+      summary: Get execution details
+      description: Get full execution details including summary and all steps.
+      operationId: getExecution
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution request ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Execution'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+      - Decision & Execution Replay
+      summary: Delete execution
+      description: Delete an execution and all its step data.
+      operationId: deleteExecution
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution request ID
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Execution deleted
+        '404':
+          description: Execution not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/executions/{id}/steps:
+    get:
+      tags:
+      - Decision & Execution Replay
+      summary: Get execution steps
+      description: Get all steps for an execution.
+      operationId: getExecutionSteps
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution request ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of execution steps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExecutionSnapshot'
+        '404':
+          description: Execution not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/executions/{id}/steps/{stepIndex}:
+    get:
+      tags:
+      - Decision & Execution Replay
+      summary: Get specific step
+      description: Get a specific step by index.
+      operationId: getExecutionStep
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution request ID
+        schema:
+          type: string
+      - name: stepIndex
+        in: path
+        required: true
+        description: Step index (0-based)
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Step details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionSnapshot'
+        '404':
+          description: Step not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/executions/{id}/timeline:
+    get:
+      tags:
+      - Decision & Execution Replay
+      summary: Get execution timeline
+      description: Get a timeline view of execution steps with status indicators.
+      operationId: getExecutionTimeline
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution request ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Execution timeline
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineEntry'
+        '404':
+          description: Execution not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/executions/{id}/export:
+    get:
+      tags:
+      - Decision & Execution Replay
+      summary: Export execution
+      description: 'Export full execution record for compliance and auditing.
+
+        Returns a downloadable JSON file.'
+      operationId: exportExecution
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Execution request ID
+        schema:
+          type: string
+      - name: format
+        in: query
+        description: Export format (default json)
+        schema:
+          type: string
+          default: json
+      - name: include_input
+        in: query
+        description: Include step inputs (default true)
+        schema:
+          type: boolean
+          default: true
+      - name: include_output
+        in: query
+        description: Include step outputs (default true)
+        schema:
+          type: boolean
+          default: true
+      - name: include_policies
+        in: query
+        description: Include policy events (default true)
+        schema:
+          type: boolean
+          default: true
+      responses:
+        '200':
+          description: Execution export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionExport'
+        '404':
+          description: Execution not found
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    PolicyEvent:
+      type: object
+      properties:
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        action:
+          type: string
+          enum:
+          - block
+          - warn
+          - require_approval
+        matched:
+          type: string
+        resolution:
+          type: string
+    Execution:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/ExecutionSummary'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionSnapshot'
+    ExecutionExport:
+      type: object
+      properties:
+        exported_at:
+          type: string
+          format: date-time
+        format:
+          type: string
+        execution:
+          $ref: '#/components/schemas/Execution'
+    ExecutionSnapshot:
+      type: object
+      properties:
+        request_id:
+          type: string
+        step_index:
+          type: integer
+        step_name:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - paused
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        input:
+          type: object
+        output:
+          type: object
+        provider:
+          type: string
+        model:
+          type: string
+        tokens_in:
+          type: integer
+        tokens_out:
+          type: integer
+        cost_usd:
+          type: number
+          format: double
+        policies_checked:
+          type: array
+          items:
+            type: string
+        policies_triggered:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyEvent'
+        error_message:
+          type: string
+        retry_count:
+          type: integer
+        approval_required:
+          type: boolean
+          description: 'True when this step gated on human approval. The pair
+
+            `approved_at` + `approved_by` records when and by whom
+
+            the approval was granted (or shows null on rejection).
+
+            '
+        approved_at:
+          type: string
+          format: date-time
+          description: 'When the approval-required gate was resolved. Pair with
+
+            `approved_by` to compute approval latency at the step level.
+
+            '
+        approved_by:
+          type: string
+          description: 'User email of the approver. Empty when
+
+            `approval_required` is false or the gate was auto-resolved.
+
+            '
+    ExecutionListResponse:
+      type: object
+      properties:
+        executions:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/ExecutionSummary'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+    ExecutionSummary:
+      type: object
+      properties:
+        request_id:
+          type: string
+        workflow_name:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+        total_steps:
+          type: integer
+        completed_steps:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        total_tokens:
+          type: integer
+        total_cost_usd:
+          type: number
+          format: double
+        org_id:
+          type: string
+        tenant_id:
+          type: string
+        user_id:
+          type: string
+        error_message:
+          type: string
+        input_summary:
+          type: string
+          description: 'Truncated, redacted summary of the workflow input — safe
+
+            to display in audit listings without leaking PII or
+
+            secrets. Full input is in the per-step ExecutionSnapshot
+
+            records.
+
+            '
+        output_summary:
+          type: string
+          description: 'Truncated, redacted summary of the workflow''s final
+
+            output. Same redaction posture as `input_summary`.
+
+            '
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    TimelineEntry:
+      type: object
+      properties:
+        step_index:
+          type: integer
+        step_name:
+          type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - paused
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        has_error:
+          type: boolean
+        has_approval:
+          type: boolean
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

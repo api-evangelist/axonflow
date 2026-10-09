@@ -1,0 +1,685 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Assessments API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Assessments across 2 of this provider''s published API definitions: axonflow-masfeat-api.yaml, axonflow-masfeat-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (via AxonFlow agent proxy)
+- url: http://localhost:8080
+  description: Local Development (agent proxy)
+- url: http://localhost:8081
+  description: Local Development (orchestrator direct, internal only)
+security:
+- OrgHeader: []
+tags:
+- name: Assessments
+  description: FEAT Assessment lifecycle
+paths:
+  /api/v1/masfeat/assessments:
+    post:
+      summary: Create FEAT Assessment
+      description: 'Create a new FEAT assessment for an AI system.
+
+        The system must exist in the registry.'
+      operationId: createAssessment
+      tags:
+      - Assessments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssessmentRequest'
+            example:
+              system_id: credit-scoring-ai-v1
+              assessment_type: initial
+              assessors:
+              - assessor1@example.com
+              - assessor2@example.com
+      responses:
+        '201':
+          description: Assessment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FEATAssessment'
+        '400':
+          description: Invalid request or missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: System not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: List FEAT Assessments
+      description: 'List FEAT assessments for the organization.
+
+
+        The response wraps the results in an object with an `assessments`
+
+        array and a `count` of returned items.'
+      operationId: listAssessments
+      tags:
+      - Assessments
+      parameters:
+      - name: system_id
+        in: query
+        description: Filter by system ID
+        schema:
+          type: string
+      - name: status
+        in: query
+        description: Filter by assessment status
+        schema:
+          type: string
+          enum:
+          - pending
+          - in_progress
+          - completed
+          - approved
+          - rejected
+      - name: limit
+        in: query
+        description: Maximum number of results (default 50, capped at 1000)
+        schema:
+          type: integer
+          default: 50
+          maximum: 1000
+      - name: offset
+        in: query
+        description: Offset for pagination
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: List of assessments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentListResponse'
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/assessments/{id}:
+    get:
+      summary: Get FEAT Assessment
+      description: Get details of a specific FEAT assessment.
+      operationId: getAssessment
+      tags:
+      - Assessments
+      parameters:
+      - $ref: '#/components/parameters/AssessmentID'
+      responses:
+        '200':
+          description: Assessment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FEATAssessment'
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update FEAT Assessment
+      description: 'Update a FEAT assessment with pillar scores, structured pillar
+
+        details, findings, and recommendations. Only `pending` and
+
+        `in_progress` assessments can be updated.
+
+
+        When scores are first recorded, the assessment auto-transitions
+
+        from `pending` to `in_progress`. The overall score is automatically
+
+        calculated when all four pillar scores are provided.'
+      operationId: updateAssessment
+      tags:
+      - Assessments
+      parameters:
+      - $ref: '#/components/parameters/AssessmentID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssessmentRequest'
+            example:
+              fairness_score: 85.0
+              ethics_score: 90.0
+              accountability_score: 80.0
+              transparency_score: 75.0
+              fairness_details:
+                score: 85.0
+                status: compliant
+                notes: Bias testing completed with 0.05% disparity
+              findings:
+              - id: finding-001
+                pillar: fairness
+                severity: minor
+                category: bias
+                description: Minor bias detected in age group 65+
+                remediation: Implement additional bias mitigation
+                status: open
+              recommendations:
+              - Implement additional bias mitigation
+      responses:
+        '200':
+          description: Assessment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FEATAssessment'
+        '400':
+          description: Invalid request, assessment not editable, or missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/assessments/{id}/submit:
+    post:
+      summary: Submit Assessment for Review
+      description: 'Submit a FEAT assessment for review, transitioning it to `completed`.
+
+        The assessment must be in `pending` or `in_progress` status with all
+
+        four pillar scores recorded. No request body is expected; the
+
+        submitter is taken from the `X-User-ID` / `X-User-Email` header.'
+      operationId: submitAssessment
+      tags:
+      - Assessments
+      parameters:
+      - $ref: '#/components/parameters/AssessmentID'
+      responses:
+        '200':
+          description: Assessment submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FEATAssessment'
+        '400':
+          description: Cannot submit assessment (invalid state or missing scores)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/assessments/{id}/approve:
+    post:
+      summary: Approve Assessment
+      description: 'Approve a completed FEAT assessment. No request body is expected;
+
+        the approver identity is taken from the `X-User-ID` / `X-User-Email`
+
+        header. Approval also stamps the registered system''s
+
+        `last_assessment_date` and computes `next_assessment_due` from its
+
+        materiality (high: 6 months, medium: 1 year, low: 2 years).'
+      operationId: approveAssessment
+      tags:
+      - Assessments
+      parameters:
+      - $ref: '#/components/parameters/AssessmentID'
+      responses:
+        '200':
+          description: Assessment approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FEATAssessment'
+        '400':
+          description: Cannot approve assessment (invalid state)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/assessments/{id}/reject:
+    post:
+      summary: Reject Assessment
+      description: 'Reject a completed FEAT assessment. The reviewer identity is taken
+
+        from the `X-User-ID` / `X-User-Email` header; the body carries only
+
+        the rejection reason.'
+      operationId: rejectAssessment
+      tags:
+      - Assessments
+      parameters:
+      - $ref: '#/components/parameters/AssessmentID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectAssessmentRequest'
+            example:
+              reason: Fairness evidence insufficient for high-materiality system
+      responses:
+        '200':
+          description: Assessment rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FEATAssessment'
+        '400':
+          description: Cannot reject assessment (invalid state or missing reason)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+components:
+  schemas:
+    CriterionAssessment:
+      type: object
+      description: Assessment of a specific FEAT criterion
+      properties:
+        criterion_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        status:
+          type: string
+          enum:
+          - met
+          - partial
+          - not_met
+          - not_applicable
+        evidence:
+          type: string
+        notes:
+          type: string
+    EvidenceItem:
+      type: object
+      description: Evidence supporting FEAT assessment claims
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+          - document
+          - test_result
+          - audit_log
+          - model_card
+        title:
+          type: string
+        description:
+          type: string
+        file_path:
+          type: string
+        url:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+        uploaded_by:
+          type: string
+    PillarAssessment:
+      type: object
+      description: Structured detail for a single FEAT pillar
+      properties:
+        score:
+          type: number
+          format: double
+          description: Pillar score (0-100)
+        status:
+          type: string
+          enum:
+          - compliant
+          - partial
+          - non_compliant
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/CriterionAssessment'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceItem'
+        notes:
+          type: string
+    Finding:
+      type: object
+      description: A FEAT assessment finding
+      properties:
+        id:
+          type: string
+        pillar:
+          type: string
+          enum:
+          - fairness
+          - ethics
+          - accountability
+          - transparency
+        severity:
+          type: string
+          enum:
+          - critical
+          - major
+          - minor
+          - observation
+        category:
+          type: string
+        description:
+          type: string
+        remediation:
+          type: string
+        status:
+          type: string
+          enum:
+          - open
+          - resolved
+          - accepted
+        due_date:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+    UpdateAssessmentRequest:
+      type: object
+      properties:
+        fairness_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Fairness pillar score (0-100)
+        ethics_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Ethics pillar score (0-100)
+        accountability_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Accountability pillar score (0-100)
+        transparency_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Transparency pillar score (0-100)
+        fairness_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        ethics_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        accountability_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        transparency_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+        recommendations:
+          type: array
+          items:
+            type: string
+        assessors:
+          type: array
+          items:
+            type: string
+    RejectAssessmentRequest:
+      type: object
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          description: Rejection reason
+    CreateAssessmentRequest:
+      type: object
+      required:
+      - system_id
+      properties:
+        system_id:
+          type: string
+          description: ID of the AI system to assess
+        assessment_type:
+          type: string
+          enum:
+          - initial
+          - periodic
+          - ad_hoc
+          default: periodic
+          description: Type of assessment
+        assessors:
+          type: array
+          items:
+            type: string
+          description: List of assessor emails
+    FEATAssessment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        system_id:
+          type: string
+        assessment_type:
+          type: string
+          enum:
+          - initial
+          - periodic
+          - ad_hoc
+        status:
+          type: string
+          enum:
+          - pending
+          - in_progress
+          - completed
+          - approved
+          - rejected
+        version:
+          type: integer
+          description: Assessment record version
+        assessment_date:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        fairness_score:
+          type: number
+          format: double
+        ethics_score:
+          type: number
+          format: double
+        accountability_score:
+          type: number
+          format: double
+        transparency_score:
+          type: number
+          format: double
+        overall_score:
+          type: number
+          format: double
+          description: Average of the four pillar scores; computed once all four are recorded
+        fairness_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        ethics_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        accountability_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        transparency_details:
+          $ref: '#/components/schemas/PillarAssessment'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+        recommendations:
+          type: array
+          items:
+            type: string
+        assessors:
+          type: array
+          items:
+            type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        submitted_at:
+          type: string
+          format: date-time
+        submitted_by:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+        approved_by:
+          type: string
+        rejected_at:
+          type: string
+          format: date-time
+        rejected_by:
+          type: string
+        rejection_reason:
+          type: string
+    AssessmentListResponse:
+      type: object
+      properties:
+        assessments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FEATAssessment'
+        count:
+          type: integer
+          description: Number of assessments returned
+  parameters:
+    AssessmentID:
+      name: id
+      in: path
+      required: true
+      description: Assessment record ID (UUID)
+      schema:
+        type: string
+        format: uuid
+  securitySchemes:
+    OrgHeader:
+      type: apiKey
+      in: header
+      name: X-Org-ID
+      description: 'Organization ID (required). `X-Tenant-ID` is accepted as a fallback.
+
+        Requests without either header are rejected with HTTP 400.
+
+        '
+    UserHeader:
+      type: apiKey
+      in: header
+      name: X-User-ID
+      description: 'Acting user for audit attribution (optional). `X-User-Email` is
+
+        accepted as a fallback; when absent, actions are attributed to
+
+        `"system"`.
+
+        '
+x-refined-from:
+- axonflow-masfeat-api.yaml
+- axonflow-masfeat-openapi.yml

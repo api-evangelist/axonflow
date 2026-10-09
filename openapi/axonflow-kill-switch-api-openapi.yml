@@ -1,0 +1,429 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Kill Switch API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Kill Switch across 2 of this provider''s published API definitions: axonflow-masfeat-api.yaml, axonflow-masfeat-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://agent.getaxonflow.com
+  description: Production (via AxonFlow agent proxy)
+- url: http://localhost:8080
+  description: Local Development (agent proxy)
+- url: http://localhost:8081
+  description: Local Development (orchestrator direct, internal only)
+security:
+- OrgHeader: []
+tags:
+- name: Kill Switch
+  description: Emergency system disable mechanism
+paths:
+  /api/v1/masfeat/killswitch/{system_id}:
+    get:
+      summary: Get Kill Switch Status
+      description: 'Get the kill switch status for an AI system.
+
+        Creates a new kill switch with default settings if one doesn''t exist.'
+      operationId: getKillSwitch
+      tags:
+      - Kill Switch
+      parameters:
+      - $ref: '#/components/parameters/KillSwitchSystemID'
+      responses:
+        '200':
+          description: Kill switch status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KillSwitch'
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/killswitch/{system_id}/configure:
+    post:
+      summary: Configure Kill Switch Thresholds
+      description: 'Configure auto-trigger thresholds for the kill switch.
+
+
+        When enabled, the kill switch will automatically trigger if:
+
+        - Accuracy falls below `accuracy_threshold`
+
+        - Bias score exceeds `bias_threshold`
+
+        - Error rate exceeds `error_rate_threshold`
+
+
+        Threshold evaluation runs inside the platform''s monitoring loop;
+
+        there is no public endpoint for submitting metrics.'
+      operationId: configureKillSwitch
+      tags:
+      - Kill Switch
+      parameters:
+      - $ref: '#/components/parameters/KillSwitchSystemID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigureKillSwitchRequest'
+            example:
+              auto_trigger_enabled: true
+              accuracy_threshold: 0.85
+              bias_threshold: 0.15
+              error_rate_threshold: 0.05
+      responses:
+        '200':
+          description: Kill switch configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KillSwitch'
+        '400':
+          description: Invalid threshold values or missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/killswitch/{system_id}/trigger:
+    post:
+      summary: Manually Trigger Kill Switch
+      description: 'Manually trigger the kill switch for an AI system. The person
+
+        triggering is taken from the `X-User-ID` / `X-User-Email` header.'
+      operationId: triggerKillSwitch
+      tags:
+      - Kill Switch
+      parameters:
+      - $ref: '#/components/parameters/KillSwitchSystemID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerKillSwitchRequest'
+            example:
+              reason: Model drift detected in production scoring
+      responses:
+        '200':
+          description: Kill switch triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KillSwitchActionResponse'
+              example:
+                message: Kill switch triggered successfully
+                kill_switch:
+                  system_id: credit-scoring-ai-v1
+                  status: triggered
+        '400':
+          description: Invalid request or missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Kill switch already triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/killswitch/{system_id}/restore:
+    post:
+      summary: Restore Kill Switch
+      description: 'Restore a triggered kill switch back to enabled status. The person
+
+        restoring is taken from the `X-User-ID` / `X-User-Email` header.'
+      operationId: restoreKillSwitch
+      tags:
+      - Kill Switch
+      parameters:
+      - $ref: '#/components/parameters/KillSwitchSystemID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreKillSwitchRequest'
+            example:
+              reason: Model retrained and revalidated
+      responses:
+        '200':
+          description: Kill switch restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KillSwitchActionResponse'
+              example:
+                message: Kill switch restored successfully
+                kill_switch:
+                  system_id: credit-scoring-ai-v1
+                  status: enabled
+        '400':
+          description: Kill switch not in triggered state or missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Kill switch not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+  /api/v1/masfeat/killswitch/{system_id}/history:
+    get:
+      summary: Get Kill Switch History
+      description: 'Get the state-change history for a kill switch.
+
+
+        The response wraps the results in an object with a `history` array
+
+        and a `count` of returned items.'
+      operationId: getKillSwitchHistory
+      tags:
+      - Kill Switch
+      parameters:
+      - $ref: '#/components/parameters/KillSwitchSystemID'
+      - name: limit
+        in: query
+        description: Maximum number of results (default 50)
+        schema:
+          type: integer
+          default: 50
+      responses:
+        '200':
+          description: Kill switch state-change history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KillSwitchHistoryResponse'
+        '400':
+          description: Missing X-Org-ID / X-Tenant-ID header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    servers:
+    - url: https://agent.getaxonflow.com
+      description: Production (via AxonFlow agent proxy)
+    - url: http://localhost:8080
+      description: Local Development (agent proxy)
+    - url: http://localhost:8081
+      description: Local Development (orchestrator direct, internal only)
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+    KillSwitchActionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Human-readable action result
+        kill_switch:
+          $ref: '#/components/schemas/KillSwitch'
+    TriggerKillSwitchRequest:
+      type: object
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          description: Reason for triggering
+    KillSwitch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        system_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - enabled
+          - disabled
+          - triggered
+        trigger_reason:
+          type: string
+          description: Reason recorded when the kill switch was triggered
+        trigger_conditions:
+          type: object
+          additionalProperties: true
+        auto_trigger_enabled:
+          type: boolean
+        accuracy_threshold:
+          type: number
+          format: double
+        bias_threshold:
+          type: number
+          format: double
+        error_rate_threshold:
+          type: number
+          format: double
+        triggered_at:
+          type: string
+          format: date-time
+        triggered_by:
+          type: string
+        restored_at:
+          type: string
+          format: date-time
+        restored_by:
+          type: string
+        restore_reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ConfigureKillSwitchRequest:
+      type: object
+      properties:
+        auto_trigger_enabled:
+          type: boolean
+          description: Enable automatic triggering on threshold breach
+        accuracy_threshold:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Minimum accuracy threshold (0-1)
+        bias_threshold:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Maximum bias threshold (0-1)
+        error_rate_threshold:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Maximum error rate threshold (0-1)
+        trigger_conditions:
+          type: object
+          additionalProperties: true
+          description: Additional structured trigger conditions
+    KillSwitchHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/KillSwitchHistory'
+        count:
+          type: integer
+          description: Number of history entries returned
+    KillSwitchHistory:
+      type: object
+      description: A kill switch state-change event
+      properties:
+        id:
+          type: string
+          format: uuid
+        kill_switch_id:
+          type: string
+        action:
+          type: string
+          enum:
+          - triggered
+          - restored
+          - enabled
+          - disabled
+        previous_status:
+          type: string
+        new_status:
+          type: string
+        reason:
+          type: string
+        performed_by:
+          type: string
+        performed_at:
+          type: string
+          format: date-time
+    RestoreKillSwitchRequest:
+      type: object
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          description: Reason for restoration
+  parameters:
+    KillSwitchSystemID:
+      name: system_id
+      in: path
+      required: true
+      description: Caller-chosen AI system identifier (the `system_id` used at registration)
+      schema:
+        type: string
+  securitySchemes:
+    OrgHeader:
+      type: apiKey
+      in: header
+      name: X-Org-ID
+      description: 'Organization ID (required). `X-Tenant-ID` is accepted as a fallback.
+
+        Requests without either header are rejected with HTTP 400.
+
+        '
+    UserHeader:
+      type: apiKey
+      in: header
+      name: X-User-ID
+      description: 'Acting user for audit attribution (optional). `X-User-Email` is
+
+        accepted as a fallback; when absent, actions are attributed to
+
+        `"system"`.
+
+        '
+x-refined-from:
+- axonflow-masfeat-api.yaml
+- axonflow-masfeat-openapi.yml

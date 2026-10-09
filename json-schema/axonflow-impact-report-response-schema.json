@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-impact-report-response-schema.json",
+  "title": "ImpactReportResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-policy-openapi.yml#/components/schemas/ImpactReportResponse",
+  "type": "object",
+  "properties": {
+    "policy_id": {
+      "type": "string"
+    },
+    "policy_name": {
+      "type": "string"
+    },
+    "total_inputs": {
+      "type": "integer"
+    },
+    "matched": {
+      "type": "integer",
+      "description": "Number of inputs that matched the policy"
+    },
+    "blocked": {
+      "type": "integer",
+      "description": "Number of inputs that would be blocked"
+    },
+    "match_rate": {
+      "type": "number",
+      "format": "float"
+    },
+    "block_rate": {
+      "type": "number",
+      "format": "float"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ImpactReportResult"
+      }
+    },
+    "processing_time_ms": {
+      "type": "integer",
+      "format": "int64"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tier": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "ImpactReportResult": {
+      "type": "object",
+      "properties": {
+        "input_index": {
+          "type": "integer"
+        },
+        "matched": {
+          "type": "boolean"
+        },
+        "blocked": {
+          "type": "boolean"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Action types that would trigger for this input"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,111 @@
+generated: '2026-10-09'
+method: searched
+source:
+- https://docs.getaxonflow.com/docs/sdk/authentication/
+- https://docs.getaxonflow.com/docs/api/auth-header-matrix/
+- openapi/axonflow-agent-openapi.yml
+- openapi/axonflow-masfeat-openapi.yml
+- openapi/axonflow-orchestrator-openapi.yml
+summary:
+  types:
+  - apiKey
+  - http
+  api_key_in:
+  - header
+schemes:
+- name: BasicAuth
+  type: http
+  scheme: basic
+  description: 'OAuth2-style Basic authentication using `clientId:clientSecret` credentials.
+
+
+    **Header format:** `Authorization: Basic base64(clientId:clientSecret)`
+
+
+    - `clientId` (required): Your organization/client identifier
+
+    - `clientSecret` (optional): Authentication credential. Optional for community/self-hosted mode.
+
+
+    **Example:**
+
+    ```bash
+
+    # With clientSecret (enterprise)
+
+    curl -H "Authorization: Basic $(echo'
+  sources:
+  - openapi/axonflow-agent-openapi.yml
+  - openapi/axonflow-orchestrator-openapi.yml
+- name: InternalServiceID
+  type: apiKey
+  in: header
+  parameter: X-Internal-Service-ID
+  description: 'Internal-service (operator lane) credential — **part one of two**.
+
+    Must be sent together with `X-Internal-Service-Token`; either header
+
+    alone is not a credential.
+
+
+    This is the HMAC identity the Orchestrator and the Enterprise
+
+    customer-portal use to call agent endpoints without holding a
+
+    customer license. `apiAuthMiddleware` lifts both headers (plus an
+
+    optional `X-Tenant-ID` scope) into `AuthHints`'
+  sources:
+  - openapi/axonflow-agent-openapi.yml
+- name: InternalServiceToken
+  type: apiKey
+  in: header
+  parameter: X-Internal-Service-Token
+  description: 'Internal-service (operator lane) credential — **part two of two**.
+
+    Must be sent together with `X-Internal-Service-ID`.
+
+
+    Format: `AXON-INTERNAL-{unix_ts}-{sig}`, where `sig` is the first 16
+
+    hex characters of HMAC-SHA256 over `orchestrator-internal:{unix_ts}`
+
+    keyed with `AXONFLOW_INTERNAL_SERVICE_SECRET`. Validated by
+
+    `platform/shared/serviceauth` within a 5-minute clock-skew window, so
+
+    it must be r'
+  sources:
+  - openapi/axonflow-agent-openapi.yml
+- name: OrgHeader
+  type: apiKey
+  in: header
+  parameter: X-Org-ID
+  description: 'Organization ID (required). `X-Tenant-ID` is accepted as a fallback.
+
+    Requests without either header are rejected with HTTP 400.'
+  sources:
+  - openapi/axonflow-masfeat-openapi.yml
+- name: UserHeader
+  type: apiKey
+  in: header
+  parameter: X-User-ID
+  description: 'Acting user for audit attribution (optional). `X-User-Email` is
+
+    accepted as a fallback; when absent, actions are attributed to
+
+    `"system"`.'
+  sources:
+  - openapi/axonflow-masfeat-openapi.yml
+- name: BearerAuth
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+  description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+  sources:
+  - openapi/axonflow-orchestrator-openapi.yml
+docs: https://docs.getaxonflow.com/docs/sdk/authentication/
+docs_summary: 'AxonFlow uses OAuth2-style Basic authentication for all deployments: Authorization: Basic base64(clientId:clientSecret).
+  The client secret is optional in community mode and required in enterprise deployments. Community SaaS requests may add
+  X-License-Token (AXON-...) with X-Axonflow-Client set automatically by the SDKs. AWS Marketplace credentials are generated
+  at deployment and stored in AWS Secrets Manager at axonflow/customers/{your-org-id}/credentials.'

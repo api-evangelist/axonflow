@@ -1,0 +1,19 @@
+generated: '2026-10-09'
+method: searched
+source:
+- https://docs.getaxonflow.com/docs/sdk/version-compatibility/
+- https://docs.getaxonflow.com/docs/api/auth-header-matrix/
+- https://docs.getaxonflow.com/docs/api/error-codes/
+name: AxonFlow API Lifecycle
+versioning:
+  scheme: semver
+  current_platform_version: 11.1.0
+  policy: AxonFlow SDKs and the AxonFlow platform are versioned independently but follow a coordinated release cadence. SDKs are backward compatible -- an older SDK works against a newer platform for all features the SDK already supports. SDKs are not forward compatible.
+  discovery: GET /health returns version and a capabilities list (since platform v4.8.0 and SDK v3.8.0)
+  docs: https://docs.getaxonflow.com/docs/sdk/version-compatibility/
+deprecation:
+  policy: No formal deprecation window is published. Deprecations are announced in release notes; v11 legacy policy endpoints accept no writes and carry deprecation headers, and X-Tenant-ID is accepted as a deprecated alias that logs a deprecation warning.
+  deprecated_operations_in_contract: 90
+  changelog: https://docs.getaxonflow.com/docs/releases/
+status_page: null
+sla: Custom SLAs are listed only on the Enterprise Plus plan (https://getaxonflow.com/pricing/); the product is self-hosted.

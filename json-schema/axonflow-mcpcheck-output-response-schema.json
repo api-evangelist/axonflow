@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-mcpcheck-output-response-schema.json",
+  "title": "MCPCheckOutputResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-agent-openapi.yml#/components/schemas/MCPCheckOutputResponse",
+  "type": "object",
+  "properties": {
+    "allowed": {
+      "type": "boolean",
+      "description": "Whether the output passed all policy checks"
+    },
+    "block_reason": {
+      "type": "string",
+      "description": "Human-readable reason if blocked (omitted when allowed)"
+    },
+    "redacted_data": {
+      "description": "Response data with PII fields masked. For query-style checks\n(tabular `response_data`) this carries the masked rows; for\nexecute-style checks (`message`) it carries the masked message\nstring. Omitted if no redaction was needed.\n\n⚠️ **Contract pending (#2870):** unlike the `/api/v1/mcp-server`\nJSON-RPC `check_output` tool (which returns a separate\n`redacted_message` field), this standalone REST endpoint returns\nonly `redacted_data` — it never emits `redacted_message`, even\nthough several SDK response types model that field. Do not rely\non `redacted_message` here until #2870 lands. Source of truth:\n`platform/agent/mcp_handler.go` (MCPCheckOutputResponse).\n"
+    },
+    "policies_evaluated": {
+      "type": "integer",
+      "description": "Total number of policies evaluated"
+    },
+    "exfiltration_info": {
+      "$ref": "#/$defs/ExfiltrationCheckInfo"
+    },
+    "policy_info": {
+      "$ref": "#/$defs/PolicyInfo"
+    },
+    "decision_id": {
+      "type": "string",
+      "description": "Unique audit correlator for this policy decision."
+    },
+    "redaction_evaluated": {
+      "type": "boolean",
+      "description": "Whether the response-phase redaction pipeline actually ran\n(#2865). Mirrors MCPCheckInputResponse.redaction_evaluated for the\nresponse leg. A PEP fulfilling a response-phase redact_pii\nobligation MUST fail closed when this is false/absent — the\nredactor did not run (detection disabled for the connector, or no\npolicy engine), so absence of `redacted_data` cannot be trusted as\n\"nothing to mask.\" Omitted (false) preserves the pre-#2865 shape.\n"
+    },
+    "engine": {
+      "type": "string",
+      "enum": [
+        "anchored"
+      ],
+      "description": "Which policy engine authored this verdict: the ADR-065 decision\nplane, the only author on this route (PRD v11 §1.1).\nIt rides this body and the 403 envelope of a refusal by the\nsame pass. Omitted\non a refusal no engine decided - an authentication failure, or a\nrequest refused before the policy pass ran.\n"
+    },
+    "subject_type": {
+      "type": "string",
+      "description": "The type of principal the verdict was decided for (PRD v11 §1.6):\n`User` for a verified user token, `Client` when the request\npresented no user identity and its client credential is the\nprincipal. Omitted wherever `engine` is.\n"
+    },
+    "policy_bundle": {
+      "type": "string",
+      "description": "The digest of the policy set that decided: the system corpus's\nrestriction for this route and the organization root - the\norganization's active typed document composed with the\ndeployment's baseline permission pack, or, while it has published\nnothing, the implicit bundle of that pack and the organization\ntemplate. A rollback reinstates an earlier digest. Omitted wherever\n`engine` is.\n"
+    },
+    "policy_packs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The add-on policy packs (PRD v11 §1.9) whose controls composed\ninto `policy_bundle` on the response pass, each as `<pack id>@<digest\nof the pack document the deployment instantiated>`, sorted. Omitted\nwhen the deployment installs no pack or none binds on this route.\n"
+    },
+    "legacy_validators": {
+      "type": "array",
+      "description": "A checksum validator that acted BEFORE the anchored engine decided\n(#4122): under an organization's recorded `pii=block` or\n`pii=redact` detection override, the Indonesia or India validator\nblocked the request or masked the response ahead of the decision\nplane. Omitted when none did, which is every request without\nsuch an override.\n",
+      "items": {
+        "type": "object",
+        "required": [
+          "validator",
+          "action"
+        ],
+        "properties": {
+          "validator": {
+            "type": "string",
+            "enum": [
+              "indonesia_pii",
+              "india_pii"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "masked"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ExfiltrationCheckInfo": {
+      "type": "object",
+      "description": "Information about exfiltration limit checks (v3.2.0+)",
+      "properties": {
+        "rows_returned": {
+          "type": "integer",
+          "description": "Number of rows in the response"
+        },
+        "row_limit": {
+          "type": "integer",
+          "description": "Configured row limit (MCP_MAX_ROWS_PER_QUERY)"
+        },
+        "bytes_returned": {
+          "type": "integer",
+          "description": "Response size in bytes"
+        },
+        "byte_limit": {
+          "type": "integer",
+          "description": "Configured byte limit (MCP_MAX_BYTES_PER_QUERY)"
+        },
+        "within_limits": {
+          "type": "boolean",
+          "description": "True when the response stayed within every configured limit"
+        }
+      }
+    },
+    "PolicyInfo": {
+      "type": "object",
+      "description": "Policy evaluation information included in MCP responses",
+      "properties": {
+        "policies_evaluated": {
+          "type": "integer",
+          "description": "Number of policies evaluated during request/response processing"
+        },
+        "blocked": {
+          "type": "boolean",
+          "description": "Whether the request was blocked by policy"
+        },
+        "block_reason": {
+          "type": "string",
+          "description": "Reason if the request was blocked"
+        },
+        "redactions_applied": {
+          "type": "integer",
+          "description": "Number of field redactions applied to the response"
+        },
+        "processing_time_ms": {
+          "type": "integer",
+          "description": "Time spent on policy evaluation in milliseconds"
+        },
+        "matched_policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PolicyMatchInfo"
+          },
+          "description": "Policies that matched during evaluation"
+        },
+        "exfiltration_check": {
+          "$ref": "#/$defs/ExfiltrationCheckInfo"
+        }
+      }
+    },
+    "PolicyMatchInfo": {
+      "type": "object",
+      "description": "Information about a policy match during evaluation",
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "description": "Unique policy identifier"
+        },
+        "policy_name": {
+          "type": "string",
+          "description": "Human-readable policy name"
+        },
+        "category": {
+          "type": "string",
+          "description": "Policy category (e.g., \"pii-us\", \"security-sqli\")"
+        },
+        "severity": {
+          "type": "string",
+          "description": "Match severity (low, medium, high, critical)"
+        },
+        "action": {
+          "type": "string",
+          "description": "Action taken (block, redact, warn, log)"
+        }
+      }
+    }
+  }
+}

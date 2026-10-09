@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-create-registry-request-schema.json",
+  "title": "CreateRegistryRequest",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-masfeat-openapi.yml#/components/schemas/CreateRegistryRequest",
+  "type": "object",
+  "required": [
+    "system_id",
+    "system_name",
+    "use_case",
+    "risk_rating_impact",
+    "risk_rating_complexity",
+    "risk_rating_reliance",
+    "owner_team",
+    "owner_email"
+  ],
+  "properties": {
+    "system_id": {
+      "type": "string",
+      "description": "Unique identifier for the AI system"
+    },
+    "system_name": {
+      "type": "string",
+      "description": "Human-readable name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the AI system"
+    },
+    "use_case": {
+      "type": "string",
+      "enum": [
+        "credit_scoring",
+        "robo_advisory",
+        "insurance_underwriting",
+        "trading_algorithm",
+        "aml_cft",
+        "customer_service",
+        "fraud_detection",
+        "other"
+      ],
+      "description": "Primary use case category"
+    },
+    "risk_rating_impact": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Customer impact rating (1-5)"
+    },
+    "risk_rating_complexity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Model complexity rating (1-5)"
+    },
+    "risk_rating_reliance": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Human reliance rating (1-5)"
+    },
+    "owner_team": {
+      "type": "string",
+      "description": "Team responsible for the system"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Email of the system owner"
+    },
+    "data_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Data sources consumed by the system"
+    },
+    "model_type": {
+      "type": "string",
+      "description": "Model type (e.g. gradient_boosting, llm, rules_engine)"
+    },
+    "version": {
+      "type": "string",
+      "description": "System/model version"
+    }
+  }
+}

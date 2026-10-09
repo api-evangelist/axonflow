@@ -1,0 +1,2632 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Workflow Control Plane API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Workflow Control Plane across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Workflow Control Plane
+  description: 'Governance gates for external orchestrators (LangChain, LangGraph, CrewAI).
+
+    "LangChain runs the workflow. AxonFlow decides when it''s allowed to move forward."
+
+
+    Features:
+
+    - Register workflows from external orchestrators
+
+    - Check step gates before each workflow step
+
+    - Apply policies at step transitions (allow/block/require_approval)
+
+    - Track workflow lifecycle (in_progress/completed/aborted/failed)'
+paths:
+  /api/v1/workflows:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Create a workflow
+      description: 'Register a new workflow from an external orchestrator (LangChain, LangGraph, CrewAI).
+
+        Returns a workflow_id to use for subsequent step gate checks.'
+      operationId: createControlPlaneWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowRequest'
+            example:
+              workflow_name: code-review-pipeline
+              source: langgraph
+              metadata:
+                environment: production
+                team: engineering
+      responses:
+        '201':
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateWorkflowResponse'
+              example:
+                workflow_id: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+                workflow_name: code-review-pipeline
+                status: in_progress
+                started_at: '2026-01-17T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/TripletBadRequest'
+    get:
+      tags:
+      - Workflow Control Plane
+      summary: List workflows
+      description: List workflows with optional filters
+      operationId: listControlPlaneWorkflows
+      parameters:
+      - name: status
+        in: query
+        description: Filter by status
+        schema:
+          type: string
+          enum:
+          - in_progress
+          - completed
+          - aborted
+          - failed
+      - name: source
+        in: query
+        description: Filter by source
+        schema:
+          type: string
+          enum:
+          - langgraph
+          - langchain
+          - crewai
+          - external
+      - name: limit
+        in: query
+        description: Maximum number of workflows to return
+        schema:
+          type: integer
+          default: 50
+          minimum: 1
+          maximum: 100
+      - name: offset
+        in: query
+        description: Number of workflows to skip
+        schema:
+          type: integer
+          default: 0
+      - name: trace_id
+        in: query
+        description: Filter by external trace ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWorkflowsResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}:
+    get:
+      tags:
+      - Workflow Control Plane
+      summary: Get workflow status
+      description: Get the current status of a workflow including all step decisions
+      operationId: getControlPlaneWorkflow
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+        example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+      responses:
+        '200':
+          description: Workflow status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowStatusResponse'
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/steps/{step_id}/gate:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Check step gate
+      description: 'Check if a workflow step is allowed to proceed.
+
+        Returns a decision (allow/block/require_approval) based on policy evaluation.
+
+
+        Call this BEFORE executing each step in your external orchestrator.
+
+
+        The step''s input is the content the decision is made over, whole: every
+
+        key and every string value of `step_input`, and with a `tool_context` of
+
+        `tool_input` after it, as the text itself (unescaped, one per line, keys
+
+        in sorted order; numbers and booleans as their JSON value, so `1.50` is
+
+        presented as `1.5`). A content control
+
+        therefore sees a newline in a value as a newline, and a pattern may match
+
+        across a key and its value, which can only withhold. A step with no input
+
+        presents no content. A request body over 1 MiB is refused `413` before
+
+        it is read as a step.
+
+
+        The response always includes a `retry_context` block (Issue #1673 Phase 1)
+
+        carrying first-class retry state: gate count, prior completion status,
+
+        first/last attempt timestamps, last decision, and the idempotency_key.
+
+        Callers that need to unambiguously detect retries or uncertain-territory
+
+        scenarios should prefer `retry_context` over the deprecated `cached`
+
+        boolean.'
+      operationId: checkStepGate
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+        example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+      - name: step_id
+        in: path
+        required: true
+        description: Step ID (unique within workflow)
+        schema:
+          type: string
+        example: step-1
+      - name: include_prior_output
+        in: query
+        required: false
+        description: 'Opt-in (Issue #1673 Phase 1) — when `true` and a prior /complete
+
+          landed for this step, `retry_context.prior_output` is populated
+
+          with the stored output so the agent can short-circuit re-execution.
+
+          Default `false` because prior output may be large or sensitive.
+
+          '
+        schema:
+          type: boolean
+          default: false
+        example: true
+      - name: X-User-Email
+        in: header
+        required: false
+        description: 'Caller identity used to resolve the governance-segment
+
+          memberships that decide which segment-scoped policies apply to
+
+          this evaluation (#3281). The orchestrator honours it only over
+
+          the internal-service proxy-auth channel; whether a CLIENT can
+
+          assert it through the agent depends on the agent''s identity
+
+          trust gate. Gate OFF (`AXONFLOW_TRUST_IDENTITY_HEADERS` unset,
+
+          or any value other than the whitespace-trimmed exact string `true` - the default):
+
+          the agent strips a client-supplied value before forwarding, so
+
+          a client cannot assert it. Gate ON: a client-supplied value is
+
+          forwarded sanitized - the deployment''s trust declaration, not
+
+          the platform, then carries the precondition that every hop
+
+          re-stamps identity headers from a source the end user cannot
+
+          edit. In both postures an `X-User-Token` the agent validates
+
+          overwrites this header with the token''s resolved identity.
+
+          Omitting it is not an error, but the decision is then computed
+
+          with no verified identity and degrades to org-only evaluation,
+
+          in which segment-scoped policies do not apply and only
+
+          org-wide ones enforce.
+
+          '
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepGateRequest'
+            example:
+              step_name: Generate Code
+              step_type: llm_call
+              model: gpt-4
+              provider: openai
+              step_input:
+                prompt: Write a function to sort a list
+      responses:
+        '200':
+          description: Gate decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepGateResponse'
+              examples:
+                allowed:
+                  summary: Step allowed
+                  value:
+                    decision: allow
+                    step_id: step-1
+                    decision_id: dec_xyz789
+                blocked:
+                  summary: Step blocked
+                  value:
+                    decision: block
+                    step_id: step-1
+                    reason: GPT-4 not allowed in production workflows
+                    policy_ids:
+                    - policy_gpt4_block
+                blocked_segment_resolution_failed:
+                  summary: Step blocked fail-closed (governance segments could not be resolved)
+                  description: 'A NEW refusal (#3281, ADR-060 #2989). Policy evaluation on this
+
+                    plane resolves the caller''s governance-segment memberships to
+
+                    decide which segment-scoped policies apply. When that resolution
+
+                    genuinely FAILS (the directory backing it is unavailable) the
+
+                    gate denies fail-closed rather than silently evaluating as though
+
+                    the caller had no segments, which would let a segment-scoped
+
+                    restriction lapse exactly when the directory is down.
+
+
+                    Distinguish it from an ordinary policy block by the reserved
+
+                    `policy_ids` value `segment_resolution_failed` - NOT by the
+
+                    human-readable `reason`, which is not a stable interface. It is
+
+                    the same identifier the gateway pre-check plane emits for this
+
+                    condition (#3312).
+
+
+                    A caller with NO verified identity is a different case and is not
+
+                    an error: resolution succeeds with an empty set, the request
+
+                    proceeds org-only, and non-segment-scoped policies still enforce.
+
+
+                    Retriable: this signals unavailability, not a durable denial.
+
+                    '
+                  value:
+                    decision: block
+                    step_id: step-1
+                    reason: 'segment resolution unavailable - request denied (fail-closed, ADR-060 #2989 P3b)'
+                    policy_ids:
+                    - segment_resolution_failed
+                approval_required:
+                  summary: Approval required
+                  value:
+                    decision: require_approval
+                    step_id: step-1
+                    reason: Human approval required for deployment steps
+                    approval_url: https://portal.axonflow.com/approvals/abc123
+        '400':
+          description: 'Bad request — missing step_type, invalid retry_policy, or
+
+            idempotency_key exceeds 255 characters.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+        '404':
+          description: 'The workflow, step or gate named by the path does not exist within
+
+            the caller''s tenancy.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+        '409':
+          description: '`IDEMPOTENCY_KEY_MISMATCH` (Issue #1673 Phase 2) — the supplied
+
+            `idempotency_key` does not match the one recorded on the step''s
+
+            earlier /gate call. `expected_idempotency_key` and
+
+            `received_idempotency_key` are always present, empty string when
+
+            one side is absent.
+
+
+            `STEP_INPUT_MISMATCH` (#4249), in the same shape - an idempotent
+
+            retry (the default `retry_policy`), or a first gate that raced
+
+            another for the same step, presents a `step_input` or a
+
+            `tool_context` other than the one the step''s decision was made over,
+
+            compared as values (key order does not matter; an absent
+
+            `step_input` is `{}`; an absent `tool_context` matches only an
+
+            absent one). The decision is never served for other content; send
+
+            `retry_policy: reevaluate` or a new step id. On a step whose
+
+            approval hold is `pending`, `rejected` or `expired`, a
+
+            `reevaluate` is refused `APPROVAL_HOLD` (below), so a new step id
+
+            is the only way to gate other content. Both key fields carry
+
+            the recorded key. The tool context is read from the step''s gate
+
+            checkpoint, which is written best-effort: a tool step whose
+
+            checkpoint was not written is refused rather than served. A first
+
+            gate that raced another is also refused when the other call''s
+
+            checkpoint has not been written yet, whatever tool context it
+
+            presents: until then nothing records what that decision was made
+
+            over.
+
+
+            `APPROVAL_HOLD` (#4249) — the step''s approval hold is `pending`,
+
+            `rejected` or `expired`, and this call would evaluate it afresh
+
+            (`retry_policy: reevaluate`).
+
+            A re-evaluation has no approver, so it never clears a hold: the
+
+            step row is left as it was. An idempotent retry (the default
+
+            `retry_policy`) with the same `step_input` and `tool_context` still
+
+            returns the cached decision. This refusal is
+
+            sent in the triplet envelope (`{error, code, message}`), as the
+
+            gate''s other conflicts (`APPROVAL_PENDING`, `WORKFLOW_TERMINAL`)
+
+            are; the message names the step and its hold.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+              example:
+                error:
+                  code: IDEMPOTENCY_KEY_MISMATCH
+                  message: idempotency_key does not match the key recorded on gate
+                  details:
+                    workflow_id: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+                    step_id: step-1
+                    expected_idempotency_key: payment:wire:invoice-7721
+                    received_idempotency_key: payment:wire:invoice-9999
+        '413':
+          $ref: '#/components/responses/StepRequestTooLarge'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/steps/{step_id}/complete:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Mark step completed
+      description: Mark a workflow step as completed after successful execution. Request body is optional.
+      operationId: markStepCompleted
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+      - name: step_id
+        in: path
+        required: true
+        description: Step ID
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkStepCompletedRequest'
+            example:
+              output:
+                code: 'def sort_list(items): return sorted(items)'
+              tokens_in: 150
+              tokens_out: 45
+              cost_usd: 0.0023
+      responses:
+        '204':
+          description: Step marked completed
+        '400':
+          $ref: '#/components/responses/TripletBadRequest'
+        '404':
+          description: 'The workflow, step or gate named by the path does not exist within
+
+            the caller''s tenancy.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+        '409':
+          description: '`IDEMPOTENCY_KEY_MISMATCH` (Issue #1673 Phase 2) — the supplied
+
+            `idempotency_key` does not match the one recorded on the step''s
+
+            earlier /gate call.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/complete:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Complete workflow
+      description: Mark the workflow as completed
+      operationId: completeControlPlaneWorkflow
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Workflow completed
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/fail:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Mark workflow as failed
+      description: 'Marks the workflow as failed with an optional reason (defaults to
+
+        `Failed` when the body is empty or omitted). Tenant/org scoping comes
+
+        from the `X-Tenant-ID` / `X-Org-ID` headers. Failing a workflow that
+
+        is already in a terminal state returns 409.'
+      operationId: failControlPlaneWorkflow
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for the failure (defaults to "Failed")
+            example:
+              reason: Downstream connector unrecoverable
+      responses:
+        '200':
+          description: Workflow marked as failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workflow_id:
+                    type: string
+                  status:
+                    type: string
+                    example: failed
+                  message:
+                    type: string
+                    example: Workflow marked as failed
+                  reason:
+                    type: string
+        '400':
+          $ref: '#/components/responses/TripletBadRequest'
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+        '409':
+          $ref: '#/components/responses/TripletConflict'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/abort:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Abort workflow
+      description: Abort the workflow with an optional reason
+      operationId: abortControlPlaneWorkflow
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for aborting
+            example:
+              reason: Step blocked by policy
+      responses:
+        '200':
+          description: Workflow aborted
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/resume:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Resume workflow
+      description: Resume a workflow after approval (Enterprise feature)
+      operationId: resumeControlPlaneWorkflow
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Workflow resumed
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/checkpoints:
+    get:
+      tags:
+      - Workflow Control Plane
+      summary: List step-gate checkpoints for a workflow
+      description: 'Returns all checkpoints for a workflow, ordered by step_index.
+
+        Checkpoints are created automatically at each step gate evaluation.
+
+        Available in all tiers (Community, Evaluation, Enterprise).'
+      operationId: getCheckpoints
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of checkpoints
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckpointListResponse'
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/checkpoints/resume:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Resume workflow from last checkpoint (Evaluation and above)
+      description: 'Re-evaluates the step gate at the last resumable checkpoint with
+
+        current policies. The step gate uses retry_policy=reevaluate internally.
+
+
+        Approval holds (#4249): a resume never clears a hold and never reopens a
+
+        workflow an approval rejection or expiry aborted. When any step of the
+
+        workflow holds `rejected` or `expired`, or the checkpoint''s own step holds
+
+        `pending` (on an aborted workflow, any step holding `pending`), the
+
+        resume is refused with 409 `APPROVAL_HOLD` before anything is written,
+
+        and the message names the step and its hold
+
+        (`step holds approval ; a re-evaluation cannot clear it`).
+
+        A workflow aborted for another reason resumes as before.
+
+
+        Editions: served by Evaluation **and by Enterprise**. Until #3953 it was
+
+        registered only on the Evaluation code path, so an Enterprise deployment
+
+        answered the router''s `text/plain` 404 here while this document
+
+        described the operation unconditionally - a route that stopped working
+
+        on a tier UPGRADE. Enterprise additionally serves
+
+        POST .../checkpoints/{checkpoint_id}/resume, which this operation does
+
+        not replace.
+
+
+        Identity: because this re-enters the SAME policy evaluation as
+
+        POST .../steps/{step_id}/gate, it honours the caller identity on THIS
+
+        request (a trust-gated `X-User-Email`, or an `X-User-Token` the agent
+
+        validates) to resolve governance segments. Send it exactly as you would
+
+        on /gate. Omitting it is not an error, but the fresh decision is then
+
+        computed with no verified identity: segment-scoped policies do not
+
+        apply and only org-wide ones enforce. The identity stored on the
+
+        checkpoint is deliberately NOT replayed - a resume is evaluated for
+
+        whoever is resuming, not for whoever created the checkpoint.
+
+
+        This route can therefore return the `segment_resolution_failed`
+
+        fail-closed block documented on /gate.'
+      operationId: resumeFromLastCheckpoint
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: X-User-Email
+        in: header
+        required: false
+        description: 'Caller identity used to resolve the governance-segment
+
+          memberships that decide which segment-scoped policies apply to
+
+          this evaluation (#3281). The orchestrator honours it only over
+
+          the internal-service proxy-auth channel; whether a CLIENT can
+
+          assert it through the agent depends on the agent''s identity
+
+          trust gate. Gate OFF (`AXONFLOW_TRUST_IDENTITY_HEADERS` unset,
+
+          or any value other than the whitespace-trimmed exact string `true` - the default):
+
+          the agent strips a client-supplied value before forwarding, so
+
+          a client cannot assert it. Gate ON: a client-supplied value is
+
+          forwarded sanitized - the deployment''s trust declaration, not
+
+          the platform, then carries the precondition that every hop
+
+          re-stamps identity headers from a source the end user cannot
+
+          edit. In both postures an `X-User-Token` the agent validates
+
+          overwrites this header with the token''s resolved identity.
+
+          Omitting it is not an error, but the decision is then computed
+
+          with no verified identity and degrades to org-only evaluation,
+
+          in which segment-scoped policies do not apply and only
+
+          org-wide ones enforce.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Resume result with fresh decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeFromCheckpointResponse'
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+        '409':
+          $ref: '#/components/responses/TripletConflict'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflow_id}/checkpoints/{checkpoint_id}/resume:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Resume workflow from specific checkpoint (Enterprise)
+      description: 'Re-evaluates the step gate at a specific checkpoint with current policies.
+
+        **Enterprise only** - it is the capability Enterprise has in addition to
+
+        POST .../checkpoints/resume above, which both editions serve.
+
+
+        Approval holds (#4249): the same refusal as POST .../checkpoints/resume
+
+        above, 409 `APPROVAL_HOLD`. The rejected or expired step is looked for on
+
+        the whole workflow, so resuming an EARLIER checkpoint of a workflow a
+
+        later step''s rejection aborted is refused too.
+
+
+        Identity: same contract as POST .../checkpoints/resume above - the
+
+        caller identity on THIS request drives segment resolution, the
+
+        checkpoint''s stored identity is never replayed, and the
+
+        `segment_resolution_failed` fail-closed block documented on /gate can
+
+        be returned here too.'
+      operationId: resumeFromCheckpoint
+      parameters:
+      - name: workflow_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: checkpoint_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: X-User-Email
+        in: header
+        required: false
+        description: 'Caller identity used to resolve the governance-segment
+
+          memberships that decide which segment-scoped policies apply to
+
+          this evaluation (#3281). The orchestrator honours it only over
+
+          the internal-service proxy-auth channel; whether a CLIENT can
+
+          assert it through the agent depends on the agent''s identity
+
+          trust gate. Gate OFF (`AXONFLOW_TRUST_IDENTITY_HEADERS` unset,
+
+          or any value other than the whitespace-trimmed exact string `true` - the default):
+
+          the agent strips a client-supplied value before forwarding, so
+
+          a client cannot assert it. Gate ON: a client-supplied value is
+
+          forwarded sanitized - the deployment''s trust declaration, not
+
+          the platform, then carries the precondition that every hop
+
+          re-stamps identity headers from a source the end user cannot
+
+          edit. In both postures an `X-User-Token` the agent validates
+
+          overwrites this header with the token''s resolved identity.
+
+          Omitting it is not an error, but the decision is then computed
+
+          with no verified identity and degrades to org-only evaluation,
+
+          in which segment-scoped policies do not apply and only
+
+          org-wide ones enforce.
+
+          '
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Resume result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeFromCheckpointResponse'
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+        '409':
+          $ref: '#/components/responses/TripletConflict'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflowId}/steps/{stepId}/approve:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Approve a pending workflow step
+      description: 'Approve a workflow step that is waiting for human approval.
+
+        This allows the workflow to proceed past the approval gate.'
+      operationId: approveWorkflowStep
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+        example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+      - name: stepId
+        in: path
+        required: true
+        description: Step ID awaiting approval
+        schema:
+          type: string
+        example: step-2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - comment
+              properties:
+                comment:
+                  type: string
+                  minLength: 10
+                  description: Audit justification for approving the step (minimum 10 characters after trimming)
+                approved_by:
+                  type: string
+                  description: User ID of the approver
+            example:
+              comment: Approved after reviewing output
+              approved_by: user-456
+      responses:
+        '200':
+          description: Step approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+              example:
+                workflow_id: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+                step_id: step-2
+                status: approved
+                decision: allow
+                reason: 'Approved: High-value transfer requires oversight'
+                approval_status: approved
+                approval_id: 318a270f-7b42-5c56-a191-8dbd1bf2e1e4
+                approved_by: fraud.analyst@banking.example
+                approved_at: '2026-04-22T10:05:00Z'
+                policies_matched:
+                - policy_id: high-value-wire-oversight
+                  policy_name: High-Value Wire Transfer Oversight
+                  action: require_approval
+                retry_context:
+                  gate_count: 1
+                  completion_count: 0
+                  prior_completion_status: none
+                  prior_output_available: false
+                  prior_output: null
+                  prior_completion_at: null
+                  idempotency_key: payment-intent-123
+                  last_decision: require_approval
+                  first_attempt_at: '2026-04-22T10:00:00Z'
+                  last_attempt_at: '2026-04-22T10:00:00Z'
+                message: Step approved
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+        '409':
+          description: 'The step cannot be approved: it is not in a pending approval state
+
+            (`NOT_PENDING`, or `NO_APPROVAL_NEEDED` for a step that does not
+
+            require approval), or its approval has timed out
+
+            (`APPROVAL_EXPIRED`). A timed-out approval is a deny: an approval
+
+            after the `expires_at` of the step''s pending approval queue hold,
+
+            or when the step''s newest hold was already expired by the queue, is
+
+            refused and the step stays pending. A step with no queue row
+
+            declares no expiry.
+
+            `WORKFLOW_TERMINAL` (#4249): the workflow has ended (aborted,
+
+            completed or failed), and an approval never lands on it, even on a
+
+            step still pending.
+
+
+            A step held AGAIN whose new hold was never queued (the gate''s
+
+            `approval_enqueue` was `cap_reached` or `error`) has no pending
+
+            hold, only its previous, decided one. Approving it answers
+
+            `NOT_PENDING` naming that; the approval is never judged by the
+
+            decided hold''s window. Until a hold is queued the step can only
+
+            be rejected: a reject is not refused, and its `approval_id` is
+
+            the previous hold''s. A re-evaluation of a pending step queues the
+
+            hold only where the step gate admits one.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+              examples:
+                not_pending:
+                  value:
+                    error: not_pending
+                    code: NOT_PENDING
+                    message: Step step-2 is not awaiting approval
+                approval_expired:
+                  value:
+                    error: approval_expired
+                    code: APPROVAL_EXPIRED
+                    message: 'approval_expired: the approval for step step-2 timed out at 2026-04-22T12:00:00Z, and a timed-out approval is a deny'
+        '503':
+          description: 'The expiry of the step''s approval could not be read, so the step is
+
+            not approved (fail-closed). The step stays pending, and the approval
+
+            can be retried. Also answered when the step''s approval queue rows
+
+            cannot be told apart safely, and then a retry does not clear it: a
+
+            queue row under one of the step''s hold ids that belongs to another
+
+            step (a step id ending in `#<n>` names the n-th hold of the step
+
+            without that suffix), or a pending step-gate row that names the
+
+            step outside its hold ids while the step has no hold, which clears
+
+            when that row expires or an operator removes it.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+              example:
+                error: approval_state_unreadable
+                code: APPROVAL_STATE_UNREADABLE
+                message: 'approval_state_unreadable: the approval''s expiry could not be read, so the step is not approved (fail-closed)'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/{workflowId}/steps/{stepId}/reject:
+    post:
+      tags:
+      - Workflow Control Plane
+      summary: Reject a pending workflow step
+      description: 'Reject a workflow step that is waiting for human approval.
+
+        This blocks the step and may abort the workflow depending on configuration.'
+      operationId: rejectWorkflowStep
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        description: Workflow ID
+        schema:
+          type: string
+        example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+      - name: stepId
+        in: path
+        required: true
+        description: Step ID awaiting approval
+        schema:
+          type: string
+        example: step-2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  description: Audit justification for rejecting the step (minimum 10 characters after trimming)
+                rejected_by:
+                  type: string
+                  description: User ID of the rejector
+            example:
+              reason: Output contains PII that was not redacted
+              rejected_by: user-456
+      responses:
+        '200':
+          description: Step rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+              example:
+                workflow_id: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+                step_id: step-2
+                status: rejected
+                decision: block
+                reason: 'Rejected: Output contains PII that was not redacted'
+                approval_status: rejected
+                approval_id: 318a270f-7b42-5c56-a191-8dbd1bf2e1e4
+                rejected_by: fraud.analyst@banking.example
+                rejected_at: '2026-04-22T10:05:00Z'
+                policies_matched:
+                - policy_id: pii-output-redaction
+                  policy_name: PII Redaction Required
+                  action: require_approval
+                retry_context:
+                  gate_count: 1
+                  completion_count: 0
+                  prior_completion_status: none
+                  prior_output_available: false
+                  prior_output: null
+                  prior_completion_at: null
+                  idempotency_key: ''
+                  last_decision: require_approval
+                  first_attempt_at: '2026-04-22T10:00:00Z'
+                  last_attempt_at: '2026-04-22T10:00:00Z'
+                message: Step rejected, workflow aborted
+        '404':
+          $ref: '#/components/responses/TripletNotFound'
+        '409':
+          description: Step is not in a pending approval state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+              example:
+                error: not_pending
+                code: NOT_PENDING
+                message: Step step-2 is not awaiting approval
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/workflows/approvals/pending:
+    get:
+      tags:
+      - Workflow Control Plane
+      summary: List pending approvals (WCP plane)
+      description: 'List workflow steps currently awaiting human approval for the caller''s
+
+        tenant (all planes). Cross-reference the MAP-plane equivalent at
+
+        `/api/v1/plans/approvals/pending`, which scopes to MAP-backed
+
+        workflows and populates `plan_id` on every entry.
+
+
+        Reachable on Evaluation and above. Listing is a read over entries that
+
+        already exist, so it follows the resolve rule rather than the creation
+
+        entitlement: CREATING an approval entry requires Professional,
+
+        Enterprise or Enterprise Plus, but a deployment that already holds
+
+        entries can always list, approve and reject them. Community has no
+
+        approval queue to list.
+
+
+        **A tier that may not list gets `404`, not `403`.** This route is
+
+        REGISTERED conditionally (`RegisterEnterpriseRoutes`, or the community
+
+        branch gated on the resolve entitlement), so on a deployment that is
+
+        not entitled the path is not on the router at all. The `403` below is
+
+        therefore NOT a tier refusal — it described one until issue #3948, and
+
+        that description was of a status this operation cannot produce for that
+
+        reason. It is the agent-gateway proxy-auth refusal, which this handler
+
+        raises itself, before it looks at tenancy.
+
+
+        Every refusal THIS HANDLER produces carries the triplet
+
+        `{error, code, message}` envelope — this plane''s writer. Its MAP
+
+        counterpart uses the flat envelope throughout for the same reason in
+
+        reverse, and the two are documented as they are rather than converged,
+
+        because converging either is a wire change on that plane.
+
+
+        One refusal a client can receive is NOT this handler''s and is not the
+
+        triplet: a request that does not reach the orchestrator through the
+
+        agent gateway is stopped by the deployment-wide internal-service gate
+
+        before any route matches, and that answers the FLAT envelope. It
+
+        applies identically to every operation in this document and is
+
+        therefore described here rather than repeated on each one.'
+      operationId: listPendingApprovals
+      parameters:
+      - name: limit
+        in: query
+        description: Maximum number of results to return
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      responses:
+        '200':
+          description: List of pending approvals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingApprovalsResponse'
+              example:
+                pending_approvals:
+                - workflow_id: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+                  workflow_name: code-review-pipeline
+                  step_id: step-2
+                  step_index: 1
+                  step_name: Deploy to Production
+                  step_type: action
+                  decision: require_approval
+                  decision_reason: Human approval required for deployment steps
+                  approval_status: pending
+                  created_at: '2026-04-22T10:00:00Z'
+                count: 1
+        '401':
+          description: 'Missing tenant or org identity. BOTH `X-Org-ID` and `X-Tenant-ID`
+
+            must be present and neither may be the unowned-row sentinel; they
+
+            are stamped by the AxonFlow Agent gateway or the customer-portal
+
+            proxy from a validated credential, never supplied by the client.
+
+
+            This was documented as `400` and has always been `401`. The
+
+            refusal does not depend on the resource — the handler binds the
+
+            caller scope before it looks at any workflow — so `401` is correct
+
+            and `400` never described it. The MAP counterpart now answers `401`
+
+            here too; it previously read `X-Tenant-ID` raw and answered `400`,
+
+            which is the mismatch issue #3948 records.
+
+
+            Note the ORDER: the proxy-auth gate below runs BEFORE this one, so
+
+            a request that is both unproxied and unbound is answered `403`.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+              example:
+                error: unauthorized
+                code: UNAUTHORIZED
+                message: Missing tenant or org identity
+        '403':
+          description: 'The request did not arrive through the AxonFlow Agent gateway.
+
+            Raised by this handler''s own proxy-auth gate, which runs BEFORE the
+
+            tenancy bind, so it is reachable independently of `401`.
+
+
+            It is NOT a tier refusal: this route is registered conditionally, so
+
+            an unentitled deployment answers `404` (see the description above).
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripletErrorResponse'
+              example:
+                error: forbidden
+                code: FORBIDDEN
+                message: 'Unauthorized: request must be routed through AxonFlow Agent'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/plans/approvals/pending:
+    get:
+      tags:
+      - Workflow Control Plane
+      summary: List pending approvals (MAP plane)
+      description: 'List steps currently awaiting human approval for MAP-backed workflows —
+
+        workflows whose metadata carries a `plan_id` (MAP confirm / step mode).
+
+        Every returned entry has `plan_id` populated; this is the intentional
+
+        asymmetry with the WCP-plane listing at
+
+        `/api/v1/workflows/approvals/pending`, mirroring the approve/reject
+
+        asymmetry established in Issue #1677 / ADR-046.
+
+
+        Reviewer integrators that need to render plan context can read
+
+        `plan_id` directly without a second lookup; clients that want a
+
+        plane-neutral view can use `/api/v1/hitl/queue` instead.
+
+
+        Reachable on Evaluation and above, the same resolve gate as the MAP
+
+        `/steps/{step_id}/approve` and `/steps/{step_id}/reject` endpoints.
+
+        Creating new approval entries requires Professional or above.'
+      operationId: listPendingPlanApprovals
+      parameters:
+      - name: plan_id
+        in: query
+        description: Filter to a single plan_id — returns only steps waiting on that plan.
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Maximum number of results to return
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      responses:
+        '200':
+          description: List of pending plan approvals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingApprovalsResponse'
+              example:
+                pending_approvals:
+                - workflow_id: wf_9c7d5e02-1a4b-4c68-b3f7-52e8d09a1b64
+                  workflow_name: map-confirm-plan-abc123
+                  plan_id: plan-abc123
+                  step_id: step_0_analyze
+                  step_index: 0
+                  step_name: Analyze customer transaction
+                  step_type: tool_call
+                  decision: require_approval
+                  decision_reason: High-value transaction requires review
+                  approval_status: pending
+                  created_at: '2026-04-22T10:00:00Z'
+                count: 1
+        '401':
+          description: 'Missing tenant or org identity. BOTH `X-Org-ID` and `X-Tenant-ID`
+
+            must be present and neither may be the unowned-row sentinel.
+
+
+            Documented as `400` until issue #3948, and the handler really did
+
+            answer `400`: it read `X-Tenant-ID` raw, never looked at
+
+            `X-Org-ID`, and accepted the sentinel, while the WCP endpoint this
+
+            one is documented as the counterpart of demanded both and refused
+
+            the sentinel. A reviewer UI got `200` from one and `401` from the
+
+            other for the same request. Both now bind the caller scope and both
+
+            answer `401`.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Missing tenant or org identity
+        '403':
+          description: 'License tier does not permit approval listing (Community;
+
+            Evaluation and above may list, approve and reject). Unlike the WCP
+
+            counterpart, this route is registered unconditionally and the tier
+
+            gate runs INSIDE the handler, so the refusal really is a `403`
+
+            here.
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Workflow control plane unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    PolicyMatch:
+      type: object
+      description: Details of a policy match during evaluation (Issue
+      properties:
+        policy_id:
+          type: string
+          description: Unique identifier for the policy
+        policy_name:
+          type: string
+          description: Human-readable name of the policy
+        action:
+          type: string
+          description: Action taken by this policy
+          enum:
+          - allow
+          - block
+          - require_approval
+          - redact
+        reason:
+          type: string
+          description: Reason for the policy match
+    ToolContext:
+      type: object
+      description: Tool-level context for per-tool governance within tool_call steps.
+      required:
+      - tool_name
+      properties:
+        tool_name:
+          type: string
+          description: Name of the tool being invoked
+          example: web_search
+        tool_type:
+          type: string
+          description: 'Tool type: function, mcp, or api'
+          enum:
+          - function
+          - mcp
+          - api
+          example: function
+        tool_input:
+          type: object
+          description: Tool input parameters
+          additionalProperties: true
+    APIErrorDetails:
+      type: object
+      description: Structured error details used by typed SDK exceptions.
+      properties:
+        workflow_id:
+          type: string
+        step_id:
+          type: string
+        expected_idempotency_key:
+          type: string
+          description: 'The key recorded on the step''s /gate call. Empty string when the
+
+            gate call had no key but the /complete call supplied one.
+
+            '
+        received_idempotency_key:
+          type: string
+          description: 'The key the caller just passed. Empty string when the /complete
+
+            call omitted a key that the /gate call had set.
+
+            '
+    TripletErrorResponse:
+      type: object
+      description: 'The TRIPLET error envelope: `{error, code, message}`, where `error` is
+
+        the lowercased form of `code`. It is a THIRD shape, distinct from both
+
+        `ErrorResponse` and `CodedErrorResponse`, and it is what the workflow
+
+        control plane, the execution replay handlers and the policy simulation
+
+        handlers emit (112 call sites).
+
+
+        IT IS NAMED RATHER THAN QUIETLY MAPPED ONTO ONE OF THE OTHER TWO.
+
+        Two operations on the workflow step surface documented a `{success,
+
+        error}` 404 beside an `{error:{code,message}}` 409, and the handler
+
+        emits neither of those shapes on either status. Picking whichever of
+
+        the two was closer would have made the document consistently wrong
+
+        instead of inconsistently wrong, which is not an improvement.
+
+
+        `error` is REDUNDANT with `code` here and carries no information a
+
+        client needs; it exists because the shape predates the code field.
+
+        Read `code`.
+
+        '
+      properties:
+        error:
+          type: string
+          description: The lowercased `code`. Redundant; prefer `code`.
+        code:
+          type: string
+          description: Machine-readable error code, screaming snake case.
+        message:
+          type: string
+      required:
+      - error
+      - code
+      - message
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    MarkStepCompletedRequest:
+      type: object
+      properties:
+        output:
+          type: object
+          description: Output data from the step
+          additionalProperties: true
+        tokens_in:
+          type: integer
+          description: Actual input tokens consumed by the step (overrides gate-time estimate)
+          example: 150
+        tokens_out:
+          type: integer
+          description: Actual output tokens produced by the step (overrides gate-time estimate)
+          example: 45
+        cost_usd:
+          type: number
+          format: double
+          description: Actual cost in USD for the step (overrides gate-time estimate)
+          example: 0.0023
+        idempotency_key:
+          type: string
+          maxLength: 255
+          description: 'Optional caller-supplied key (Issue #1673 Phase 2). Must match the
+
+            key recorded on the step''s earlier /gate call. Mismatch returns
+
+            409 IDEMPOTENCY_KEY_MISMATCH.
+
+            '
+          example: payment:wire:invoice-7721
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 'Free-form metadata captured at step-completion time —
+
+            useful for audit context the gate-time data didn''t have
+
+            (post-execution latency from a downstream service, retry
+
+            attempt counters, etc.). Treat as opaque on the client.
+
+            '
+    StepGateResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+          description: Gate decision
+          enum:
+          - allow
+          - block
+          - require_approval
+        step_id:
+          type: string
+          description: Step identifier
+        decision_id:
+          type: string
+          description: Unique decision identifier for auditing
+        reason:
+          type: string
+          description: Reason for block or approval requirement
+        policy_ids:
+          type: array
+          description: IDs of policies that matched
+          items:
+            type: string
+        approval_id:
+          type: string
+          format: uuid
+          description: 'Deterministic HITL queue entry UUID of the step''s current hold,
+
+            present on a `require_approval` decision whose queue entry
+
+            exists. A step can be held more than once: hold 1 is UUID v5 over
+
+            `workflow_id + ":" + step_id`, and hold n >= 2 (a step held again
+
+            after its earlier hold was decided) is UUID v5 over
+
+            `workflow_id + ":" + step_id + "#" + n`. The approve and reject
+
+            responses carry the step''s current hold''s id (see their
+
+            `approval_id`). Returned by this route since #1082 but never
+
+            specced; added with `approval_enqueue` below,
+
+            which is only meaningful alongside it. Empty when no entry was
+
+            created (see `approval_enqueue`) AND on a cached replay
+
+            (`cached: true`, the default `retry_policy: "idempotent"` on a
+
+            step that was already evaluated), which reproduces the stored
+
+            decision without re-running the enqueue.
+
+            '
+          example: 318a270f-7b42-5c56-a191-8dbd1bf2e1e4
+        approval_enqueue:
+          type: string
+          enum:
+          - created
+          - reused
+          - cap_reached
+          - tier_disabled
+          - error
+          description: "What the HITL enqueue did for this gate. Present only on a\n`require_approval` decision where an enqueue was attempted;\nomitted otherwise.\n\nA `require_approval` decision ALWAYS holds the step. This field is\nhow a client distinguishes \"held, and there is a review entry to\napprove\" (`created` / `reused`) from \"held, and there is nothing\nto approve\" (`cap_reached` / `tier_disabled` / `error`) - before\n#3408's sibling fix those were the same response.\n\n- `created` - a new queue entry was written. That includes a\n  step held AGAIN after its earlier hold was decided (approved,\n  rejected, expired or overridden): the re-hold is a new entry\n  under the next hold's `approval_id`, with its own expiry and\n  its own review, and the decided entry is kept unchanged as the\n  record of that decision.\n- `reused` - the gate resolved to the step's still-PENDING entry\n  an earlier call created. The `approval_id` is the same. Reached\n  only by a gate that is evaluated again while that entry is\n  pending (`retry_policy: \"reevaluate\"`, a gate override, or\n  concurrent gates of the step, where the gate admits them); the\n  default `retry_policy: \"idempotent\"` replays the stored\n  decision and carries `cached: true` with neither this field\n  nor `approval_id`. A gate whose entry is already decided is\n  never `reused`: it writes a new entry (`created`), or reports\n  `error` when the queue refuses (for example, the hold id names\n  an entry that belongs to another step, or the step has a queue\n  entry outside its hold ids).\n- `cap_reached` - the tenant is at its licence tier's\n  `MaxPendingApprovals`. No entry was created and none will be\n  until a pending one is resolved. **Not reachable by any shipped\n  tier**: since HITL became Enterprise-only (2026-08-26) every\n  entitled tier resolves `MaxPendingApprovals` to `-1`, and every\n  tier with a finite cap is refused by the tier gate first.\n  Documented because the mechanism is retained.\n- `tier_disabled` - the deployment's licence tier does not enable\n  HITL approvals. Entitled tiers are `Professional`, `Enterprise`\n  and `Enterprise Plus`; `Community`, `Free`, `Pro`, `Premium` and\n  `Evaluation` are refused. Approve, reject and the pending\n  listings remain reachable on a refused tier so existing entries\n  can still be drained.\n- `error` - the enqueue failed for another reason; the detail is\n  in `reason`.\n"
+          example: created
+        approval_url:
+          type: string
+          description: URL for human approval (Enterprise)
+          format: uri
+        policies_evaluated:
+          type: array
+          description: All policies that were checked during evaluation (Issue
+          items:
+            $ref: '#/components/schemas/PolicyMatch'
+        policies_matched:
+          type: array
+          description: Policies that matched and contributed to the decision (Issue
+          items:
+            $ref: '#/components/schemas/PolicyMatch'
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'The engine that decided the step: `anchored`, the ADR-065 decision
+
+            plane (PRD v11 §1.1). Omitted on a cached replay (`cached: true`),
+
+            which reproduces a stored decision without deciding again.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the step was decided for. Omitted on a
+
+            decision made before a subject was admitted, and wherever `engine`
+
+            is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided the step. Omitted
+
+            wherever `subject_type` is.
+
+            '
+        cached:
+          type: boolean
+          deprecated: true
+          description: '**Deprecated (Issue #1673).** Whether this response was served from
+
+            a prior decision rather than a fresh policy evaluation. Use
+
+            `retry_context.gate_count > 1` instead — `cached` conflates
+
+            first-call-no vs many-retries-yes into a single bit. Kept
+
+            populated on every response for back-compat; removal planned
+
+            for a future major version.
+
+            '
+          example: false
+        decision_source:
+          type: string
+          deprecated: true
+          description: '**Deprecated (Issue #1673).** "fresh" or "cached". Use
+
+            `retry_context.prior_completion_status` for the distinction
+
+            agents and policies actually need. Kept populated on every
+
+            response for back-compat; removal planned for a future major.
+
+            '
+          enum:
+          - fresh
+          - cached
+          example: fresh
+        retry_context:
+          $ref: '#/components/schemas/RetryContext'
+    ResumeFromCheckpointResponse:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+        resumed_from_checkpoint:
+          type: string
+          description: step_id of the checkpoint
+        resumed_from_index:
+          type: integer
+        new_decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+        decision_source:
+          type: string
+          description: Always "fresh" since resume forces re-evaluation
+        resume_count:
+          type: integer
+        message:
+          type: string
+    CheckpointListResponse:
+      type: object
+      properties:
+        checkpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Checkpoint'
+        workflow_id:
+          type: string
+    CreateWorkflowRequest:
+      type: object
+      required:
+      - workflow_name
+      properties:
+        workflow_name:
+          type: string
+          description: Human-readable name for the workflow
+          example: code-review-pipeline
+        source:
+          type: string
+          description: Source orchestrator
+          enum:
+          - langgraph
+          - langchain
+          - crewai
+          - external
+          default: external
+        trace_id:
+          type: string
+          maxLength: 255
+          description: External trace ID for correlation with Langsmith, Datadog, or OpenTelemetry
+          example: langsmith-trace-abc123
+        metadata:
+          type: object
+          description: Additional workflow metadata
+          additionalProperties: true
+    PendingApproval:
+      type: object
+      description: 'A workflow step awaiting human approval. Returned by both
+
+        `/api/v1/workflows/approvals/pending` (WCP plane) and
+
+        `/api/v1/plans/approvals/pending` (MAP plane). The `plan_id` field is
+
+        the one intentional asymmetry between the two planes — populated on
+
+        MAP-plane responses, omitted on WCP-plane responses.
+
+        '
+      properties:
+        workflow_id:
+          type: string
+          description: WCP workflow identifier.
+          example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+        workflow_name:
+          type: string
+          description: Human-readable workflow name.
+          example: code-review-pipeline
+        plan_id:
+          type: string
+          description: 'MAP plan identifier. Populated on the MAP-plane listing
+
+            (`/api/v1/plans/approvals/pending`); omitted (omitempty) on the
+
+            WCP-plane listing.
+
+            '
+          example: plan-abc123
+        step_id:
+          type: string
+          description: Step awaiting approval.
+          example: step-2
+        step_index:
+          type: integer
+          description: Zero-based index of the step within the workflow.
+          example: 1
+        step_name:
+          type: string
+          description: Human-readable step name.
+          example: Deploy to Production
+        step_type:
+          type: string
+          enum:
+          - llm_call
+          - tool_call
+          - connector_call
+          - human_task
+          - synthesis
+          - action
+          - gate
+          description: Type of step operation.
+          example: action
+        decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+          description: Gate decision that paused the step — always `require_approval` for pending entries.
+          example: require_approval
+        decision_reason:
+          type: string
+          description: Why approval is required.
+          example: Human approval required for deployment steps
+        policies_matched:
+          type: array
+          description: Policies that triggered the approval requirement.
+          items:
+            type: object
+        step_input:
+          type: object
+          description: Step input payload (may be redacted by PII rules).
+        approval_status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          description: Current approval state — `pending` for listed entries.
+          example: pending
+        created_at:
+          type: string
+          format: date-time
+          description: Time of the first /gate call that paused the step.
+    WorkflowStatusResponse:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+        workflow_name:
+          type: string
+        source:
+          type: string
+          enum:
+          - langgraph
+          - langchain
+          - crewai
+          - external
+        status:
+          type: string
+          enum:
+          - in_progress
+          - completed
+          - aborted
+          - failed
+        trace_id:
+          type: string
+          description: External trace ID for correlation with Langsmith, Datadog, or OpenTelemetry
+        current_step_index:
+          type: integer
+        total_steps:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStepInfo'
+    StepGateRequest:
+      type: object
+      required:
+      - step_type
+      properties:
+        step_name:
+          type: string
+          description: Human-readable step name (optional)
+          example: Generate Code
+        step_type:
+          type: string
+          description: Type of step
+          enum:
+          - llm_call
+          - tool_call
+          - connector_call
+          - human_task
+          example: llm_call
+        step_input:
+          type: object
+          description: Input data for the step (for policy evaluation)
+          additionalProperties: true
+        model:
+          type: string
+          description: LLM model being used
+          example: gpt-4
+        provider:
+          type: string
+          description: LLM provider being used
+          example: openai
+        tokens_in:
+          type: integer
+          description: Estimated input tokens for the step (used at gate time)
+          example: 150
+        tokens_out:
+          type: integer
+          description: Estimated output tokens for the step (used at gate time)
+          example: 45
+        cost_usd:
+          type: number
+          format: double
+          description: Estimated cost in USD for the step (used at gate time)
+          example: 0.0023
+        tool_context:
+          $ref: '#/components/schemas/ToolContext'
+        retry_policy:
+          type: string
+          description: 'Controls behavior on repeated calls for the same (workflow_id, step_id).
+
+            Default ("idempotent"): return cached decision from prior evaluation.
+
+            "reevaluate": force fresh policy evaluation regardless of prior decision.
+
+            '
+          enum:
+          - idempotent
+          - reevaluate
+          default: idempotent
+          example: idempotent
+        idempotency_key:
+          type: string
+          maxLength: 255
+          description: 'Optional caller-supplied opaque business-level key (Issue #1673 Phase 2).
+
+            Recorded on the first /gate call that sets it; immutable for the step''s
+
+            lifetime. Subsequent /gate and /complete calls MUST pass the same key
+
+            or receive 409 IDEMPOTENCY_KEY_MISMATCH. Use business-meaningful values
+
+            like `payment:wire:invoice-7721`, not request IDs.
+
+            '
+          example: payment:wire:invoice-7721
+    ListWorkflowsResponse:
+      type: object
+      properties:
+        workflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStatusResponse'
+        total:
+          type: integer
+          description: Total number of workflows matching filters
+        limit:
+          type: integer
+        offset:
+          type: integer
+    RetryContext:
+      type: object
+      description: 'First-class retry and execution state (Issue #1673 Phase 1). Always
+
+        present on every `StepGateResponse`, including the first gate call.
+
+        Replaces the ambiguous `cached: bool` signal with unambiguous state
+
+        the agent and policy engine can reason about.
+
+        '
+      required:
+      - gate_count
+      - completion_count
+      - prior_completion_status
+      - prior_output_available
+      - prior_output
+      - prior_completion_at
+      - first_attempt_at
+      - last_attempt_at
+      - last_decision
+      - idempotency_key
+      properties:
+        gate_count:
+          type: integer
+          minimum: 1
+          description: 'Number of /gate calls for this (workflow_id, step_id), including
+
+            the current call. First call returns 1.
+
+            '
+          example: 2
+        completion_count:
+          type: integer
+          minimum: 0
+          description: 'Number of /complete calls for this (workflow_id, step_id). Normally
+
+            0 on first gate, 1 after the step completes.
+
+            '
+          example: 1
+        prior_completion_status:
+          type: string
+          enum:
+          - none
+          - completed
+          - gated_not_completed
+          description: '"none" on first gate call. "completed" when a prior /gate + /complete
+
+            both landed. "gated_not_completed" when a prior /gate landed but no
+
+            /complete followed — uncertain territory the agent needs to reconcile
+
+            against the downstream system before re-executing.
+
+            '
+          example: completed
+        prior_output_available:
+          type: boolean
+          description: 'True iff prior_completion_status == "completed". Mirrors whether
+
+            prior_output *could* be returned if include_prior_output=true.
+
+            '
+          example: true
+        prior_output:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+          description: 'Always present in the schema. Populated only when the caller set
+
+            ?include_prior_output=true AND prior_output_available is true.
+
+            Otherwise null.
+
+            '
+        prior_completion_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Timestamp of the prior /complete call, if any.
+        first_attempt_at:
+          type: string
+          format: date-time
+          description: 'Timestamp of the first /gate call for this step. On the first call,
+
+            equals last_attempt_at.
+
+            '
+        last_attempt_at:
+          type: string
+          format: date-time
+          description: Timestamp of this /gate call.
+        last_decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+          description: 'Decision of the immediately prior /gate call. On the first call
+
+            (gate_count == 1), equals the current decision (first-call
+
+            invariant).
+
+            '
+          example: allow
+        idempotency_key:
+          type: string
+          description: 'The caller-supplied business-level key recorded on this step
+
+            (Issue #1673 Phase 2). Always present in the schema — empty
+
+            string `""` if the caller never supplied one.
+
+            '
+          example: payment:wire:invoice-7721
+    Checkpoint:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Database identifier
+        workflow_id:
+          type: string
+        step_id:
+          type: string
+        step_index:
+          type: integer
+        step_type:
+          type: string
+          description: Type of step (llm_call, tool_call, etc.)
+        checkpoint_type:
+          type: string
+          enum:
+          - step_gate
+          - approval_boundary
+          description: step_gate for standard gates, approval_boundary for require_approval
+        gate_decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+        gate_reason:
+          type: string
+        is_resumable:
+          type: boolean
+          description: False for blocked steps (no point resuming from a hard block)
+        resume_count:
+          type: integer
+          description: How many times the workflow has been resumed from this checkpoint
+        created_at:
+          type: string
+          format: date-time
+    PendingApprovalsResponse:
+      type: object
+      description: List of pending approvals across workflows for the caller's tenant.
+      properties:
+        pending_approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingApproval'
+        count:
+          type: integer
+          description: Total number of pending approvals matching the scope.
+    APIErrorResponse:
+      type: object
+      description: Structured error response envelope used by WCP endpoints.
+      required:
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/APIError'
+    APIError:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code (e.g. IDEMPOTENCY_KEY_MISMATCH).
+        message:
+          type: string
+          description: Human-readable error description.
+        details:
+          $ref: '#/components/schemas/APIErrorDetails'
+    CreateWorkflowResponse:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+          description: Unique workflow identifier
+          example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+        workflow_name:
+          type: string
+        status:
+          type: string
+          enum:
+          - in_progress
+          - completed
+          - aborted
+          - failed
+        trace_id:
+          type: string
+          description: External trace ID for correlation with Langsmith, Datadog, or OpenTelemetry
+          example: langsmith-trace-abc123
+        started_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+          description: 'When the workflow row was inserted. Distinct from
+
+            `started_at` because workflows can be created in a
+
+            staged-but-not-running state.
+
+            '
+        source:
+          type: string
+          enum:
+          - langgraph
+          - langchain
+          - crewai
+          - external
+          description: 'Echoes the request''s `source` so callers don''t need a
+
+            separate read after creation to learn which orchestrator
+
+            owns the workflow.
+
+            '
+    ApprovalResponse:
+      type: object
+      description: 'Rich response returned by the WCP `/approve` and `/reject` endpoints
+
+        and by the MAP plan-scoped equivalents
+
+        (`/api/v1/plans/{id}/steps/{step_id}/approve|reject`). Both planes
+
+        project through the same helper — see ADR-046 (HITL response parity)
+
+        and ADR-045 (retry_context wire contract). A refused approval answers
+
+        the same status on both planes: 409 when the approval has expired
+
+        (`approval_expired`), 503 when its state cannot be read
+
+        (`approval_state_unreadable`).
+
+
+        `decision` resolves to `allow` on a successful approval (the step can
+
+        now proceed) or `block` on rejection (workflow aborted). `plan_id` is
+
+        populated only on MAP-plane responses; on WCP-plane responses it is
+
+        omitted. `retry_context` is always present and mirrors the StepGate
+
+        `retry_context` shape.
+
+        '
+      properties:
+        workflow_id:
+          type: string
+          description: Underlying WCP workflow identifier
+          example: wf_41231a72-9b0c-4f5e-8a13-6d2e0c7b4f91
+        plan_id:
+          type: string
+          description: 'MAP plan id — present on MAP-plane responses. Omitted on WCP-plane
+
+            responses (WCP has no plan concept).
+
+            '
+          example: plan-42
+        step_id:
+          type: string
+          description: Step that was approved or rejected
+          example: step-2
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          description: 'Flat string alias of `approval_status`. Both fields always carry
+
+            the same value — `status` is convenient for loggers, dashboards,
+
+            and clients that prefer a simple string; `approval_status` is the
+
+            typed source of truth. First-class on both the WCP and MAP
+
+            response shapes so existing clients reading either field keep
+
+            working without branching.
+
+            '
+          example: approved
+        decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+          description: 'Post-approval decision. Approved `require_approval` steps resolve
+
+            to `allow`; rejected to `block`. `require_approval` on an
+
+            approve/reject response means the step is still pending.
+
+            '
+          example: allow
+        reason:
+          type: string
+          description: 'Decision reason text. Approved / rejected responses prefix the
+
+            original policy reason with `Approved:` or `Rejected:`.
+
+            '
+          example: 'Approved: High-value transfer requires oversight'
+        approval_status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          description: 'Terminal approval status after the mutation landed. `expired` is an
+
+            auto-timeout (Evaluation-tier) — a terminal not-approved state that
+
+            blocks the step, kept distinct from a human `rejected`.
+
+            '
+          example: approved
+        approval_id:
+          type: string
+          format: uuid
+          description: 'HITL queue entry UUID of the hold this decision acted on: the
+
+            step''s pending hold, else its newest (hold 1 is UUID v5 over
+
+            `workflow_id + ":" + step_id`; hold n >= 2, a step held again
+
+            after an earlier hold was decided, is UUID v5 over
+
+            `workflow_id + ":" + step_id + "#" + n`). Matches the queue row
+
+            written by the WCP HITL adapter. With no hold for the step (a
+
+            step-gate row outside its hold ids is not a hold) it is the hold-1
+
+            id; empty on the legacy in-memory MAP flow, and omitted when the
+
+            queue could not be read.
+
+            '
+          example: 318a270f-7b42-5c56-a191-8dbd1bf2e1e4
+        approved_by:
+          type: string
+          description: Identity (X-User-ID, typically email) that approved the step
+          example: fraud.analyst@banking.example
+        approved_at:
+          type: string
+          format: date-time
+          description: Timestamp when the approval was persisted
+        rejected_by:
+          type: string
+          description: Identity that rejected the step (rejection path only)
+          example: fraud.analyst@banking.example
+        rejected_at:
+          type: string
+          format: date-time
+          description: Timestamp when the rejection was persisted
+        policies_matched:
+          type: array
+          description: Policies that triggered the original `require_approval` decision
+          items:
+            $ref: '#/components/schemas/PolicyMatch'
+        retry_context:
+          $ref: '#/components/schemas/RetryContext'
+        message:
+          type: string
+          description: Human-readable status summary
+          example: Step approved
+    WorkflowStepInfo:
+      type: object
+      properties:
+        step_id:
+          type: string
+        step_index:
+          type: integer
+        step_name:
+          type: string
+        step_type:
+          type: string
+          enum:
+          - llm_call
+          - tool_call
+          - connector_call
+          - human_task
+        decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+        approval_status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+        gate_checked_at:
+          type: string
+          format: date-time
+        approved_by:
+          type: string
+          description: 'User email of the approver when `approval_status` is
+
+            `approved`. Empty for `pending`, and empty for `expired`
+
+            (auto-timeout — no human reviewer) or for `rejected` paths
+
+            without a recorded reviewer.
+
+            '
+        completed_at:
+          type: string
+          format: date-time
+          description: 'When the step transitioned to a terminal state (approved,
+
+            rejected, or auto-completed). Pair with `gate_checked_at`
+
+            to compute approval latency.
+
+            '
+        decision_reason:
+          type: string
+          description: 'Free-form rationale recorded alongside the decision —
+
+            populated by the approver when present, or by the policy
+
+            engine for auto-decisions. Per-step audit context.
+
+            '
+  responses:
+    TripletNotFound:
+      description: Resource not found (triplet envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TripletErrorResponse'
+          example:
+            error: not_found
+            code: NOT_FOUND
+            message: Workflow not found
+    TripletBadRequest:
+      description: Invalid request (triplet envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TripletErrorResponse'
+          example:
+            error: bad_request
+            code: BAD_REQUEST
+            message: workflow_name is required
+    StepRequestTooLarge:
+      description: 'The request body is over 1 MiB (1,048,576 bytes). A route whose body
+
+        carries a step''s content bounds it and refuses a larger body WHOLE,
+
+        before decoding it: the body is never cut to fit, so no step is gated,
+
+        planned or run. The bound is the orchestrator''s and is the same on
+
+        every such route (#4249).
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - error
+            - code
+            - message
+            - limit_bytes
+            properties:
+              error:
+                type: string
+                enum:
+                - request_too_large
+              code:
+                type: string
+                enum:
+                - REQUEST_TOO_LARGE
+              message:
+                type: string
+              limit_bytes:
+                type: integer
+                enum:
+                - 1048576
+          example:
+            error: request_too_large
+            code: REQUEST_TOO_LARGE
+            message: request body exceeds 1048576 bytes; nothing was gated or run
+            limit_bytes: 1048576
+    TripletConflict:
+      description: Conflicting state (triplet envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TripletErrorResponse'
+          example:
+            error: workflow_terminal
+            code: WORKFLOW_TERMINAL
+            message: Workflow is already in a terminal state
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

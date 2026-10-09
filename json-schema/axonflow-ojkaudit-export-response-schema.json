@@ -1,0 +1,363 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-ojkaudit-export-response-schema.json",
+  "title": "OJKAuditExportResponse",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-orchestrator-openapi.yml#/components/schemas/OJKAuditExportResponse",
+  "type": "object",
+  "properties": {
+    "export_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "description": "Always `completed` (the export runs synchronously)"
+    },
+    "framework": {
+      "type": "string",
+      "enum": [
+        "OJK_AI_GOVERNANCE",
+        "UU_PDP",
+        "BI_PJP",
+        "OJK_BI_COMBINED"
+      ]
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "json"
+      ],
+      "description": "The format this response BODY is in, NOT the one that was\nrequested. Always `json`: this endpoint writes\n`Content-Type: application/json` with the data inline, and no\nrenderer for csv or xml exists on it. Rendered output is the\ncompliance-report facade's job.\n"
+    },
+    "requested_format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "xml"
+      ],
+      "description": "Present ONLY when the caller asked for a format this endpoint\ndoes not produce. Its presence is the signal that the body is\nnot what was requested. Absent on a json request.\n"
+    },
+    "format_note": {
+      "type": "string",
+      "description": "Prose explanation of the discrepancy, present exactly when\n`requested_format` is. Exists so a human reading the artifact\ndoes not have to infer it from two fields disagreeing.\n"
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "total_records": {
+          "type": "integer"
+        },
+        "records_by_type": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "date_range": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "end": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "compliance_score": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "description": "Inline export payload; each key is present only when its data\ntype was requested and rows exist\n",
+      "properties": {
+        "policy_violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "policy_id": {
+                "type": "string"
+              },
+              "policy_name": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "tenant_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "llm_calls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "model_id": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "input_tokens": {
+                "type": "integer"
+              },
+              "output_tokens": {
+                "type": "integer"
+              },
+              "cost": {
+                "type": "number",
+                "format": "double"
+              },
+              "latency_ms": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "policy_decision": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "decision_chains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "decision_id": {
+                "type": "string"
+              },
+              "risk_level": {
+                "type": "string"
+              },
+              "model_id": {
+                "type": "string"
+              },
+              "requires_review": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "hitl_records": {
+          "type": "array",
+          "description": "Declared on the wire type but NEVER populated — the export\nservice has no hitl_oversight query implementation (field is\nomitempty, so it is absent from real responses).\n",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "trigger_reason": {
+                "type": "string"
+              },
+              "reviewer_id": {
+                "type": "string"
+              },
+              "decision": {
+                "type": "string"
+              },
+              "review_time_ms": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        },
+        "pii_redactions": {
+          "type": "array",
+          "description": "Declared on the wire type but NEVER populated — the export\nservice has no pii_redactions query implementation (field is\nomitempty, so it is absent from real responses).\n",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pii_type": {
+                "type": "string"
+              },
+              "redaction_method": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number",
+                "format": "double"
+              }
+            }
+          }
+        },
+        "cross_border_transfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "data_residency": {
+                "type": "string"
+              },
+              "transfer_basis": {
+                "type": "string",
+                "enum": [
+                  "adequacy",
+                  "safeguards",
+                  "pasal_56b_dpa",
+                  "consent"
+                ]
+              },
+              "destination_country": {
+                "type": "string"
+              },
+              "data_categories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "approval_status": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "breach_notifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "incident_timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "discovery_time": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "notification_deadline": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "data_subjects_affected": {
+                "type": "integer"
+              },
+              "data_types_involved": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "notified_authority": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "description": "Effective status after deadline evaluation"
+              },
+              "stored_status": {
+                "type": "string"
+              },
+              "submitted_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "acknowledged_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "within_deadline": {
+                "type": "boolean"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    },
+    "download_url": {
+      "type": "string",
+      "description": "Omitted for inline exports"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "export_version": {
+          "type": "string"
+        },
+        "generated_by": {
+          "type": "string"
+        },
+        "tenant_id": {
+          "type": "string"
+        },
+        "checksum": {
+          "type": "string",
+          "description": "SHA-256 hex of the export data"
+        }
+      }
+    }
+  }
+}

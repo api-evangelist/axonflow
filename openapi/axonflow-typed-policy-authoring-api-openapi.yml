@@ -1,0 +1,1630 @@
+openapi: 3.2.0
+info:
+  title: Axonflow Typed Policy Authoring API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged Typed Policy Authoring across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: Typed Policy Authoring
+  description: 'The ADR-065 typed policy authoring surface, available on EVERY edition
+
+    (#3907).'
+paths:
+  /api/v1/typed-policies/edition:
+    get:
+      tags:
+      - Typed Policy Authoring
+      summary: What this deployment may author
+      description: 'Reports the edition''s construct boundary and its customer-authored
+
+        document ceiling. A deployment with no console has nothing else to read
+
+        the boundary from, so this exists to be consulted BEFORE a publication
+
+        rather than after a refusal.
+
+
+        `reserved` names constructs withheld for want of an edition ruling
+
+        rather than by one. The two have different remedies - an excluded
+
+        construct is an upgrade, a reserved one is an open question - so they
+
+        are reported separately rather than folded together.'
+      operationId: getTypedAuthoringEdition
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      responses:
+        '200':
+          description: The edition boundary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  catalog:
+                    type: string
+                    description: The configured authoring vocabulary
+                    example: conformance
+                  catalog_digest:
+                    type: string
+                    description: 'The vocabulary''s IDENTITY rather than its name: the digest over the
+
+                      authoring view''s actions, realms and resource types. Two snapshots with
+
+                      equal digests admit and refuse the same policies, and an author reading a
+
+                      refusal needs to know which snapshot refused them.
+
+                      '
+                  registry_version:
+                    type: integer
+                    format: int64
+                    description: 'The action and tool registry version this vocabulary carries. It is the
+
+                      same integer the wire carries as a decision snapshot''s registry_version
+
+                      and a proof binding''s tool registry version.
+
+                      '
+                  catalog_fixture:
+                    type: boolean
+                    description: 'True when the vocabulary is a test world rather than the deployment''s
+
+                      own. Production activation refuses a fixture snapshot.
+
+                      '
+                  root:
+                    type: string
+                    enum:
+                    - organization
+                    description: 'The one authority root this surface publishes under. It is
+
+                      fixed and is NOT the edition boundary.
+
+                      '
+                  max_documents:
+                    type: integer
+                    description: 'Customer-authored documents this edition admits per
+
+                      organization. -1 is unlimited.
+
+                      '
+                    example: 20
+                  constructs:
+                    $ref: '#/components/schemas/EditionConstructReport'
+                  persistence:
+                    type: string
+                    enum:
+                    - process
+                    - database
+                    - unavailable
+                    description: 'Where a publication by THIS organization is kept.
+
+
+                      `database` means the artifact and its activation history
+
+                      are in postgres and outlive the process and the replica.
+
+
+                      `process` means they live in this orchestrator process
+
+                      only and do not survive a restart. It is the honest answer
+
+                      for a deployment with no database configured, which is a
+
+                      supported posture.
+
+
+                      `unavailable` means this deployment HAS a database
+
+                      configured for typed authoring and could not reach it.
+
+                      Writes are refused with 503 `storage_unavailable` rather
+
+                      than accepted into a store that cannot keep them, and so
+
+                      is the read of the active document, which the in-process
+
+                      view cannot answer (#4255); the other reads, this one
+
+                      included, are still served. It is reported
+
+                      separately from `process` because an outage is not a
+
+                      design choice, and a deployment promised durability that
+
+                      is not getting it must not read like one that never had
+
+                      it.
+
+
+                      Derived from the workspace the organization actually has,
+
+                      through the same call a publish makes, so it reports the
+
+                      posture a write would really get. It is the same field,
+
+                      with the same two values, that the customer portal''s
+
+                      settings endpoint reports, so one deployment reads the
+
+                      same way through either surface.
+
+                      '
+                    example: database
+                  signing_key_custody:
+                    type: string
+                    enum:
+                    - process
+                    description: 'Where the PRIVATE half of the signing key lives, and it is
+
+                      reported separately from `persistence` because it is a
+
+                      different fact.
+
+
+                      It is `process` even when `persistence` is `database`:
+
+                      each process mints its own key and records only the public
+
+                      half, so a restart cannot invalidate what was already
+
+                      signed - every authorized public key is loaded back - and
+
+                      also cannot re-sign with the old key. Conflating the two
+
+                      would overstate what durability buys. A durable signing
+
+                      identity is tracked separately.
+
+                      '
+                    example: process
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/TypedAuthoringUnconfigured'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/typed-policies/validate:
+    post:
+      tags:
+      - Typed Policy Authoring
+      summary: Validate a candidate document
+      description: 'Runs the declared save-time checks and returns every finding, ordered
+
+        and complete rather than first-error.
+
+
+        It is deliberately EDITION-INDEPENDENT: well-formedness is a fact about
+
+        the document and entitlement is a fact about the licence, so this
+
+        answers identically on every edition and the construct boundary is
+
+        applied at publication. Collapsing the two would leave an author unable
+
+        to tell a broken policy from an unlicensed one.'
+      operationId: validateTypedPolicyDocument
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TypedAuthoringDocumentRequest'
+      responses:
+        '200':
+          description: 'The findings. `success` is false when any finding is a rejection;
+
+            the status is 200 either way, because a validated document that was
+
+            refused is a successful validation.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  findings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuthoringFinding'
+        '400':
+          description: 'The request carries no document, or one that cannot be parsed. From
+
+            v11.1.0 the body is decoded strictly (#4371): a member the request or document does not declare, a second JSON value, or a `binds_on` that is `null` is refused here (`reason: malformed_request`) rather than ignored.
+
+            '
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/TypedAuthoringUnconfigured'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/typed-policies/publish:
+    post:
+      tags:
+      - Typed Policy Authoring
+      summary: Publish a document as a signed artifact
+      description: 'Admits the document against the edition''s ceiling, then validates,
+
+        compiles, runs the publication gauntlet, signs and pins it by digest.
+
+
+        The ceiling is counted on the DOCUMENT ID and admission is idempotent on
+
+        it, so a new version of an existing document spends nothing and an
+
+        author at the ceiling can still edit what they hold.
+
+
+        Publishing names no approver and there is no field for one. On an
+
+        edition that carries separation of duties this endpoint therefore
+
+        refuses every publication with `APPROVER_IS_AUTHOR`, which is the
+
+        intended behaviour rather than a gap: such a deployment has the customer
+
+        portal, which resolves approvers against the organization''s own
+
+        directory.
+
+
+        The `author` inside the returned artifact is the caller resolved from
+
+        `X-User-ID`; a value supplied in the request body is overwritten, since
+
+        the author is covered by the signature.'
+      operationId: publishTypedPolicyDocument
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TypedAuthoringDocumentRequest'
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  digest:
+                    type: string
+                    description: The artifact digest. Activation names this, never a version number.
+                  version:
+                    type: integer
+                  findings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuthoringFinding'
+                  template_omissions:
+                    $ref: '#/components/schemas/TemplateOmissionReport'
+                  template_omissions_unavailable:
+                    type: string
+                    description: 'Present INSTEAD OF `template_omissions` when the report could not be
+
+                      produced. The publication stands; this says why the omissions are not
+
+                      reported.
+
+                      '
+        '400':
+          description: 'Malformed request, or a document carrying no document_id. From
+
+            v11.1.0 the body is decoded strictly (#4371): a member the request or document does not declare, a second JSON value, or a `binds_on` that is `null` is refused here (`reason: malformed_request`) rather than ignored.
+
+            '
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/TypedAuthoringTierLimit'
+        '422':
+          description: 'The publication was refused. `findings` carries the declared codes;
+
+            an edition boundary appears as `GROUP_SCOPE_NOT_IN_EDITION`,
+
+            `OBLIGATION_FAMILY_NOT_IN_EDITION`,
+
+            `ATTRIBUTE_NAMESPACE_NOT_IN_EDITION` or
+
+            `CONSTRUCT_HAS_NO_EDITION_RULING`.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - document_refused
+                    - publication_refused
+                  error:
+                    type: string
+                  findings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuthoringFinding'
+        '429':
+          description: This process holds its cap of admitted artifacts for this organization
+        '500':
+          description: '`workspace_unavailable` (since v11.1.0, #4283; it was `503`): this
+
+            organization''s typed-authoring workspace could not be built on this
+
+            process (a signing key, the authoring plane or an activation
+
+            authority could not be built, or the build did not complete), and a
+
+            retry will not change that. The cause is logged, never returned.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - workspace_unavailable
+                  error:
+                    type: string
+        '503':
+          $ref: '#/components/responses/TypedAuthoringUnavailable'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/typed-policies/activate:
+    post:
+      tags:
+      - Typed Policy Authoring
+      summary: Activate a published digest
+      description: 'Promotes a published artifact to active. The activation is audited and
+
+        names the caller; that is required on every edition, including those
+
+        with no separation of duties, because an unattributed change of enforced
+
+        policy is what the audit trail exists to prevent.
+
+
+        A published organization document REPLACES the shipped organization
+
+        template, so activating one that omits template policies, or carries one
+
+        under its id but changed (its body, or the schema of an attribute it
+
+        reads), stops those controls deciding as shipped for the organization.
+
+        Such an activation is refused (409, `code:
+
+        TEMPLATE_OMISSIONS_UNACKNOWLEDGED`) unless `acknowledge_template_omissions`
+
+        names exactly those template policy ids - the union of the publication''s
+
+        `template_omissions.omitted` and `template_omissions.modified`. An edit is
+
+        not judged tighter or looser: a changed name or description is reported
+
+        and acknowledged like a changed condition. `GET
+
+        /api/v1/typed-policies/template` returns the template to seed a document
+
+        from.'
+      operationId: activateTypedPolicyDigest
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - digest
+              properties:
+                digest:
+                  type: string
+                reason:
+                  type: string
+                acknowledge_template_omissions:
+                  type: array
+                  items:
+                    type: string
+                  description: 'The organization-template policy ids this document omits or carries
+
+                    changed, which stop deciding as shipped for the organization when it is
+
+                    activated. Required, and it must EQUAL the union of the document''s
+
+                    `template_omissions.omitted` and `template_omissions.modified` as a set,
+
+                    whenever that union is not empty; absent or empty when the document
+
+                    carries the template as shipped. Each id once, none empty, and a
+
+                    `reason` that does not itself contain `acknowledged template omissions:`
+
+                    (otherwise 400). The accepted list is recorded in the activation''s
+
+                    `reason` as `[acknowledged template omissions: a, b]`.
+
+                    '
+      responses:
+        '200':
+          description: Activated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  activation:
+                    $ref: '#/components/schemas/TypedAuthoringActivation'
+                  template_omissions:
+                    $ref: '#/components/schemas/TemplateOmissionReport'
+                  template_omissions_unavailable:
+                    type: string
+                    description: 'Present INSTEAD OF `template_omissions` when the report could not be
+
+                      produced. THE ACTIVATION STANDS: it has already happened, so the answer
+
+                      remains 200 and this says why the omissions are not reported. Where the
+
+                      activated artifact could not be read back it is a fixed sentence, and the
+
+                      store''s own error is logged rather than returned.
+
+                      '
+        '400':
+          description: 'Malformed request (`reason: malformed_request`): a body that does not
+
+            decode, an `acknowledge_template_omissions` list with an empty id or an
+
+            id named twice, or a `reason` that itself contains the note an
+
+            acknowledgement is recorded under (`acknowledged template omissions:`,
+
+            compared ignoring case and spacing). From v11.1.0 the body is decoded
+
+            strictly (#4371): a member the request does not declare, or a second
+
+            JSON value, is refused here rather than ignored.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - malformed_request
+                  error:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: "Refused on the STATE of what is being activated rather than on the shape\nof the request (`reason: activation_refused`): the digest is not admitted,\nthe version does not advance, the parent is not the active digest, or the\nactor may not activate this version (reload the active version and\nrebase; no `code`). Two refusals carry a `code`:\n\n- `TEMPLATE_OMISSIONS_UNACKNOWLEDGED`: the document omits or changes\n  organization template policies and `acknowledge_template_omissions`\n  does not name exactly those ids (none, fewer, more, or any at all for a\n  document that carries the template as shipped). `template_omissions`\n  reports what the document omits and changes, and `error` says exactly\n  which list to send. Nothing was activated.\n- `TEMPLATE_OMISSIONS_UNAVAILABLE`: the document's omissions could not be\n  computed, so it was not activated. Retry. `error` is a fixed sentence.\n"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - activation_refused
+                  code:
+                    type: string
+                    enum:
+                    - TEMPLATE_OMISSIONS_UNACKNOWLEDGED
+                    - TEMPLATE_OMISSIONS_UNAVAILABLE
+                  error:
+                    type: string
+                  template_omissions:
+                    $ref: '#/components/schemas/TemplateOmissionReport'
+        '500':
+          description: 'The artifact this activation names does not verify on load (`reason:
+
+            artifact_unverifiable`): its signing key has been de-authorized, or its
+
+            signature, digest or compiled module no longer holds. Nothing was
+
+            activated, and a retry will not change that. The verification error is
+
+            logged, never returned.
+
+
+            Or `workspace_unavailable` (since v11.1.0, #4283; it was `503`): this
+
+            organization''s typed-authoring workspace could not be built on this
+
+            process (a signing key, the authoring plane or an activation
+
+            authority could not be built, or the build did not complete), and a
+
+            retry will not change that. The cause is logged, never returned.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - artifact_unverifiable
+                    - workspace_unavailable
+                  error:
+                    type: string
+        '503':
+          $ref: '#/components/responses/TypedAuthoringUnavailable'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/typed-policies/active:
+    get:
+      tags:
+      - Typed Policy Authoring
+      summary: The document currently in force
+      description: 'Returns the exact byte sequence that was signed. It parses, re-renders
+
+        identically and recompiles to the module being enforced - all three
+
+        proven before the signature and re-proven on every load.'
+      operationId: getActiveTypedPolicyDocument
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      responses:
+        '200':
+          description: The signed document source
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: 'Nothing is active on this organization''s authority root (`reason:
+
+            nothing_active`). Answered only when the store was read and holds no
+
+            active document: a store that could not be read answers `503
+
+            storage_unavailable`, never this (#4255).
+
+            '
+        '500':
+          description: 'The document active on this organization no longer verifies on load
+
+            (`reason: active_unverifiable`, #4255): its signing key has been
+
+            de-authorized, or its signature, digest or compiled module no longer
+
+            holds. It is an integrity fault, not a storage outage, and a
+
+            document that verifies must be activated. The verification
+
+            error is logged, never returned.
+
+
+            Or `workspace_unavailable` (since v11.1.0, #4283; it was `503`): this
+
+            organization''s typed-authoring workspace could not be built on this
+
+            process (a signing key, the authoring plane or an activation
+
+            authority could not be built, or the build did not complete), and a
+
+            retry will not change that. The cause is logged, never returned.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - active_unverifiable
+                    - workspace_unavailable
+                  error:
+                    type: string
+        '503':
+          $ref: '#/components/responses/TypedAuthoringUnavailable'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/typed-policies/active/summary:
+    get:
+      tags:
+      - Typed Policy Authoring
+      summary: How many policies are in force on this organization, and whose
+      description: 'Counts the policies this organization has in force on the decide scope,
+
+        through the same activation the agent enforces (#4152): the published
+
+        document when one is active, and the implicit baseline when none is.
+
+
+        - `shipped`: what the platform ships.
+
+        - `organization`: the organization''s own, including the shipped
+
+        controls its document re-actions and the replacements its recorded
+
+        detection overrides carry.
+
+        - `disabled`: the policies of the shipped controls its document
+
+        disabled; one control can bind several. These are not enforced and
+
+        are not in `total`.
+
+        - `not_bound_here`: the ids of the document''s controls whose
+
+        `binds_on` does not name this scope (#4371). They are neither
+
+        enforced nor counted here. Omitted when there are none.
+
+
+        The installed policy packs are counted by the agent, the only process
+
+        that loads them: this route reads the agent''s summary of the activation
+
+        it enforces (`GET /api/v1/policy-packs/summary` on the agent, an
+
+        internal-service route) and answers it, with `pack` the packs'' policies
+
+        on the scope, `packs_counted` true and `total` including `pack`. A
+
+        deployment that installs no pack, every Community one included, answers
+
+        `pack` 0 with `packs_counted` true: a counted zero, not an unknown. When
+
+        the agent''s summary cannot be read, this route answers its own count,
+
+        in the same shape, with `pack` null, `packs_counted` false and
+
+        `packs_uncounted_reason` naming why; `packs_counted` false means only
+
+        that. One scope is counted and named in `scope`: a policy binds on every
+
+        scope it applies to, so a sum across scopes would count it once per
+
+        scope.'
+      operationId: getTypedPolicyActiveSummary
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      responses:
+        '200':
+          description: The count of the policies in force
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - success
+                - scope
+                - shipped
+                - organization
+                - pack
+                - packs_counted
+                - disabled
+                - total
+                properties:
+                  success:
+                    type: boolean
+                  scope:
+                    type: string
+                    enum:
+                    - decide
+                  shipped:
+                    type: integer
+                  organization:
+                    type: integer
+                  pack:
+                    type:
+                    - integer
+                    - 'null'
+                  packs_counted:
+                    type: boolean
+                  packs_uncounted_reason:
+                    type: string
+                    enum:
+                    - agent_unreachable
+                    - agent_refused
+                    - agent_answer_unreadable
+                    description: 'Why the installed packs were not counted, present only
+
+                      when `packs_counted` is false: the agent''s summary could
+
+                      not be reached (`agent_unreachable`), the agent answered a
+
+                      non-2xx status (`agent_refused`), or it answered what is
+
+                      not a counted summary of this scope
+
+                      (`agent_answer_unreadable`).
+
+                      '
+                  disabled:
+                    type: integer
+                  total:
+                    type: integer
+                  not_bound_here:
+                    type: array
+                    items:
+                      type: string
+                  detector_not_run_here:
+                    type: array
+                    description: 'Per control, the registry detector this scope does not
+
+                      run and the planes that do. Every id here is also in
+
+                      `not_bound_here`. Omitted when there are none.
+
+                      '
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        detector:
+                          type: string
+                        runs_on:
+                          type: array
+                          items:
+                            type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: 'The document active on this organization no longer verifies on load
+
+            (`reason: active_unverifiable`), as on `GET
+
+            /api/v1/typed-policies/active`. The verification error is logged,
+
+            never returned.
+
+
+            Or `workspace_unavailable` (since v11.1.0, #4283; it was `503`): this
+
+            organization''s typed-authoring workspace could not be built on this
+
+            process (a signing key, the authoring plane or an activation
+
+            authority could not be built, or the build did not complete), and a
+
+            retry will not change that. The cause is logged, never returned.
+
+            '
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - active_unverifiable
+                    - workspace_unavailable
+                  error:
+                    type: string
+        '503':
+          description: "The count cannot be given. `reason` says why:\n\n- `catalog_not_configured`, `storage_unavailable`,\n  `ledger_inconsistent`, `workspace_building` and\n  `key_not_loaded`: as on `GET /api/v1/typed-policies/active`. A\n  store that cannot be read is refused, never answered with a count\n  of the implicit baseline.\n- `summary_unavailable`: what is in force could not be activated to\n  be counted, for example because the organization's recorded\n  detection posture could not be read. The cause is logged, never\n  returned.\n"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  reason:
+                    type: string
+                    enum:
+                    - catalog_not_configured
+                    - storage_unavailable
+                    - ledger_inconsistent
+                    - workspace_building
+                    - key_not_loaded
+                    - summary_unavailable
+                  error:
+                    type: string
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/typed-policies/template:
+    get:
+      tags:
+      - Typed Policy Authoring
+      summary: The shipped organization template, read-only
+      description: 'Returns the organization template this binary shipped: the document a new
+
+        organization draft starts from. A published organization document REPLACES
+
+        the template, so an author seeds a document from it to keep the template''s
+
+        controls deciding; activating a document that omits template policies
+
+        requires naming them (`acknowledge_template_omissions` on activate).
+
+
+        The same rendering and envelope the customer portal''s
+
+        `GET /api/v1/typed-policies/template` returns. There is no write operation:
+
+        the template is a build constant. Like `system`, it does not require a
+
+        configured typed-authoring vocabulary.'
+      operationId: getTypedPolicyOrganizationTemplate
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      responses:
+        '200':
+          description: The shipped organization template
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  template:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: 'The template''s document identifier, as an activation history records it once an organization withdraws its own.
+
+                          '
+                      digest:
+                        type: string
+                        description: The template digest this binary shipped.
+                      document:
+                        type: object
+                        additionalProperties: true
+                        description: 'The template itself, the organization-root policy document a draft copies,
+
+                          as the exact canonical bytes the digest is computed over.
+
+
+                          OPAQUE BY DESIGN, as the system corpus''s `document` is: its interior is the
+
+                          typed document as shipped, and this response does not restate that shape.
+
+                          `additionalProperties: true` says so rather than leaving a reader to infer it
+
+                          from silence.
+
+                          '
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: 'The shipped template could not be rendered (`reason: organization_template_unavailable`).
+
+            '
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+  /api/v1/typed-policies/system:
+    get:
+      tags:
+      - Typed Policy Authoring
+      summary: The platform's own controls, read-only
+      description: 'Returns the shipped system corpus: the system-root document this binary
+
+        activates beneath every organization document, each control with its
+
+        declared assurance class (enforcement, gating_risk or advisory - what
+
+        happens when it cannot be evaluated), and the digest an enforcing engine
+
+        anchors the system bundle to.
+
+
+        There is no write operation on this path or anywhere else: the system
+
+        root''s one authority is the corpus this binary shipped. It does not
+
+        require a configured typed-authoring vocabulary, because the corpus is
+
+        enforced whether or not this deployment authors typed policy.'
+      operationId: getTypedPolicySystemCorpus
+      parameters:
+      - $ref: '#/components/parameters/TypedAuthoringOrg'
+      - $ref: '#/components/parameters/TypedAuthoringUser'
+      responses:
+        '200':
+          description: The shipped system corpus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  system:
+                    type: object
+                    properties:
+                      root:
+                        type: string
+                        enum:
+                        - system
+                      version:
+                        type: integer
+                      digest:
+                        type: string
+                      authority:
+                        type: string
+                        enum:
+                        - shipped_corpus
+                      controls:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            control:
+                              type: string
+                              description: 'The corpus control this policy belongs to: the identifier an organization
+
+                                document''s system_controls names. The variants a control ships as, one
+
+                                per enforcement scope''s action, share it.
+
+                                '
+                            dynamic:
+                              type: boolean
+                              description: 'A shipped DYNAMIC control, which an organization may disable but not
+
+                                re-action.
+
+                                '
+                            name:
+                              type: string
+                              description: The control's readable name.
+                            authority:
+                              type: string
+                            assurance:
+                              type: string
+                              enum:
+                              - enforcement
+                              - gating_risk
+                              - advisory
+                            mandatory:
+                              type: boolean
+                            description:
+                              type: string
+                            obligations:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    description: The obligation type.
+                                  target:
+                                    type: string
+                                    description: 'The canonical field path for a disclosure transform, absent for every
+
+                                      other family.
+
+                                      '
+                                  params:
+                                    type: object
+                                    additionalProperties:
+                                      type: string
+                                    description: 'The type''s own parameters. Two obligations of the same type and target
+
+                                      with different params are incomparable.
+
+                                      '
+                                  mandatory:
+                                    type: boolean
+                                    description: 'A mandatory obligation DENIES when it cannot be discharged; an advisory
+
+                                      one is recorded and dropped.
+
+                                      '
+                                  source_policy:
+                                    type: string
+                                    description: The policy that attached this obligation.
+                                  schema_version:
+                                    type: integer
+                                    description: The obligation schema version the PEP must support.
+                      assurance_counts:
+                        type: object
+                        additionalProperties:
+                          type: integer
+                      document:
+                        type: object
+                        additionalProperties: true
+                        description: 'The system document itself, as the exact canonical bytes the digest is
+
+                          computed over, so a client can render any field this view does not
+
+                          summarize without a second endpoint and without a second encoding.
+
+
+                          OPAQUE BY DESIGN: its interior is the typed document as published, and
+
+                          this response does not restate that shape. `additionalProperties: true`
+
+                          says so rather than leaving a reader to infer it from silence.
+
+                          '
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  responses:
+    Unauthorized:
+      description: 'Unauthorized - missing or invalid tenant/organization scope.
+
+
+        NOTE: this is the FLAT-family member. Before #3901 it described the
+
+        coded shape while its siblings described the flat one, so any operation
+
+        referencing it alongside BadRequest documented two incompatible bodies.
+
+        Operations whose handler emits the coded shape now reference
+
+        CodedUnauthorized instead.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: missing tenant ID
+    TypedAuthoringUnavailable:
+      description: "The typed-authoring route cannot answer. `reason` says why:\n\n- `catalog_not_configured`: this deployment's typed-authoring\n  vocabulary could not be resolved, as `TypedAuthoringUnconfigured`\n  describes.\n- `storage_unavailable`: this deployment has a database configured for\n  typed authoring and could not use it. A publish or an activation is\n  refused rather than kept in memory, where the next restart would lose\n  it; a read of the active document is refused rather than answered\n  `404 nothing_active` (#4255), which would say the organization has no\n  active document. Retry once the database is reachable. The store's own\n  error is logged, never returned. A store that fails DURING a publish\n  or an activation, after the route was built, answers here too\n  (#4283), never `422 publication_refused` or `409 activation_refused`,\n  which are refusals of the document or the activation itself.\n- `ledger_inconsistent` (since v11.1.0, #4249 row 5797853828): the\n  store does not hold the active document its own ledger names. It is\n  the store's failure, like `storage_unavailable`, but a retry will not\n  heal it: the database is reachable and disagrees with itself, and the\n  store needs an operator's repair. An activation reads that document to\n  replace it, so `POST /activate` answers this; so do the reads of the\n  active document (`GET /active`, `GET /active/summary`), never `404\n  nothing_active` or a count of the shipped set alone, which would report\n  the organization's own controls as absent. Until v11.1.0 this state\n  answered `storage_unavailable`.\n- `workspace_building` (since v11.1.0, #4283): this request stopped\n  waiting for its organization's workspace build, which another request\n  started and which is still running. Retry in a few seconds. The step\n  the build was on is logged.\n- `workspace_unavailable` is answered with **500**, not 503, since\n  v11.1.0 (#4283), as the customer portal answers it: this\n  organization's typed-authoring workspace could not be built on this\n  process (a signing key that could not be generated, an authoring plane\n  or an activation authority that could not be constructed, a build\n  that did not complete), and a retry will not change that. A durable\n  store that cannot be opened is never this: it is\n  `storage_unavailable`. The cause is logged, never returned. A\n  `429 workspace_limit` on the same routes is the one quota: the\n  process holds its cap of workspaces and none can be evicted.\n- `key_not_loaded` (`GET /api/v1/typed-policies/active`, #4255, and\n  `POST /api/v1/typed-policies/activate`, where it is the artifact being\n  activated, #4249): the document is signed by a key this replica has not loaded,\n  and the reload that would load it did not complete in time. A read\n  whose key reload is deferred WAITS for it (at most a reload in flight\n  it joins, one reload floor of 2 seconds, plus one more floor for the\n  fresh reload it then runs or joins) and answers from the key set that\n  reload produced: `200`, `500 active_unverifiable` (on\n  activate, `500 artifact_unverifiable`) when the key is authorized\n  nowhere, or `503 storage_unavailable` when the re-read failed\n  (#4272). `key_not_loaded` is left for a reload in flight that took\n  longer than the floor; a retry after a few seconds settles it.\n"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              reason:
+                type: string
+                enum:
+                - catalog_not_configured
+                - storage_unavailable
+                - ledger_inconsistent
+                - workspace_building
+                - key_not_loaded
+              error:
+                type: string
+    TypedAuthoringTierLimit:
+      description: 'The edition''s customer-authored document ceiling. 402 rather than 429
+
+        because a tier limit is a commercial ceiling and not a rate: the caller
+
+        has nothing to wait for.
+
+
+        The same status and the same `code` also carry the retryable OUTAGE
+
+        refusal, when the admission ledger cannot be reached. `Retry-After` is
+
+        what separates them, and the message says which applied.
+
+        '
+      headers:
+        Retry-After:
+          description: Present only on the retryable (ledger unreachable) refusal.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              reason:
+                type: string
+                enum:
+                - tier_limit
+              code:
+                type: string
+                example: ERR_TIER_LIMIT_ORG_ROOT_POLICY
+              error:
+                type: string
+              policy:
+                type: string
+                description: 'The policy that crossed the ceiling, present only on a refusal that names
+
+                  one. A batch admission is all-or-nothing, so this is the first policy of
+
+                  the submitted set that did not fit; it is absent on the outage refusal,
+
+                  where no particular policy is at fault.
+
+                  '
+    TypedAuthoringUnconfigured:
+      description: 'This deployment''s typed-authoring vocabulary could not be resolved: an
+
+        unrecognised `AXONFLOW_TYPED_AUTHORING_CATALOG` value, or a deployment
+
+        vocabulary this process could not build. Unset means `deployment` (PRD
+
+        §1.5), so a stock deployment never answers this. The surface refuses
+
+        rather than validating against an empty catalog, which would reject
+
+        every policy for naming an unregistered action.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              reason:
+                type: string
+                enum:
+                - catalog_not_configured
+              error:
+                type: string
+  schemas:
+    TypedAuthoringActivation:
+      type: object
+      description: 'One activation record. Promote, rollback and withdraw each append one, and
+
+        the history is the chain they form.
+
+        '
+      properties:
+        kind:
+          type: string
+          description: Which activation this is - a promote, a rollback or a withdrawal.
+        root:
+          type: string
+          description: The authority root the activation applies to.
+        digest:
+          type: string
+          description: 'The artifact digest activated. An activation names a DIGEST and never a
+
+            version number, so "which policy produced this decision" survives the
+
+            next edit.
+
+            '
+        previous_digest:
+          type: string
+          description: 'The entry this activation chains onto: the digest the previous
+
+            activation named. Absent on the first activation an organization
+
+            performs. It is what makes the history a chain rather than a list.
+
+
+            A promotion and a rollback chain onto the ledger''s TIP; a withdrawal
+
+            names the document it removes, which is the active one. The tip and
+
+            the active digest differ only after a withdrawal, which appends an
+
+            entry naming the shipped organization template while leaving nothing
+
+            active - so the promotion after a withdrawal chains onto that entry
+
+            rather than onto a document.
+
+            '
+        document_id:
+          type: string
+          description: The document identifier the activated artifact carries.
+        document_version:
+          type: integer
+          description: 'The activated document''s own version. A rollback re-activates an earlier
+
+            version and does NOT advance it.
+
+            '
+        actor:
+          type: object
+          description: 'The principal that performed the activation, as the gateway resolved the
+
+            caller - never as the request claimed.
+
+            '
+          properties:
+            kind:
+              type: string
+            type:
+              type: string
+            qualifier:
+              type: string
+            local:
+              type: string
+        at:
+          type: string
+          format: date-time
+          description: When the activation was recorded, in UTC.
+        reason:
+          type: string
+          description: 'The reason the actor gave. A withdrawal and a rollback both require one:
+
+            an unexplained return to the shipped set wants explaining as much as a
+
+            rollback does.
+
+
+            Free text, read by audit. When the activation acknowledged organization
+
+            template omissions (`acknowledge_template_omissions`), the accepted ids
+
+            are recorded here, sorted, as `[acknowledged template omissions: a, b]`
+
+            after the actor''s reason (or alone, for a promotion given no reason).
+
+            '
+    TemplateOmissionReport:
+      type: object
+      description: 'Which of the organization template''s policies a document does not carry, or
+
+        carries changed. The document an organization activates REPLACES the implicit
+
+        bundle''s template, so each policy it omits or changes stops deciding as
+
+        shipped for that organization; publish and activation return this report so
+
+        that dropping or editing a template control is a visible edit rather than a
+
+        silent one.
+
+
+        It counts POLICIES, not controls: a template redaction ships as two policies
+
+        bound by discharge, and a document carrying only one of them drops the
+
+        control on the other''s scopes.
+
+        '
+      properties:
+        omitted:
+          type: array
+          items:
+            type: string
+          description: The template policy identifiers this document does not carry.
+        modified:
+          type: array
+          items:
+            type: string
+          description: 'The template policy identifiers this document carries under their id but
+
+            not as shipped: the policy differs (compared as canonical JSON), or an
+
+            attribute it reads is declared with another type, optionality or
+
+            freshness bound, or not declared. Disjoint from `omitted`; an activation
+
+            acknowledges both.
+
+            '
+        of:
+          type: integer
+          description: How many policies the organization template ships.
+        message:
+          type: string
+          description: The same fact as a sentence, naming each omitted and each changed policy, and each changed attribute with what differs.
+    AuthoringFinding:
+      type: object
+      description: One declared save-time or publication result.
+      properties:
+        code:
+          type: string
+        severity:
+          type: string
+          enum:
+          - reject
+          - warn
+        policy_id:
+          type: string
+        summary:
+          type: string
+          description: The declared, code-level sentence, renderable verbatim.
+        detail:
+          type: string
+          description: What was wrong in this document, naming the offending value.
+    EditionConstructReport:
+      type: object
+      description: 'What this edition may spend. Derived from the edition profile, whose
+
+        every row cites a row of the Edition Capability Boundaries PRD.
+
+        '
+      properties:
+        edition:
+          type: string
+          enum:
+          - community
+          - evaluation
+          - enterprise
+        obligation_families:
+          type: array
+          description: 'The obligation families this edition may attach. Community and
+
+            Evaluation carry disclosure and audit/notify; route restriction is
+
+            Evaluation and above; approval and budget are Enterprise.
+
+            '
+          items:
+            type: string
+        attribute_namespaces:
+          type: array
+          description: 'The request-context attribute namespaces a condition may read.
+
+            Community carries `principal`, `action`, `resource` and `args`;
+
+            Evaluation adds `env` and `signal`; Enterprise adds `agent` and
+
+            `state`.
+
+            '
+          items:
+            type: string
+        group_scope:
+          type: boolean
+          description: 'Whether a policy may be scoped to a group. Group scope resolves
+
+            through the nested group graph, which is Enterprise.
+
+            '
+        separation_of_duties:
+          type: boolean
+          description: 'Whether a publication needs an approver other than the author and an
+
+            activation an actor other than that author. True on Enterprise, and
+
+            true on ANY edition when `tier_established` is false. Where it is
+
+            false, a sole administrator can publish and activate; nothing else
+
+            is relaxed, and every activation is still attributed and audited.
+
+            '
+        tier_established:
+          type: boolean
+          description: 'Whether this process could DETERMINE the deployment''s licensed
+
+            tier, or fell back to Community because it could not. False means
+
+            either that a licence key was present and did not verify, or that
+
+            none reached this process on a deployment whose `DEPLOYMENT_MODE`
+
+            is entitled to Enterprise.
+
+
+            When it is false the two fields above disagree on purpose:
+
+            `edition` reads `community`, because losing a construct loses a
+
+            capability and the smallest boundary is the safe fallback for one;
+
+            `separation_of_duties` reads true regardless, because losing an
+
+            approver loses a control and the smallest boundary is the
+
+            PERMISSIVE one there. Read together they say "this deployment may
+
+            be entitled to more than it is being given, and nothing is being
+
+            relaxed while that is unresolved". The remedy is an operator''s:
+
+            give this process `AXONFLOW_LICENSE_KEY`, or re-issue the licence.
+
+            '
+        reserved:
+          type: array
+          description: 'Constructs withheld for want of an edition ruling rather than by
+
+            one, reported separately because an excluded construct is an upgrade
+
+            and a reserved one is an open question.
+
+            '
+          items:
+            type: string
+    TypedAuthoringDocumentRequest:
+      type: object
+      required:
+      - document
+      description: 'A candidate document and the author-declared fixtures the publication
+
+        gauntlet runs against it. A publication with no fixtures is refused by
+
+        name: no policy in the document has been shown to do anything.
+
+        '
+      properties:
+        document:
+          type: object
+          description: 'An `authoring.axonflow.com/v1` document. It is the authoring model
+
+            itself rather than a mirror of it, so a field added to the policy
+
+            vocabulary is authorable here without this schema changing. Its
+
+            members are `api_version`, `metadata`, `policy` and, optionally,
+
+            `system_controls` (PRD v11 §1.5), and every member the author sent is
+
+            validated and signed. `GET /api/v1/typed-policies/schema` serves the
+
+            JSON schema of all of them.
+
+            '
+        fixtures:
+          type: array
+          items:
+            type: object
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+  parameters:
+    TypedAuthoringUser:
+      name: X-User-ID
+      in: header
+      required: true
+      description: 'The authoring principal, stamped by the agent gateway. It is carried
+
+        INSIDE the signed policy source as the author, so a value supplied in a
+
+        request body is overwritten with this one.
+
+        '
+      schema:
+        type: string
+    TypedAuthoringOrg:
+      name: X-Org-ID
+      in: header
+      required: true
+      description: 'The organization, stamped by the agent gateway from the validated
+
+        licence. There is no path, query or body field on any endpoint in this
+
+        family by which a caller can name an organization, so reading another
+
+        organization''s documents is not a check that could be forgotten - it is
+
+        a request that cannot be expressed.
+
+        '
+      schema:
+        type: string
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml

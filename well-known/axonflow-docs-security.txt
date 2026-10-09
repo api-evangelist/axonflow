@@ -1,0 +1,4 @@
+Canonical: https://getaxonflow.com/.well-known/security.txt
+Contact: mailto:security@getaxonflow.com
+Expires: 2027-05-28T23:59:00Z
+Policy: https://getaxonflow.com/security

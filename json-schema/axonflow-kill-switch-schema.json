@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/api-evangelist/axonflow/main/json-schema/axonflow-kill-switch-schema.json",
+  "title": "KillSwitch",
+  "x-generated": "2026-10-09",
+  "x-method": "derived",
+  "x-generator": "derive-json-schema.py",
+  "x-source": "openapi/axonflow-masfeat-openapi.yml#/components/schemas/KillSwitch",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "org_id": {
+      "type": "string"
+    },
+    "system_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled",
+        "triggered"
+      ]
+    },
+    "trigger_reason": {
+      "type": "string",
+      "description": "Reason recorded when the kill switch was triggered"
+    },
+    "trigger_conditions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "auto_trigger_enabled": {
+      "type": "boolean"
+    },
+    "accuracy_threshold": {
+      "type": "number",
+      "format": "double"
+    },
+    "bias_threshold": {
+      "type": "number",
+      "format": "double"
+    },
+    "error_rate_threshold": {
+      "type": "number",
+      "format": "double"
+    },
+    "triggered_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "triggered_by": {
+      "type": "string"
+    },
+    "restored_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "restored_by": {
+      "type": "string"
+    },
+    "restore_reason": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,295 @@
+openapi: 3.2.0
+info:
+  title: Axonflow US Banking Compliance API
+  version: 11.1.0
+  contact:
+    name: AxonFlow Support
+    url: https://getaxonflow.com/support
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
+  description: 'Operations tagged US Banking Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://orchestrator.getaxonflow.com
+  description: Production (SaaS)
+- url: http://localhost:8081
+  description: Local Development
+tags:
+- name: US Banking Compliance
+  description: 'US federal banking and Farm Credit examination evidence (ADR-063). One
+
+    read: the examination-readiness summary. The evidence itself is produced
+
+    by the compliance report facade with `regulator=usbanking`; this module
+
+    owns no tables and adds no second path to the underlying rows.
+
+    **Enterprise** feature.'
+paths:
+  /api/v1/usbanking/exam-readiness:
+    get:
+      tags:
+      - US Banking Compliance
+      summary: US banking examination readiness
+      description: 'Answers "if I generate the US banking examination package now, what
+
+        will be in it and what will it have to disclose?" WITHOUT creating a
+
+        report job.
+
+
+        It returns COUNTS, PRESENCE and DISCLOSURES, never evidence rows. The
+
+        rows come from the compliance report facade
+
+        (`POST /api/v1/compliance/reports` with `regulator=usbanking`) and only
+
+        from there, so this is not a second export path.
+
+
+        It exists because the facade cannot answer this question: asking it
+
+        means creating a job, spending one of an Evaluation tier''s three daily
+
+        reports, and waiting on an async render, purely to learn whether the
+
+        package is worth generating.
+
+
+        SCOPE: the summary covers the requesting TENANCY. Every source it reads
+
+        is tenancy-keyed, and `audit_logs.org_id` is nullable, so an
+
+        organization-wide count would silently omit records (ADR-063 section 4).
+
+        The `unattributed_records` source reports exactly the population an
+
+        organization-wide report would have dropped.
+
+
+        AUTHORITY: gated on tenant-wide read authority, the same gate as the
+
+        evidence and compliance exports. It returns aggregates rather than
+
+        rows, but an aggregate over `audit_logs` still describes whole-tenant
+
+        activity.
+
+
+        **Enterprise Feature**. Community builds register no route (404).'
+      operationId: getUSBankingExamReadiness
+      responses:
+        '200':
+          description: Examination readiness summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/USBankingExamReadiness'
+        '401':
+          description: 'No organization or tenant scope on the request (`SCOPE_REQUIRED`):
+
+            it did not traverse an authenticating hop.
+
+            '
+        '403':
+          description: 'The caller does not hold tenant-wide read authority.
+
+            '
+        '405':
+          description: Method not allowed; this route is GET-only.
+        '500':
+          description: 'The readiness summary could not be produced (`INTERNAL_ERROR`). The
+
+            body carries a fixed sentence; the cause is in the orchestrator log
+
+            keyed by the request.
+
+            '
+        '503':
+          description: 'The module is not initialized (the orchestrator has no database
+
+            connection).
+
+            '
+    servers:
+    - url: https://orchestrator.getaxonflow.com
+      description: Production (SaaS)
+    - url: http://localhost:8081
+      description: Local Development
+components:
+  schemas:
+    USBankingSourceReadiness:
+      type: object
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        present:
+          type: boolean
+          description: 'An OBSERVATION, not a health check: false means the source held
+
+            nothing for this tenancy in this window, which on a quiet
+
+            deployment is a truthful answer and not a fault. Meaningful ONLY
+
+            when `readable` is true.
+
+            '
+        count:
+          type: integer
+        readable:
+          type: boolean
+          description: 'Whether this deployment could read the source AT ALL.
+
+
+            UNDOCUMENTED UNTIL #3532, and load-bearing since #3530 shipped: the
+
+            server has always sent it, the console keys its warning styling on
+
+            it, and the field is what separates "quiet deployment" from
+
+            "surface this deployment cannot read". Omitting it from the schema
+
+            left a generated client with no way to tell them apart except by
+
+            sniffing the note''s prose, which is exactly the shape the note''s
+
+            own description warns against.
+
+            '
+        note:
+          type: string
+          description: 'Why the count reads as it does. Load-bearing: a source can read
+
+            zero because the deployment is quiet OR because this deployment
+
+            cannot read that source at all, and `readable` is what separates
+
+            them. A note beginning `NOT REPORTED` means the generated package
+
+            will carry an INCOMPLETE section.
+
+            '
+    USBankingProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          enum:
+          - federal
+          - farm-credit
+        display_name:
+          type: string
+        frameworks:
+          type: array
+          description: The framework tokens that select this profile.
+          items:
+            type: string
+            enum:
+            - US_MRM
+            - US_TPRM
+            - GLBA_SAFEGUARDS
+            - BSA_AML
+            - FCA_EM31
+        board_pack_cadence:
+          type: string
+          description: 'What the profile''s supervisor EXPECTS, not a claim that this
+
+            deployment produces a pack on that schedule.
+
+            '
+          enum:
+          - annual
+          - quarterly
+        model_risk_citation:
+          type: string
+        incident_clock:
+          type: string
+    USBankingExamReadiness:
+      type: object
+      description: 'The US banking examination-readiness summary. Counts, presence and
+
+        disclosures only; it carries no evidence rows.
+
+        '
+      properties:
+        tenant_id:
+          type: string
+          description: The tenancy this summary covers.
+        window_days:
+          type: integer
+          description: 'The lookback the counts are taken over. One quarter, because that
+
+            is the shortest cadence any instrument in scope sets (12 CFR Part
+
+            609 quarterly board reporting), so the window always covers at
+
+            least one full cycle for the tighter profile.
+
+            '
+          example: 90
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        scope:
+          type: string
+          description: 'One sentence stating the report''s tenancy boundary. Every count is
+
+            meaningless without it.
+
+            '
+        profiles:
+          type: array
+          description: 'The supervisory profiles and the frameworks that select each. The
+
+            profile is DERIVED from the framework a report requests and is
+
+            never a separate request field, so a caller cannot ask for a
+
+            combination that contradicts itself (ADR-063 section 2). Served so
+
+            a console learns the mapping from the deployment instead of keeping
+
+            a copy that drifts.
+
+            '
+          items:
+            $ref: '#/components/schemas/USBankingProfile'
+        sources:
+          type: array
+          description: Per evidence source, whether it holds anything and how much.
+          items:
+            $ref: '#/components/schemas/USBankingSourceReadiness'
+        disclosures:
+          type: array
+          description: 'The sentences every generated artifact carries. Returned here so
+
+            nothing in a package is a surprise at the point it reaches an
+
+            examiner, and served from the same source the artifact renders
+
+            from, so the two cannot say different things.
+
+            '
+          items:
+            type: string
+        generated_at:
+          type: string
+          format: date-time
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: OAuth2-style client credentials (clientId:clientSecret)
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enterprise JWT token (see /scripts/generate-jwt.sh)
+x-refined-from:
+- axonflow-orchestrator-api.yaml
+- axonflow-orchestrator-openapi.yml
