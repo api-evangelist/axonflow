@@ -1,0 +1,22 @@
+edges:
+- partner_name: OpenAI
+  partner: openai
+  partner_match: domain
+  type: contract
+  channel: provider-built
+  relationship: compatible
+  direction: provider-built
+  evidence: https://github.com/api-evangelist/axonflow/blob/main/openapi/axonflow-openai-compatible-api-openapi.yml#L3
+  contract_reference:
+    repo: axonflow
+    spec_file: axonflow-openai-compatible-api-openapi.yml
+    property: description
+    value: OpenAI-compatible
+    note: 'axonflow declares OpenAI compatibility: ''title: Axonflow OpenAI Compatible API'''
+    detected_by: sweep-model-routing.py
+    detected: '2026-10-13'
+  detected_by: sweep-model-routing.py
+  first_seen: '2026-10-13'
+generated: '2026-10-13'
+method: searched
+checked: []
