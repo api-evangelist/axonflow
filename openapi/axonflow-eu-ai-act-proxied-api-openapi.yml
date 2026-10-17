@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow EU AI Act (Proxied) API
+  title: AxonFlow Agent EU AI Act (Proxied) API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged EU AI Act (Proxied) across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -51,13 +51,6 @@ paths:
       responses:
         '201':
           description: Export request created (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/export/{export_id}:
     get:
       tags:
@@ -76,13 +69,6 @@ paths:
       responses:
         '200':
           description: Export request status (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/export/{export_id}/download:
     get:
       tags:
@@ -101,13 +87,6 @@ paths:
       responses:
         '200':
           description: Evidence bundle download (see orchestrator-api.yaml for content types)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/conformity:
     get:
       tags:
@@ -131,13 +110,6 @@ paths:
       responses:
         '201':
           description: Assessment created (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/conformity/{assessment_id}:
     get:
       tags:
@@ -173,13 +145,6 @@ paths:
       responses:
         '200':
           description: Assessment updated (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/conformity/{assessment_id}/submit:
     post:
       tags:
@@ -198,13 +163,6 @@ paths:
       responses:
         '200':
           description: Assessment submitted (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/conformity/{assessment_id}/approve:
     post:
       tags:
@@ -223,13 +181,6 @@ paths:
       responses:
         '200':
           description: Assessment approved (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/conformity/{assessment_id}/reject:
     post:
       tags:
@@ -248,13 +199,6 @@ paths:
       responses:
         '200':
           description: Assessment rejected (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/accuracy:
     get:
       tags:
@@ -267,13 +211,6 @@ paths:
       responses:
         '200':
           description: Per-model accuracy summary (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/accuracy/record:
     post:
       tags:
@@ -286,13 +223,6 @@ paths:
       responses:
         '201':
           description: Metric recorded (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/accuracy/bias:
     post:
       tags:
@@ -305,13 +235,6 @@ paths:
       responses:
         '201':
           description: Bias measurement recorded (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/accuracy/history:
     get:
       tags:
@@ -324,13 +247,6 @@ paths:
       responses:
         '200':
           description: Metric history (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/euaiact/accuracy/alerts:
     get:
       tags:
@@ -343,13 +259,6 @@ paths:
       responses:
         '200':
           description: Alert list (see orchestrator-api.yaml for the schema)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
   parameters:
     LicenseKey:
@@ -443,6 +352,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Proxy Mode API
+  title: AxonFlow Agent Proxy Mode API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Proxy Mode across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -267,13 +267,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClientResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/policies/test:
     post:
       tags:
@@ -383,13 +376,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PolicyTestResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/clients:
     get:
       tags:
@@ -427,13 +413,6 @@ paths:
                 $ref: '#/components/schemas/Client'
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
   responses:
     Unauthorized:
@@ -469,145 +448,7 @@ components:
           example:
             success: false
             error: Internal server error
-  parameters:
-    ClientSecret:
-      name: X-Client-Secret
-      in: header
-      required: false
-      deprecated: true
-      description: '**DEPRECATED**: Use Basic authentication instead.
-
-        Legacy client secret header. Prefer using `Authorization: Basic` header.
-
-        '
-      schema:
-        type: string
-    LicenseKey:
-      name: Authorization
-      in: header
-      required: true
-      description: 'OAuth2-style Basic authentication header.
-
-        Format: `Basic base64(clientId:clientSecret)`
-
-
-        - `clientId`: Your organization identifier (required)
-
-        - `clientSecret`: Authentication credential (optional for community mode)
-
-
-        Not required when `DEPLOYMENT_MODE=community`.
-
-        '
-      schema:
-        type: string
-        example: Basic bXktb3JnOkFYT04tVjIteHh4
   schemas:
-    ClientRequest:
-      type: object
-      required:
-      - query
-      - client_id
-      properties:
-        query:
-          type: string
-          description: The query or prompt to process
-          minLength: 1
-          maxLength: 100000
-        user_token:
-          type: string
-          description: JWT token for user authentication
-        client_id:
-          type: string
-          description: Registered client application ID
-        request_type:
-          type: string
-          enum:
-          - sql
-          - llm_chat
-          - rag_search
-          - mcp-query
-          - multi-agent-plan
-          description: 'Type of request:
-
-            - `sql`: Database query
-
-            - `llm_chat`: LLM conversation
-
-            - `rag_search`: RAG retrieval
-
-            - `mcp-query`: MCP connector query
-
-            - `multi-agent-plan`: Multi-agent planning
-
-            '
-        skip_llm:
-          type: boolean
-          default: false
-          description: Skip LLM calls (for testing)
-        context:
-          type: object
-          additionalProperties: true
-          description: Additional context for request processing
-        media:
-          type: array
-          description: 'Optional multimodal payload accompanying the query
-
-            (images, documents, etc.). Consumed by the platform''s
-
-            media-governance code path; per-item shape is
-
-            `MediaContent` from the SDK.
-
-            '
-          items:
-            type: object
-            additionalProperties: true
-    PolicyEvaluationInfo:
-      type: object
-      properties:
-        matched_policies:
-          type: array
-          items:
-            type: string
-          description: 'The policies that matched the request, the deciding one first.
-
-            `policies_evaluated` carries the same list under its older name.
-
-            '
-        policies_evaluated:
-          type: array
-          items:
-            type: string
-          description: The same list as `matched_policies`, kept under its older name for existing consumers.
-        static_checks:
-          type: array
-          items:
-            type: string
-          description: List of static checks performed
-        processing_time:
-          type: string
-          description: Time taken for policy evaluation
-          example: 2.5ms
-        tenant_id:
-          type: string
-          description: Tenant ID for the request
-        code_artifact:
-          type: object
-          description: 'Code-artifact metadata captured by the code-governance
-
-            evaluation path when the request carried code content
-
-            (LLM-generated or user-provided). Mirrors the SDK''s
-
-            `CodeArtifact` type — language, code_type, size_bytes,
-
-            line_count, secrets_detected, unsafe_patterns,
-
-            policies_checked.
-
-            '
-          additionalProperties: true
     Client:
       type: object
       properties:
@@ -864,6 +705,51 @@ components:
                 the client''s circuit breaker, because the caller did not cause it).
 
                 '
+    PolicyEvaluationInfo:
+      type: object
+      properties:
+        matched_policies:
+          type: array
+          items:
+            type: string
+          description: 'The policies that matched the request, the deciding one first.
+
+            `policies_evaluated` carries the same list under its older name.
+
+            '
+        policies_evaluated:
+          type: array
+          items:
+            type: string
+          description: The same list as `matched_policies`, kept under its older name for existing consumers.
+        static_checks:
+          type: array
+          items:
+            type: string
+          description: List of static checks performed
+        processing_time:
+          type: string
+          description: Time taken for policy evaluation
+          example: 2.5ms
+        tenant_id:
+          type: string
+          description: Tenant ID for the request
+        code_artifact:
+          type: object
+          description: 'Code-artifact metadata captured by the code-governance
+
+            evaluation path when the request carried code content
+
+            (LLM-generated or user-provided). Mirrors the SDK''s
+
+            `CodeArtifact` type — language, code_type, size_bytes,
+
+            line_count, secrets_detected, unsafe_patterns,
+
+            policies_checked.
+
+            '
+          additionalProperties: true
     PolicyTestResponse:
       type: object
       description: '`POST /api/policies/test`''s preview of `/api/request`''s verdict for
@@ -904,6 +790,99 @@ components:
           type: string
         policy_bundle:
           type: string
+    ClientRequest:
+      type: object
+      required:
+      - query
+      - client_id
+      properties:
+        query:
+          type: string
+          description: The query or prompt to process
+          minLength: 1
+          maxLength: 100000
+        user_token:
+          type: string
+          description: JWT token for user authentication
+        client_id:
+          type: string
+          description: Registered client application ID
+        request_type:
+          type: string
+          enum:
+          - sql
+          - llm_chat
+          - rag_search
+          - mcp-query
+          - multi-agent-plan
+          description: 'Type of request:
+
+            - `sql`: Database query
+
+            - `llm_chat`: LLM conversation
+
+            - `rag_search`: RAG retrieval
+
+            - `mcp-query`: MCP connector query
+
+            - `multi-agent-plan`: Multi-agent planning
+
+            '
+        skip_llm:
+          type: boolean
+          default: false
+          description: Skip LLM calls (for testing)
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for request processing
+        media:
+          type: array
+          description: 'Optional multimodal payload accompanying the query
+
+            (images, documents, etc.). Consumed by the platform''s
+
+            media-governance code path; per-item shape is
+
+            `MediaContent` from the SDK.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+  parameters:
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
+    ClientSecret:
+      name: X-Client-Secret
+      in: header
+      required: false
+      deprecated: true
+      description: '**DEPRECATED**: Use Basic authentication instead.
+
+        Legacy client secret header. Prefer using `Authorization: Basic` header.
+
+        '
+      schema:
+        type: string
   securitySchemes:
     BasicAuth:
       type: http
@@ -975,6 +954,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

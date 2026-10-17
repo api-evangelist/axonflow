@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Agents API
+  title: AxonFlow Orchestrator Agents API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Agents across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -145,11 +145,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/agents/{id}:
     get:
       tags:
@@ -257,11 +252,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/agents/validate:
     post:
       tags:
@@ -314,11 +304,6 @@ paths:
                 errors:
                 - field 'name' is required
                 - routing rule references undefined agent 'unknown-agent'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/agents/{id}/activate:
     post:
       tags:
@@ -345,11 +330,6 @@ paths:
                 $ref: '#/components/schemas/AgentResponse'
         '404':
           description: Agent not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/agents/{id}/deactivate:
     post:
       tags:
@@ -376,11 +356,6 @@ paths:
                 $ref: '#/components/schemas/AgentResponse'
         '404':
           description: Agent not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/agents/{id}/test:
     post:
       tags:
@@ -420,11 +395,6 @@ paths:
                 $ref: '#/components/schemas/TestAgentResponse'
         '404':
           description: Agent not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/agents/{id}/versions:
     get:
       tags:
@@ -471,200 +441,8 @@ paths:
                   change_summary: Initial creation
         '404':
           description: Agent not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
-    AgentDefinition:
-      type: object
-      required:
-      - name
-      - type
-      properties:
-        name:
-          type: string
-        type:
-          type: string
-          enum:
-          - llm-call
-          - connector-call
-        llm:
-          type: object
-          description: LLM config (required for llm-call type)
-          properties:
-            provider:
-              type: string
-            model:
-              type: string
-        connector:
-          type: object
-          description: Connector config (required for connector-call type)
-          properties:
-            name:
-              type: string
-            operation:
-              type: string
-    AgentVersionsResponse:
-      type: object
-      properties:
-        versions:
-          type: array
-          items:
-            type: object
-            properties:
-              version:
-                type: integer
-              change_type:
-                type: string
-                enum:
-                - create
-                - update
-                - delete
-                - activate
-                - deactivate
-              changed_at:
-                type: string
-                format: date-time
-              changed_by:
-                type: string
-                format: uuid
-              change_summary:
-                type: string
-    TestAgentRequest:
-      type: object
-      required:
-      - query
-      properties:
-        query:
-          type: string
-          description: Test query to execute
-        context:
-          type: object
-          additionalProperties: true
-          description: Additional context for the query
-    ValidateAgentRequest:
-      type: object
-      required:
-      - config
-      properties:
-        name:
-          type: string
-        domain:
-          type: string
-        config:
-          $ref: '#/components/schemas/AgentConfigSpec'
-    CreateAgentRequest:
-      type: object
-      required:
-      - name
-      - config
-      properties:
-        name:
-          type: string
-          description: Agent name (lowercase, alphanumeric, hyphens, underscores)
-        domain:
-          type: string
-          description: Agent domain
-        description:
-          type: string
-        is_active:
-          type: boolean
-          default: true
-        config:
-          $ref: '#/components/schemas/AgentConfigSpec'
-    AgentResource:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Qualified ID (domain/name)
-          example: travel/flight-booking
-        name:
-          type: string
-          description: Agent name
-          example: flight-booking
-        domain:
-          type: string
-          description: Agent domain
-          example: travel
-        description:
-          type: string
-          description: Agent description
-        version:
-          type: integer
-          description: Version number
-        is_active:
-          type: boolean
-          description: Whether agent is active
-        config:
-          $ref: '#/components/schemas/AgentConfigSpec'
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    AgentListResponse:
-      type: object
-      properties:
-        agents:
-          type: array
-          items:
-            $ref: '#/components/schemas/AgentResource'
-        pagination:
-          type: object
-          properties:
-            page:
-              type: integer
-            page_size:
-              type: integer
-            total:
-              type: integer
-            total_pages:
-              type: integer
-    AgentConfigSpec:
-      type: object
-      description: Agent configuration specification
-      properties:
-        execution:
-          type: object
-          properties:
-            default_mode:
-              type: string
-              enum:
-              - auto
-              - parallel
-              - sequential
-            max_parallel_tasks:
-              type: integer
-            timeout_seconds:
-              type: integer
-        agents:
-          type: array
-          items:
-            $ref: '#/components/schemas/AgentDefinition'
-        routing:
-          type: array
-          items:
-            $ref: '#/components/schemas/RoutingRule'
-    RoutingRule:
-      type: object
-      required:
-      - pattern
-      - agent
-      properties:
-        pattern:
-          type: string
-          description: Regex pattern to match
-        agent:
-          type: string
-          description: Target agent name
-        priority:
-          type: integer
-          description: Higher priority rules match first
     UpdateAgentRequest:
       type: object
       properties:
@@ -678,30 +456,6 @@ components:
           type: boolean
         config:
           $ref: '#/components/schemas/AgentConfigSpec'
-    TestAgentResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        result:
-          description: Test execution result
-        execution_time_ms:
-          type: integer
-        tasks_executed:
-          type: integer
-        errors:
-          type: array
-          items:
-            type: string
-    ValidationResponse:
-      type: object
-      properties:
-        valid:
-          type: boolean
-        errors:
-          type: array
-          items:
-            type: string
     ErrorResponse:
       type: object
       description: 'The FLAT error envelope: `{success, error}`. This is what
@@ -743,11 +497,222 @@ components:
       required:
       - success
       - error
+    TestAgentRequest:
+      type: object
+      required:
+      - query
+      properties:
+        query:
+          type: string
+          description: Test query to execute
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context for the query
+    ValidateAgentRequest:
+      type: object
+      required:
+      - config
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+        config:
+          $ref: '#/components/schemas/AgentConfigSpec'
+    AgentListResponse:
+      type: object
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentResource'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            page_size:
+              type: integer
+            total:
+              type: integer
+            total_pages:
+              type: integer
+    AgentDefinition:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - llm-call
+          - connector-call
+        llm:
+          type: object
+          description: LLM config (required for llm-call type)
+          properties:
+            provider:
+              type: string
+            model:
+              type: string
+        connector:
+          type: object
+          description: Connector config (required for connector-call type)
+          properties:
+            name:
+              type: string
+            operation:
+              type: string
+    TestAgentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        result:
+          description: Test execution result
+        execution_time_ms:
+          type: integer
+        tasks_executed:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+    ValidationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+    AgentVersionsResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              version:
+                type: integer
+              change_type:
+                type: string
+                enum:
+                - create
+                - update
+                - delete
+                - activate
+                - deactivate
+              changed_at:
+                type: string
+                format: date-time
+              changed_by:
+                type: string
+                format: uuid
+              change_summary:
+                type: string
+    RoutingRule:
+      type: object
+      required:
+      - pattern
+      - agent
+      properties:
+        pattern:
+          type: string
+          description: Regex pattern to match
+        agent:
+          type: string
+          description: Target agent name
+        priority:
+          type: integer
+          description: Higher priority rules match first
     AgentResponse:
       type: object
       properties:
         agent:
           $ref: '#/components/schemas/AgentResource'
+    AgentResource:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Qualified ID (domain/name)
+          example: travel/flight-booking
+        name:
+          type: string
+          description: Agent name
+          example: flight-booking
+        domain:
+          type: string
+          description: Agent domain
+          example: travel
+        description:
+          type: string
+          description: Agent description
+        version:
+          type: integer
+          description: Version number
+        is_active:
+          type: boolean
+          description: Whether agent is active
+        config:
+          $ref: '#/components/schemas/AgentConfigSpec'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateAgentRequest:
+      type: object
+      required:
+      - name
+      - config
+      properties:
+        name:
+          type: string
+          description: Agent name (lowercase, alphanumeric, hyphens, underscores)
+        domain:
+          type: string
+          description: Agent domain
+        description:
+          type: string
+        is_active:
+          type: boolean
+          default: true
+        config:
+          $ref: '#/components/schemas/AgentConfigSpec'
+    AgentConfigSpec:
+      type: object
+      description: Agent configuration specification
+      properties:
+        execution:
+          type: object
+          properties:
+            default_mode:
+              type: string
+              enum:
+              - auto
+              - parallel
+              - sequential
+            max_parallel_tasks:
+              type: integer
+            timeout_seconds:
+              type: integer
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentDefinition'
+        routing:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutingRule'
   securitySchemes:
     basicAuth:
       type: http
@@ -758,6 +723,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

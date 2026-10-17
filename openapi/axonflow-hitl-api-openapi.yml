@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow HITL API
+  title: AxonFlow Agent HITL API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged HITL across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -213,13 +213,6 @@ paths:
                         type: integer
                       offset:
                         type: integer
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/queue/{id}:
     get:
       tags:
@@ -251,13 +244,6 @@ paths:
           description: Invalid request ID (not a UUID)
         '404':
           description: Request not found
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/queue/{id}/approve:
     post:
       tags:
@@ -324,13 +310,6 @@ paths:
             obtained another way (#3408).
 
             '
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/queue/{id}/reject:
     post:
       tags:
@@ -397,13 +376,6 @@ paths:
             obtained another way (#3408).
 
             '
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/queue/{id}/override:
     post:
       tags:
@@ -484,13 +456,6 @@ paths:
             obtained another way (#3408).
 
             '
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/queue/{id}/history:
     get:
       tags:
@@ -522,13 +487,6 @@ paths:
                       $ref: '#/components/schemas/HITLHistoryEntry'
         '400':
           description: Invalid request ID
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/stats:
     get:
       tags:
@@ -566,13 +524,6 @@ paths:
                         type: number
         '400':
           description: Missing X-Org-ID header
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/status:
     get:
       tags:
@@ -611,13 +562,6 @@ paths:
                     type: object
                     additionalProperties:
                       type: boolean
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/hitl/expire:
     post:
       tags:
@@ -646,13 +590,6 @@ paths:
                     properties:
                       expired_count:
                         type: integer
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
   responses:
     Unauthorized:
@@ -679,68 +616,23 @@ components:
           example:
             success: false
             error: Invalid request body
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: 'Optional per-request dedup token. When supplied on POST /api/v1/mcp/check-input,
-
-        POST /api/v1/audit/tool-call, or POST /api/v1/hitl/queue, the platform caches
-
-        the original response for 24h and returns it byte-for-byte on subsequent
-
-        requests carrying the same key + same authenticated tenant + same endpoint.
-
-
-        Format: 1-256 chars, `^[A-Za-z0-9_.:\-/]+$`. Workflow IDs from n8n, ADK,
-
-        or generic SDKs all fall inside this set. A malformed key returns 400
-
-        before the handler runs.
-
-
-        Cache rules: 2xx + 4xx responses are cached; 5xx is NOT cached so the
-
-        caller''s retry can hit a fresh attempt. A cache hit returns the original
-
-        response plus an `Idempotent-Replayed: true` response header.
-
-
-        Cross-tenant collisions are impossible: tenant_id participates in the
-
-        primary key + an RLS policy on the storage table. Two tenants using
-
-        the same key value get distinct rows.
-
-        '
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 256
-        pattern: ^[A-Za-z0-9_.:\-/]+$
-        example: n8n-exec-abc123-node-Approve
-    LicenseKey:
-      name: Authorization
-      in: header
-      required: true
-      description: 'OAuth2-style Basic authentication header.
-
-        Format: `Basic base64(clientId:clientSecret)`
-
-
-        - `clientId`: Your organization identifier (required)
-
-        - `clientSecret`: Authentication credential (optional for community mode)
-
-
-        Not required when `DEPLOYMENT_MODE=community`.
-
-        '
-      schema:
-        type: string
-        example: Basic bXktb3JnOkFYT04tVjIteHh4
   schemas:
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
     HITLHistoryEntry:
       type: object
       description: 'Immutable audit-trail entry for a request. Source of truth:
@@ -780,6 +672,78 @@ components:
         created_at:
           type: string
           format: date-time
+    HITLCreateRequest:
+      type: object
+      description: 'Body for POST /api/v1/hitl/queue. Org/tenant identity comes from the
+
+        `X-Org-ID` / `X-Tenant-ID` headers, not the body. Source of truth:
+
+        `platform/agent/hitl/handler.go` (CreateRequestInput).
+
+        '
+      required:
+      - client_id
+      - original_query
+      - request_type
+      - triggered_policy_id
+      - triggered_policy_name
+      - trigger_reason
+      properties:
+        client_id:
+          type: string
+        user_id:
+          type: string
+        original_query:
+          type: string
+          description: The query/action awaiting human review
+        request_type:
+          type: string
+          description: Request classification (e.g. `mcp_query`, `llm_chat`)
+        request_context:
+          type: object
+          additionalProperties: true
+        triggered_policy_id:
+          type: string
+        triggered_policy_name:
+          type: string
+        trigger_reason:
+          type: string
+        severity:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+        eu_ai_act_article:
+          type: string
+        compliance_framework:
+          type: string
+        risk_classification:
+          type: string
+        expires_in_seconds:
+          type: integer
+          description: TTL before the request auto-expires
+        notify_url:
+          type: string
+          format: uri
+          description: 'Optional outbound webhook URL fired asynchronously after the request
+
+            transitions to a terminal state (approved / rejected / overridden /
+
+            expired). Must use `https://` or `http://`. The platform signs the
+
+            envelope with HMAC-SHA256 over the body keyed by the deployment''s
+
+            `AXONFLOW_HITL_WEBHOOK_SIGNING_KEY`, sent as
+
+            `X-AxonFlow-Signature: sha256=<hex>`. See the HITLWebhookEnvelope
+
+            schema and `docs.getaxonflow.com/docs/governance/hitl` for the full
+
+            shape + verification recipe.
+
+            '
     HITLReviewInput:
       type: object
       description: 'Body for approve/reject. Source of truth:
@@ -873,94 +837,67 @@ components:
         updated_at:
           type: string
           format: date-time
-    HITLCreateRequest:
-      type: object
-      description: 'Body for POST /api/v1/hitl/queue. Org/tenant identity comes from the
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: 'Optional per-request dedup token. When supplied on POST /api/v1/mcp/check-input,
 
-        `X-Org-ID` / `X-Tenant-ID` headers, not the body. Source of truth:
+        POST /api/v1/audit/tool-call, or POST /api/v1/hitl/queue, the platform caches
 
-        `platform/agent/hitl/handler.go` (CreateRequestInput).
+        the original response for 24h and returns it byte-for-byte on subsequent
 
-        '
-      required:
-      - client_id
-      - original_query
-      - request_type
-      - triggered_policy_id
-      - triggered_policy_name
-      - trigger_reason
-      properties:
-        client_id:
-          type: string
-        user_id:
-          type: string
-        original_query:
-          type: string
-          description: The query/action awaiting human review
-        request_type:
-          type: string
-          description: Request classification (e.g. `mcp_query`, `llm_chat`)
-        request_context:
-          type: object
-          additionalProperties: true
-        triggered_policy_id:
-          type: string
-        triggered_policy_name:
-          type: string
-        trigger_reason:
-          type: string
-        severity:
-          type: string
-          enum:
-          - low
-          - medium
-          - high
-          - critical
-        eu_ai_act_article:
-          type: string
-        compliance_framework:
-          type: string
-        risk_classification:
-          type: string
-        expires_in_seconds:
-          type: integer
-          description: TTL before the request auto-expires
-        notify_url:
-          type: string
-          format: uri
-          description: 'Optional outbound webhook URL fired asynchronously after the request
+        requests carrying the same key + same authenticated tenant + same endpoint.
 
-            transitions to a terminal state (approved / rejected / overridden /
 
-            expired). Must use `https://` or `http://`. The platform signs the
+        Format: 1-256 chars, `^[A-Za-z0-9_.:\-/]+$`. Workflow IDs from n8n, ADK,
 
-            envelope with HMAC-SHA256 over the body keyed by the deployment''s
+        or generic SDKs all fall inside this set. A malformed key returns 400
 
-            `AXONFLOW_HITL_WEBHOOK_SIGNING_KEY`, sent as
+        before the handler runs.
 
-            `X-AxonFlow-Signature: sha256=<hex>`. See the HITLWebhookEnvelope
 
-            schema and `docs.getaxonflow.com/docs/governance/hitl` for the full
+        Cache rules: 2xx + 4xx responses are cached; 5xx is NOT cached so the
 
-            shape + verification recipe.
+        caller''s retry can hit a fresh attempt. A cache hit returns the original
 
-            '
-    ErrorResponse:
-      type: object
-      description: 'Handler-written error envelope. Note the agent has a second error
+        response plus an `Idempotent-Replayed: true` response header.
 
-        envelope for middleware-written errors (see JSONError) — clients
 
-        should tolerate both shapes on 4xx/5xx.
+        Cross-tenant collisions are impossible: tenant_id participates in the
+
+        primary key + an RLS policy on the storage table. Two tenants using
+
+        the same key value get distinct rows.
 
         '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Error message
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
+        pattern: ^[A-Za-z0-9_.:\-/]+$
+        example: n8n-exec-abc123-node-Approve
+    LicenseKey:
+      name: Authorization
+      in: header
+      required: true
+      description: 'OAuth2-style Basic authentication header.
+
+        Format: `Basic base64(clientId:clientSecret)`
+
+
+        - `clientId`: Your organization identifier (required)
+
+        - `clientSecret`: Authentication credential (optional for community mode)
+
+
+        Not required when `DEPLOYMENT_MODE=community`.
+
+        '
+      schema:
+        type: string
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
   securitySchemes:
     BasicAuth:
       type: http
@@ -1032,6 +969,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

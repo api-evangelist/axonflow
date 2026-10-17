@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Testing API
+  title: AxonFlow Policy Management Testing API
+  description: REST API for managing dynamic policies in AxonFlow.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Testing across 2 of this provider''s published API definitions: axonflow-policy-api.yaml, axonflow-policy-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (Agent single entry point, ADR-024)
@@ -54,13 +54,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
   /api/v1/tenant-policies/{id}/test:
     parameters:
     - $ref: '#/components/parameters/PolicyID'
@@ -95,13 +88,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
   /api/v1/policies/{id}/test:
     parameters:
     - $ref: '#/components/parameters/PolicyID'
@@ -155,13 +141,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
   /api/v1/policies/test:
     post:
       tags:
@@ -225,13 +204,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/APIError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
 components:
   responses:
     Unauthorized:
@@ -259,16 +231,6 @@ components:
                 message: Name must be between 3 and 100 characters
               - field: conditions[0].operator
                 message: 'Invalid operator: like. Must be one of: equals, contains, regex'
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: INTERNAL_ERROR
-              message: An unexpected error occurred
     NotFound:
       description: Policy not found
       content:
@@ -279,6 +241,16 @@ components:
             error:
               code: NOT_FOUND
               message: Policy not found
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
   schemas:
     TestPolicyRequest:
       type: object
@@ -303,6 +275,28 @@ components:
           type: object
           additionalProperties: true
           description: Additional context for testing
+    APIError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+              description: Field-level validation errors
     SimulationUserContext:
       type: object
       description: User context for policy simulation and testing
@@ -328,28 +322,6 @@ components:
         org_id:
           type: string
           description: Organization for multi-tenant isolation
-    APIError:
-      type: object
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              description: Error code
-            message:
-              type: string
-              description: Human-readable error message
-            details:
-              type: array
-              items:
-                type: object
-                properties:
-                  field:
-                    type: string
-                  message:
-                    type: string
-              description: Field-level validation errors
     TestPolicyResponse:
       type: object
       properties:
@@ -379,6 +351,14 @@ components:
           format: float
           description: Evaluation time in milliseconds
   parameters:
+    PolicyID:
+      name: id
+      in: path
+      required: true
+      description: Policy unique identifier
+      schema:
+        type: string
+        example: pol_abc123def456
     TenantID:
       name: X-Tenant-ID
       in: header
@@ -395,14 +375,3 @@ components:
       schema:
         type: string
         example: tenant_abc123
-    PolicyID:
-      name: id
-      in: path
-      required: true
-      description: Policy unique identifier
-      schema:
-        type: string
-        example: pol_abc123def456
-x-refined-from:
-- axonflow-policy-api.yaml
-- axonflow-policy-openapi.yml

@@ -8,7 +8,7 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Dynamic Policies across 4 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-policy-api.yaml, axonflow-orchestrator-openapi.yml, axonflow-policy-openapi.yml. Each path carries the servers of the definition it was published in.'
+  description: 'Operations tagged Dynamic Policies across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-policy-api.yaml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -1054,6 +1054,111 @@ paths:
       description: Orchestrator direct (internal only)
 components:
   schemas:
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+        region:
+          type: string
+          description: User's region, read by geo-based routing policies.
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
+    Policy:
+      type: object
+      description: A policy with full metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        policy_id:
+          type: string
+          description: Human-readable identifier
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum:
+          - static
+          - dynamic
+        category:
+          type: string
+        tier:
+          type: string
+          enum:
+          - system
+          - organization
+          - tenant
+        pattern:
+          type: string
+          description: Regex pattern (for static policies)
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            type: object
+          description: Conditions (for dynamic policies)
+        actions:
+          type: array
+          items:
+            type: object
+          description: Actions (for dynamic policies)
+        version:
+          type: integer
+        tenant_id:
+          type: string
+        organization_id:
+          type: string
+          description: 'The organisation that owns this policy. This is the current wire
+
+            field name and it is not deprecated: it is unrelated to a database
+
+            column of the same name that was retired in an earlier release. The
+
+            two share a name and nothing else.
+
+            '
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
     PolicyEvaluationResult:
       type: object
       description: 'The policy verdict carried on every orchestrator response. Its property
@@ -1183,6 +1288,192 @@ components:
         routing_reason:
           type: string
           description: Why routing was changed.
+    AppliedPolicyDetail:
+      type: object
+      description: 'One structured per-policy match inside `PolicyEvaluationResult`.
+
+        '
+      properties:
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        description:
+          type: string
+        action:
+          type: string
+        risk_level:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+        allow_override:
+          type: boolean
+          description: False if and only if the policy forbids a session override.
+        matched_rule:
+          type: string
+        segment_id:
+          type: string
+          description: 'The governance segment this policy is scoped to, or absent when it
+
+            is not segment-scoped. ATTRIBUTION AND AUDIT ONLY -- it is not an
+
+            override-eligibility signal anywhere: a segment-scoped policy uses
+
+            the same `allow_override` contract as a tenant policy.
+
+            '
+    UpdatePolicyRequest:
+      type: object
+      description: All fields optional for partial update
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        pattern:
+          type: string
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            type: object
+        actions:
+          type: array
+          items:
+            type: object
+    CodedErrorResponse:
+      type: object
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+
+        screaming-snake string enum. This is what the per-handler `writeError`
+
+        methods emit across the policy API, the LLM provider API, the agents,
+
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
+
+
+        It is one of TWO error SHAPES this document describes. `code` is a
+
+        STRING on this envelope; it is never an HTTP status integer.
+
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+
+        the five values the LLM-provider handlers emit.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
+    CreatePolicyRequest:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum:
+          - static
+          - dynamic
+        category:
+          type: string
+        tier:
+          type: string
+          enum:
+          - organization
+          - tenant
+          default: tenant
+        pattern:
+          type: string
+          description: Required for static policies
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+        priority:
+          type: integer
+          default: 100
+        enabled:
+          type: boolean
+          default: true
+        conditions:
+          type: array
+          items:
+            type: object
+          description: Required for dynamic policies
+        actions:
+          type: array
+          items:
+            type: object
+          description: Required for dynamic policies
+    PoliciesListResponse:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Policy'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            page_size:
+              type: integer
+            total_items:
+              type: integer
+            total_pages:
+              type: integer
     DynamicPolicy:
       type: object
       properties:
@@ -1276,297 +1567,6 @@ components:
                 type: string
               limit:
                 type: integer
-    AppliedPolicyDetail:
-      type: object
-      description: 'One structured per-policy match inside `PolicyEvaluationResult`.
-
-        '
-      properties:
-        policy_id:
-          type: string
-        policy_name:
-          type: string
-        description:
-          type: string
-        action:
-          type: string
-        risk_level:
-          type: string
-          enum:
-          - low
-          - medium
-          - high
-          - critical
-        allow_override:
-          type: boolean
-          description: False if and only if the policy forbids a session override.
-        matched_rule:
-          type: string
-        segment_id:
-          type: string
-          description: 'The governance segment this policy is scoped to, or absent when it
-
-            is not segment-scoped. ATTRIBUTION AND AUDIT ONLY -- it is not an
-
-            override-eligibility signal anywhere: a segment-scoped policy uses
-
-            the same `allow_override` contract as a tenant policy.
-
-            '
-    CreatePolicyRequest:
-      type: object
-      required:
-      - name
-      - type
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        type:
-          type: string
-          enum:
-          - static
-          - dynamic
-        category:
-          type: string
-        tier:
-          type: string
-          enum:
-          - organization
-          - tenant
-          default: tenant
-        pattern:
-          type: string
-          description: Required for static policies
-        action:
-          type: string
-          enum:
-          - block
-          - require_approval
-          - redact
-          - warn
-          - log
-        severity:
-          type: string
-          enum:
-          - critical
-          - high
-          - medium
-          - low
-        priority:
-          type: integer
-          default: 100
-        enabled:
-          type: boolean
-          default: true
-        conditions:
-          type: array
-          items:
-            type: object
-          description: Required for dynamic policies
-        actions:
-          type: array
-          items:
-            type: object
-          description: Required for dynamic policies
-    PoliciesListResponse:
-      type: object
-      properties:
-        policies:
-          type: array
-          items:
-            $ref: '#/components/schemas/Policy'
-        pagination:
-          type: object
-          properties:
-            page:
-              type: integer
-            page_size:
-              type: integer
-            total_items:
-              type: integer
-            total_pages:
-              type: integer
-    CodedErrorResponse:
-      type: object
-      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
-
-        screaming-snake string enum. This is what the per-handler `writeError`
-
-        methods emit across the policy API, the LLM provider API, the agents,
-
-        template, unified-execution and media-governance APIs, and every
-
-        handler in the RBI module (362 call sites in total).
-
-
-        It is one of TWO error SHAPES this document describes. `code` is a
-
-        STRING on this envelope; it is never an HTTP status integer.
-
-        `LLMProviderAPIError` is this shape with the `code` enum constrained to
-
-        the five values the LLM-provider handlers emit.
-
-        '
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              description: Machine-readable error code, screaming snake case.
-              example: NOT_FOUND
-            message:
-              type: string
-          required:
-          - code
-          - message
-      required:
-      - error
-    UserContext:
-      type: object
-      properties:
-        id:
-          type: integer
-        email:
-          type: string
-        role:
-          type: string
-        region:
-          type: string
-          description: User's region, read by geo-based routing policies.
-        permissions:
-          type: array
-          items:
-            type: string
-        tenant_id:
-          type: string
-        org_id:
-          type: string
-          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
-    Policy:
-      type: object
-      description: A policy with full metadata
-      properties:
-        id:
-          type: string
-          format: uuid
-        policy_id:
-          type: string
-          description: Human-readable identifier
-        name:
-          type: string
-        description:
-          type: string
-        type:
-          type: string
-          enum:
-          - static
-          - dynamic
-        category:
-          type: string
-        tier:
-          type: string
-          enum:
-          - system
-          - organization
-          - tenant
-        pattern:
-          type: string
-          description: Regex pattern (for static policies)
-        action:
-          type: string
-          enum:
-          - block
-          - require_approval
-          - redact
-          - warn
-          - log
-        severity:
-          type: string
-          enum:
-          - critical
-          - high
-          - medium
-          - low
-        priority:
-          type: integer
-        enabled:
-          type: boolean
-        conditions:
-          type: array
-          items:
-            type: object
-          description: Conditions (for dynamic policies)
-        actions:
-          type: array
-          items:
-            type: object
-          description: Actions (for dynamic policies)
-        version:
-          type: integer
-        tenant_id:
-          type: string
-        organization_id:
-          type: string
-          description: 'The organisation that owns this policy. This is the current wire
-
-            field name and it is not deprecated: it is unrelated to a database
-
-            column of the same name that was retired in an earlier release. The
-
-            two share a name and nothing else.
-
-            '
-        created_by:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_by:
-          type: string
-        updated_at:
-          type: string
-          format: date-time
-    UpdatePolicyRequest:
-      type: object
-      description: All fields optional for partial update
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        pattern:
-          type: string
-        action:
-          type: string
-          enum:
-          - block
-          - require_approval
-          - redact
-          - warn
-          - log
-        severity:
-          type: string
-          enum:
-          - critical
-          - high
-          - medium
-          - low
-        priority:
-          type: integer
-        enabled:
-          type: boolean
-        conditions:
-          type: array
-          items:
-            type: object
-        actions:
-          type: array
-          items:
-            type: object
     PolicyResource:
       type: object
       properties:
@@ -1663,170 +1663,8 @@ components:
           type: string
           format: date-time
           description: Soft-delete timestamp (present only on deleted policies)
-    PolicyVersionResponse:
+    UpdatePolicyRequest_2:
       type: object
-      properties:
-        versions:
-          type: array
-          items:
-            type: object
-            properties:
-              version:
-                type: integer
-              snapshot:
-                $ref: '#/components/schemas/PolicyResource'
-              changed_by:
-                type: string
-              changed_at:
-                type: string
-                format: date-time
-              change_type:
-                type: string
-                enum:
-                - create
-                - update
-                - enable
-                - disable
-                - delete
-              change_summary:
-                type: string
-    ImportPoliciesResponse:
-      type: object
-      properties:
-        created:
-          type: integer
-          description: Number of policies created
-        updated:
-          type: integer
-          description: Number of policies updated
-        skipped:
-          type: integer
-          description: Number of policies skipped
-        errors:
-          type: array
-          items:
-            type: string
-          description: Error messages for failed imports
-    PolicyResponse:
-      type: object
-      properties:
-        policy:
-          $ref: '#/components/schemas/PolicyResource'
-    PaginationMeta:
-      type: object
-      description: Pagination metadata
-      properties:
-        page:
-          type: integer
-          description: Current page number
-          example: 1
-        page_size:
-          type: integer
-          description: Items per page
-          example: 20
-        total_items:
-          type: integer
-          description: Total number of items
-          example: 45
-        total_pages:
-          type: integer
-          description: Total number of pages
-          example: 3
-    ExportPoliciesResponse:
-      type: object
-      properties:
-        policies:
-          type: array
-          items:
-            $ref: '#/components/schemas/PolicyResource'
-        exported_at:
-          type: string
-          format: date-time
-        tenant_id:
-          type: string
-    PoliciesListResponse_2:
-      type: object
-      properties:
-        policies:
-          type: array
-          items:
-            $ref: '#/components/schemas/PolicyResource'
-        pagination:
-          $ref: '#/components/schemas/PaginationMeta'
-    ImportPoliciesRequest:
-      type: object
-      required:
-      - policies
-      properties:
-        policies:
-          type: array
-          items:
-            $ref: '#/components/schemas/CreatePolicyRequest_2'
-          minItems: 1
-          maxItems: 100
-        overwrite_mode:
-          type: string
-          enum:
-          - skip
-          - overwrite
-          - error
-          default: skip
-          description: How to handle existing policies
-    PolicyAction:
-      type: object
-      required:
-      - type
-      properties:
-        type:
-          $ref: '#/components/schemas/ActionType'
-        config:
-          type: object
-          additionalProperties: true
-          description: Action-specific configuration
-          example:
-            message: Request blocked by policy
-            channel: security-alerts
-    PolicyType:
-      type: string
-      enum:
-      - content
-      - user
-      - risk
-      - cost
-      - context_aware
-      - media
-      - rate-limit
-      - budget
-      - time-access
-      - role-access
-      - mcp
-      - connector
-      description: 'Policy type determines evaluation context:
-
-        - `content`: Evaluates request/response content
-
-        - `user`: Evaluates user attributes
-
-        - `risk`: Evaluates risk scores
-
-        - `cost`: Evaluates cost estimates
-
-        - `context_aware`: Context-aware controls (tenant isolation, debug restriction, sensitive-data control)
-
-        - `media`: Media governance policies (multimodal image governance)
-
-        - `rate-limit`, `budget`, `time-access`: MCP rate/budget controls
-
-        - `role-access`, `mcp`, `connector`: MCP access controls
-
-        '
-    CreatePolicyRequest_2:
-      type: object
-      required:
-      - name
-      - type
-      - conditions
-      - actions
       properties:
         name:
           type: string
@@ -1839,42 +1677,31 @@ components:
           $ref: '#/components/schemas/PolicyType'
         category:
           type: string
-          description: 'Policy category (dynamic-risk, dynamic-compliance, media-safety, etc.).
-
-            Required on the /api/v1/dynamic-policies surface, where it must
-
-            start with `dynamic-` or `media-`.
-
-            '
-        tier:
-          type: string
-          enum:
-          - organization
-          - tenant
-          description: Policy tier. Only organization or tenant is allowed via the API.
+          description: Policy category. Only changeable on non-system policies.
         conditions:
           type: array
           items:
             $ref: '#/components/schemas/PolicyCondition'
-          minItems: 1
         actions:
           type: array
           items:
             $ref: '#/components/schemas/PolicyAction'
-          minItems: 1
         priority:
           type: integer
           minimum: 0
           maximum: 1000
-          default: 0
         enabled:
           type: boolean
-          default: true
         tags:
           type: array
           items:
             type: string
           description: Tags for categorization
+    PolicyResponse:
+      type: object
+      properties:
+        policy:
+          $ref: '#/components/schemas/PolicyResource'
     PolicyCondition:
       type: object
       required:
@@ -1932,107 +1759,27 @@ components:
             items:
               type: string
           description: Value to compare against
-    APIError:
+    PaginationMeta:
       type: object
+      description: Pagination metadata
       properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              description: Error code
-            message:
-              type: string
-              description: Human-readable error message
-            details:
-              type: array
-              items:
-                type: object
-                properties:
-                  field:
-                    type: string
-                  message:
-                    type: string
-              description: Field-level validation errors
-    ActionType:
-      type: string
-      enum:
-      - block
-      - require_approval
-      - redact
-      - warn
-      - alert
-      - log
-      - route
-      - modify_risk
-      description: 'Action to take when policy matches:
-
-        - `block`: Block the request with message
-
-        - `require_approval`: Hold the request for human approval (HITL)
-
-        - `redact`: Redact sensitive content from response
-
-        - `warn`: Allow the request but attach a warning
-
-        - `alert`: Send alert to configured channel
-
-        - `log`: Log to audit trail
-
-        - `route`: Route to specific provider
-
-        - `modify_risk`: Adjust risk score
-
-        '
-    ConditionOperator:
-      type: string
-      enum:
-      - equals
-      - not_equals
-      - contains
-      - not_contains
-      - contains_any
-      - regex
-      - greater_than
-      - less_than
-      - in
-      - not_in
-      description: Comparison operator for conditions
-    UpdatePolicyRequest_2:
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 3
-          maxLength: 100
-        description:
-          type: string
-          maxLength: 500
-        type:
-          $ref: '#/components/schemas/PolicyType'
-        category:
-          type: string
-          description: Policy category. Only changeable on non-system policies.
-        conditions:
-          type: array
-          items:
-            $ref: '#/components/schemas/PolicyCondition'
-        actions:
-          type: array
-          items:
-            $ref: '#/components/schemas/PolicyAction'
-        priority:
+        page:
           type: integer
-          minimum: 0
-          maximum: 1000
-        enabled:
-          type: boolean
-        tags:
-          type: array
-          items:
-            type: string
-          description: Tags for categorization
-    PoliciesListResponse_3:
+          description: Current page number
+          example: 1
+        page_size:
+          type: integer
+          description: Items per page
+          example: 20
+        total_items:
+          type: integer
+          description: Total number of items
+          example: 45
+        total_pages:
+          type: integer
+          description: Total number of pages
+          example: 3
+    PoliciesListResponse_2:
       type: object
       properties:
         policies:
@@ -2041,7 +1788,21 @@ components:
             $ref: '#/components/schemas/PolicyResource'
         pagination:
           $ref: '#/components/schemas/PaginationMeta'
-    ImportPoliciesRequest_2:
+    PolicyAction:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          $ref: '#/components/schemas/ActionType'
+        config:
+          type: object
+          additionalProperties: true
+          description: Action-specific configuration
+          example:
+            message: Request blocked by policy
+            channel: security-alerts
+    ImportPoliciesRequest:
       type: object
       required:
       - policies
@@ -2049,7 +1810,7 @@ components:
         policies:
           type: array
           items:
-            $ref: '#/components/schemas/CreatePolicyRequest_3'
+            $ref: '#/components/schemas/CreatePolicyRequest_2'
           minItems: 1
           maxItems: 100
         overwrite_mode:
@@ -2060,7 +1821,7 @@ components:
           - error
           default: skip
           description: How to handle existing policies
-    CreatePolicyRequest_3:
+    CreatePolicyRequest_2:
       type: object
       required:
       - name
@@ -2115,40 +1876,162 @@ components:
           items:
             type: string
           description: Tags for categorization
-    UpdatePolicyRequest_3:
+    ExportPoliciesResponse:
       type: object
       properties:
-        name:
-          type: string
-          minLength: 3
-          maxLength: 100
-        description:
-          type: string
-          maxLength: 500
-        type:
-          $ref: '#/components/schemas/PolicyType'
-        category:
-          type: string
-          description: Policy category. Only changeable on non-system policies.
-        conditions:
+        policies:
           type: array
           items:
-            $ref: '#/components/schemas/PolicyCondition'
-        actions:
+            $ref: '#/components/schemas/PolicyResource'
+        exported_at:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
+    ActionType:
+      type: string
+      enum:
+      - block
+      - require_approval
+      - redact
+      - warn
+      - alert
+      - log
+      - route
+      - modify_risk
+      description: 'Action to take when policy matches:
+
+        - `block`: Block the request with message
+
+        - `require_approval`: Hold the request for human approval (HITL)
+
+        - `redact`: Redact sensitive content from response
+
+        - `warn`: Allow the request but attach a warning
+
+        - `alert`: Send alert to configured channel
+
+        - `log`: Log to audit trail
+
+        - `route`: Route to specific provider
+
+        - `modify_risk`: Adjust risk score
+
+        '
+    PolicyType:
+      type: string
+      enum:
+      - content
+      - user
+      - risk
+      - cost
+      - context_aware
+      - media
+      - rate-limit
+      - budget
+      - time-access
+      - role-access
+      - mcp
+      - connector
+      description: 'Policy type determines evaluation context:
+
+        - `content`: Evaluates request/response content
+
+        - `user`: Evaluates user attributes
+
+        - `risk`: Evaluates risk scores
+
+        - `cost`: Evaluates cost estimates
+
+        - `context_aware`: Context-aware controls (tenant isolation, debug restriction, sensitive-data control)
+
+        - `media`: Media governance policies (multimodal image governance)
+
+        - `rate-limit`, `budget`, `time-access`: MCP rate/budget controls
+
+        - `role-access`, `mcp`, `connector`: MCP access controls
+
+        '
+    APIError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+              description: Field-level validation errors
+    PolicyVersionResponse:
+      type: object
+      properties:
+        versions:
           type: array
           items:
-            $ref: '#/components/schemas/PolicyAction'
-        priority:
+            type: object
+            properties:
+              version:
+                type: integer
+              snapshot:
+                $ref: '#/components/schemas/PolicyResource'
+              changed_by:
+                type: string
+              changed_at:
+                type: string
+                format: date-time
+              change_type:
+                type: string
+                enum:
+                - create
+                - update
+                - enable
+                - disable
+                - delete
+              change_summary:
+                type: string
+    ConditionOperator:
+      type: string
+      enum:
+      - equals
+      - not_equals
+      - contains
+      - not_contains
+      - contains_any
+      - regex
+      - greater_than
+      - less_than
+      - in
+      - not_in
+      description: Comparison operator for conditions
+    ImportPoliciesResponse:
+      type: object
+      properties:
+        created:
           type: integer
-          minimum: 0
-          maximum: 1000
-        enabled:
-          type: boolean
-        tags:
+          description: Number of policies created
+        updated:
+          type: integer
+          description: Number of policies updated
+        skipped:
+          type: integer
+          description: Number of policies skipped
+        errors:
           type: array
           items:
             type: string
-          description: Tags for categorization
+          description: Error messages for failed imports
   responses:
     CodedUnauthorized:
       description: Unauthorized - missing or invalid organization scope (coded envelope)
@@ -2202,67 +2085,6 @@ components:
             error:
               code: INVALID_INPUT
               message: connector_name is required
-    LegacyPolicyWriteFrozen_2:
-      description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
-
-        INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` and
-
-        `dynamic_policies` from the application roles, and this endpoint
-
-        writes them, so the write is refused permanently rather than
-
-        transiently. It is not an entitlement fact: no licence, edition or
-
-        upgrade changes it. Author policies through the typed authoring route
-
-        (`/api/v1/typed-policies`, in `orchestrator-api.yaml`) instead. Reads on
-
-        this endpoint are unaffected. A deployment whose connection may still
-
-        write the tables (the database owner; a property of the connection,
-
-        not of `AXONFLOW_DB_USE_APP_ROLE` alone) is not bound by the revoke
-
-        and does not receive this response. Where the connection cannot write
-
-        them, the create, update and bulk-import routes answer this before
-
-        reading the request body, whatever it contains.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: LEGACY_POLICY_WRITE_FROZEN
-              message: 'The legacy policy tables are read-only in v11: migrations/core/172 revoked write access from the application role, and this endpoint writes them. Author policies through the typed authoring route at /api/v1/typed-policies instead. Reads on this endpoint are unaffected.'
-    ValidationError:
-      description: Request validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: VALIDATION_ERROR
-              message: Request validation failed
-              details:
-              - field: name
-                message: Name must be between 3 and 100 characters
-              - field: conditions[0].operator
-                message: 'Invalid operator: like. Must be one of: equals, contains, regex'
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: INTERNAL_ERROR
-              message: An unexpected error occurred
     Unauthorized:
       description: Missing or invalid tenant ID
       content:
@@ -2283,7 +2105,32 @@ components:
             error:
               code: NOT_FOUND
               message: Policy not found
-    LegacyPolicyWriteFrozen_3:
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+              - field: name
+                message: Name must be between 3 and 100 characters
+              - field: conditions[0].operator
+                message: 'Invalid operator: like. Must be one of: equals, contains, regex'
+    LegacyPolicyWriteFrozen_2:
       description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
 
         INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` and
@@ -2328,14 +2175,6 @@ components:
       schema:
         type: string
         example: user@company.com
-    PolicyID:
-      name: id
-      in: path
-      required: true
-      description: Policy unique identifier
-      schema:
-        type: string
-        example: pol_abc123def456
     TenantID:
       name: X-Tenant-ID
       in: header
@@ -2352,6 +2191,14 @@ components:
       schema:
         type: string
         example: tenant_abc123
+    PolicyID:
+      name: id
+      in: path
+      required: true
+      description: Policy unique identifier
+      schema:
+        type: string
+        example: pol_abc123def456
   securitySchemes:
     basicAuth:
       type: http
@@ -2365,5 +2212,3 @@ components:
 x-refined-from:
 - axonflow-orchestrator-api.yaml
 - axonflow-policy-api.yaml
-- axonflow-orchestrator-openapi.yml
-- axonflow-policy-openapi.yml

@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow US Securities Compliance API
+  title: AxonFlow Orchestrator US Securities Compliance API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged US Securities Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -127,11 +127,6 @@ paths:
             clear.
 
             '
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
     USSecuritiesInstrument:
@@ -199,54 +194,6 @@ components:
             This is what makes the disclosure-vs-reality reconciliation a
 
             compliance artifact rather than a marketing summary.
-
-            '
-    USSecuritiesSourceReadiness:
-      type: object
-      properties:
-        key:
-          type: string
-        title:
-          type: string
-        present:
-          type: boolean
-          description: 'An OBSERVATION, not a health check: false means the source held
-
-            nothing for this tenancy in this window, which on a quiet deployment
-
-            is a truthful answer and not a fault. Meaningful ONLY when
-
-            `readable` is true.
-
-            '
-        count:
-          type: integer
-        readable:
-          type: boolean
-          description: 'Whether this deployment could read the source AT ALL. `present:
-
-            false` has two causes needing opposite reactions - a quiet
-
-            deployment, and a surface this deployment cannot read - and this is
-
-            the field that separates them. A console must key on this boolean
-
-            rather than on the note''s prose, or rewording the sentence silently
-
-            switches the warning off.
-
-            '
-        note:
-          type: string
-          description: 'Why the count reads as it does. Load-bearing: a note beginning `NOT
-
-            REPORTED` means the generated package will carry an INCOMPLETE
-
-            section, and a note beginning `DISCLOSED ABSENT` means the
-
-            capability is not installed here and the section will say so rather
-
-            than reporting a zero.
 
             '
     USSecuritiesExamReadiness:
@@ -378,6 +325,54 @@ components:
         generated_at:
           type: string
           format: date-time
+    USSecuritiesSourceReadiness:
+      type: object
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        present:
+          type: boolean
+          description: 'An OBSERVATION, not a health check: false means the source held
+
+            nothing for this tenancy in this window, which on a quiet deployment
+
+            is a truthful answer and not a fault. Meaningful ONLY when
+
+            `readable` is true.
+
+            '
+        count:
+          type: integer
+        readable:
+          type: boolean
+          description: 'Whether this deployment could read the source AT ALL. `present:
+
+            false` has two causes needing opposite reactions - a quiet
+
+            deployment, and a surface this deployment cannot read - and this is
+
+            the field that separates them. A console must key on this boolean
+
+            rather than on the note''s prose, or rewording the sentence silently
+
+            switches the warning off.
+
+            '
+        note:
+          type: string
+          description: 'Why the count reads as it does. Load-bearing: a note beginning `NOT
+
+            REPORTED` means the generated package will carry an INCOMPLETE
+
+            section, and a note beginning `DISCLOSED ABSENT` means the
+
+            capability is not installed here and the section will say so rather
+
+            than reporting a zero.
+
+            '
   securitySchemes:
     basicAuth:
       type: http
@@ -388,6 +383,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

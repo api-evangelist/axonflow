@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Audit API
+  title: AxonFlow Orchestrator Audit API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Audit across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -193,11 +193,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/audit/summary:
     post:
       tags:
@@ -467,11 +462,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/audit/tenant/{tenant_id}:
     get:
       tags:
@@ -542,11 +532,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/audit/tool-call:
     post:
       tags:
@@ -655,11 +640,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/audit/export:
     post:
       tags:
@@ -827,11 +807,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/audit/report:
     post:
       tags:
@@ -941,11 +916,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/audit/session-summary:
     get:
       tags:
@@ -1072,11 +1042,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/audit/{id}:
     get:
       tags:
@@ -1168,13 +1133,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
     SessionSummaryResponse:
       type: object
       description: GET /api/v1/audit/session-summary payload (Enterprise)
@@ -1202,100 +1203,6 @@ components:
           description: 'True when the window held more buckets than bucket_limit —
 
             narrow the window or raise ?limit=
-
-            '
-    AuditSearchRequest:
-      type: object
-      description: 'Search filters. The tenant scope is NOT part of this body — it is
-
-        always forced from the X-Tenant-ID header and cannot be overridden
-
-        by the payload.
-
-        '
-      properties:
-        user_email:
-          type: string
-          description: Case-insensitive partial (ILIKE substring) match
-        client_id:
-          type: string
-          description: Case-insensitive partial (ILIKE substring) match
-        start_time:
-          type: string
-          format: date-time
-          description: 'Window lower bound; clamped to the tenant''s tier-based
-
-            retention cutoff when earlier (or when omitted)
-
-            '
-        end_time:
-          type: string
-          format: date-time
-        action:
-          type: string
-          description: 'Filter by policy decision. The value is normalized to its
-
-            canonical verdict (allowed, blocked, redacted, needs_approval,
-
-            error) and expanded to every historical DB spelling of that
-
-            verdict, so it matches both current and legacy rows.
-
-            '
-        session_id:
-          type: string
-          description: 'Exact match on the first-class session_id column — used to
-
-            drill into a session-summary bucket''s raw events (#2857).
-
-            '
-        limit:
-          type: integer
-          default: 100
-        offset:
-          type: integer
-          minimum: 0
-          default: 0
-          description: 'Pagination offset — number of audit-log rows to skip from
-
-            the start of the result set. Pair with `limit` to walk
-
-            multi-page audit reads.
-
-            '
-        decision_id:
-          type: string
-          description: 'Filter audit reads to a specific governance decision id
-
-            (mints from MCPCheckInputResponse / MCPCheckOutputResponse
-
-            etc.). Matches `policy_details->>''decision_id''`. Useful when
-
-            correlating a specific request through its full audit trail.
-
-            '
-        override_id:
-          type: string
-          description: 'Filter to audit entries that recorded an override-used
-
-            event for this override id (matches
-
-            `policy_details->>''override_id''`).
-
-            '
-        policy_name:
-          type: string
-          description: 'Filter to audit entries where this policy fired. Matches the
-
-            three shapes audit writers store in the policy_details JSONB:
-
-            the scalar `policy_details.policy_name`, the CSV string
-
-            `policy_details.policy_names`, and
-
-            `policy_details.policy_matches[*].policy_name` (workflow step
-
-            gates + decision records).
 
             '
     AuditActionReport:
@@ -1447,22 +1354,66 @@ components:
             "top 10 of N" rather than implying the remainder does not exist.
 
             '
-    AuditSearchResponse:
+    AuditToolCallResponse:
       type: object
-      description: Paginated audit search results
       properties:
-        entries:
+        audit_id:
+          type: string
+          description: Unique identifier for the audit entry
+        status:
+          type: string
+          description: Recording status
+          enum:
+          - recorded
+        timestamp:
+          type: string
+          format: date-time
+          description: When the audit entry was recorded
+    AuditToolCallRequest:
+      type: object
+      required:
+      - tool_name
+      properties:
+        tool_name:
+          type: string
+          description: Name of the tool that was called
+        caller_name:
+          type: string
+          description: Which client/integration made this call (e.g. claude_code, codex, cursor, openclaw). Replaces tool_type (#2912), which was misnamed for this purpose — every real caller used it to identify itself, not to describe a property of the tool.
+        tool_type:
+          type: string
+          deprecated: true
+          description: Deprecated — use caller_name instead. Accepted as a legacy input fallback when caller_name is not supplied.
+        input:
+          type: object
+          description: Input data sent to the tool
+        output:
+          type: object
+          description: Output data returned by the tool
+        workflow_id:
+          type: string
+          description: Associated workflow ID
+        step_id:
+          type: string
+          description: Associated workflow step ID
+        user_id:
+          type: string
+          description: User who triggered the tool call
+        duration_ms:
+          type: integer
+          format: int64
+          description: Duration of the tool call in milliseconds
+        policies_applied:
           type: array
-          description: Matching audit entries (always an array, `[]` when empty)
           items:
-            $ref: '#/components/schemas/AuditLogEntry'
-        total:
-          type: integer
-          description: True pre-LIMIT match count for the filters (for pagination)
-        limit:
-          type: integer
-        offset:
-          type: integer
+            type: string
+          description: List of policy names applied during the tool call
+        success:
+          type: boolean
+          description: Whether the tool call succeeded
+        error_message:
+          type: string
+          description: Error message if the tool call failed
     SessionSummaryUsageMetrics:
       type: object
       description: 'Optional Claude-export enrichment (#2852), sourced from the OTLP
@@ -1506,6 +1457,161 @@ components:
         cost_usd:
           type: number
           format: double
+    AuditSearchResponse:
+      type: object
+      description: Paginated audit search results
+      properties:
+        entries:
+          type: array
+          description: Matching audit entries (always an array, `[]` when empty)
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        total:
+          type: integer
+          description: True pre-LIMIT match count for the filters (for pagination)
+        limit:
+          type: integer
+        offset:
+          type: integer
+    SessionSummaryBucket:
+      type: object
+      description: 'One session (or per-user-day fallback) bucket. Exactly one of
+
+        session_id / day is set: session_id for a real session bucket, day
+
+        (YYYY-MM-DD) for rows without a session id grouped by calendar day.
+
+        '
+      properties:
+        session_id:
+          type: string
+          description: Set when the bucket is a real session
+        day:
+          type: string
+          description: Set only for a per-user-day fallback bucket (YYYY-MM-DD)
+        user_email:
+          type: string
+        tenant_id:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        total:
+          type: integer
+        by_action:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Per-bucket counts folded onto the canonical verdicts
+        tools:
+          type: array
+          description: Per-request_type usage within the bucket
+          items:
+            type: object
+            properties:
+              request_type:
+                type: string
+              count:
+                type: integer
+              tokens_used:
+                type: integer
+              cost:
+                type: number
+                format: double
+              avg_latency_ms:
+                type:
+                - number
+                - 'null'
+                format: double
+                description: 'Mean latency in milliseconds over the rows of this
+
+                  request_type in this bucket that carried a measurement, or
+
+                  `null` when none did (#3433). Same contract as the
+
+                  bucket-level `avg_latency_ms` below, applied per
+
+                  request_type - and `null` is the NORMAL answer for a
+
+                  request_type whose writers record no duration, which is why
+
+                  it is per-request_type rather than only on the bucket.
+
+                  '
+              latency_sample_count:
+                type: integer
+                description: 'How many rows of this request_type backed avg_latency_ms. 0
+
+                  exactly when avg_latency_ms is null, and never greater than
+
+                  `count`.
+
+                  '
+        tokens_used:
+          type: integer
+          description: Per-request token sum over governed audit rows (authoritative gateway view)
+        cost:
+          type: number
+          format: double
+        avg_latency_ms:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: 'Mean latency in milliseconds over the rows in this bucket that
+
+            carried a measurement, or `null` when none did (#3433, for parity
+
+            with `/api/v1/audit/summary` and `/api/v1/audit/report`).
+
+
+            `null` is not `0`. Whole planes record no duration by design (HITL
+
+            approvals, workflow lifecycle rows, the connector-exec MCP
+
+            closure), so a bucket whose traffic was entirely one of those has
+
+            nothing to report. It used to be coalesced to 0, which reads
+
+            exactly like a measured zero. Clients MUST accept null here; a
+
+            strict deserializer binding this to a non-optional float will
+
+            raise. It can also be BELOW 1: response_time_ms is whole
+
+            milliseconds, so a decision completing in under a millisecond
+
+            contributes a 0.
+
+
+            Read latency_sample_count to tell "fast" from "empty".
+
+
+            WHICH quantity this is differs from the compliance summary''s tile.
+
+            This surface sits beside provider tokens and cost, so it
+
+            deliberately keeps the LLM plane''s provider round trip in the
+
+            average; the audit page''s tile is the ENFORCEMENT number and
+
+            excludes that plane. Naming the three quantities
+
+            `response_time_ms` carries is tracked in #3431.
+
+            '
+        latency_sample_count:
+          type: integer
+          description: 'How many rows backed avg_latency_ms. 0 exactly when avg_latency_ms
+
+            is null, and never greater than `total`.
+
+            '
+        usage_metrics:
+          $ref: '#/components/schemas/SessionSummaryUsageMetrics'
     AuditLogEntry:
       type: object
       description: 'A single audit_logs row as serialized on the wire (orchestrator
@@ -1694,246 +1800,110 @@ components:
             X-Session-Id; asserted attribution, not an auth boundary
 
             '
-    AuditToolCallRequest:
+    AuditSearchRequest:
       type: object
-      required:
-      - tool_name
-      properties:
-        tool_name:
-          type: string
-          description: Name of the tool that was called
-        caller_name:
-          type: string
-          description: Which client/integration made this call (e.g. claude_code, codex, cursor, openclaw). Replaces tool_type (#2912), which was misnamed for this purpose — every real caller used it to identify itself, not to describe a property of the tool.
-        tool_type:
-          type: string
-          deprecated: true
-          description: Deprecated — use caller_name instead. Accepted as a legacy input fallback when caller_name is not supplied.
-        input:
-          type: object
-          description: Input data sent to the tool
-        output:
-          type: object
-          description: Output data returned by the tool
-        workflow_id:
-          type: string
-          description: Associated workflow ID
-        step_id:
-          type: string
-          description: Associated workflow step ID
-        user_id:
-          type: string
-          description: User who triggered the tool call
-        duration_ms:
-          type: integer
-          format: int64
-          description: Duration of the tool call in milliseconds
-        policies_applied:
-          type: array
-          items:
-            type: string
-          description: List of policy names applied during the tool call
-        success:
-          type: boolean
-          description: Whether the tool call succeeded
-        error_message:
-          type: string
-          description: Error message if the tool call failed
-    SessionSummaryBucket:
-      type: object
-      description: 'One session (or per-user-day fallback) bucket. Exactly one of
+      description: 'Search filters. The tenant scope is NOT part of this body — it is
 
-        session_id / day is set: session_id for a real session bucket, day
+        always forced from the X-Tenant-ID header and cannot be overridden
 
-        (YYYY-MM-DD) for rows without a session id grouped by calendar day.
+        by the payload.
 
         '
       properties:
-        session_id:
-          type: string
-          description: Set when the bucket is a real session
-        day:
-          type: string
-          description: Set only for a per-user-day fallback bucket (YYYY-MM-DD)
         user_email:
           type: string
-        tenant_id:
+          description: Case-insensitive partial (ILIKE substring) match
+        client_id:
           type: string
+          description: Case-insensitive partial (ILIKE substring) match
         start_time:
           type: string
           format: date-time
+          description: 'Window lower bound; clamped to the tenant''s tier-based
+
+            retention cutoff when earlier (or when omitted)
+
+            '
         end_time:
           type: string
           format: date-time
-        total:
-          type: integer
-        by_action:
-          type: object
-          additionalProperties:
-            type: integer
-          description: Per-bucket counts folded onto the canonical verdicts
-        tools:
-          type: array
-          description: Per-request_type usage within the bucket
-          items:
-            type: object
-            properties:
-              request_type:
-                type: string
-              count:
-                type: integer
-              tokens_used:
-                type: integer
-              cost:
-                type: number
-                format: double
-              avg_latency_ms:
-                type:
-                - number
-                - 'null'
-                format: double
-                description: 'Mean latency in milliseconds over the rows of this
+        action:
+          type: string
+          description: 'Filter by policy decision. The value is normalized to its
 
-                  request_type in this bucket that carried a measurement, or
+            canonical verdict (allowed, blocked, redacted, needs_approval,
 
-                  `null` when none did (#3433). Same contract as the
+            error) and expanded to every historical DB spelling of that
 
-                  bucket-level `avg_latency_ms` below, applied per
-
-                  request_type - and `null` is the NORMAL answer for a
-
-                  request_type whose writers record no duration, which is why
-
-                  it is per-request_type rather than only on the bucket.
-
-                  '
-              latency_sample_count:
-                type: integer
-                description: 'How many rows of this request_type backed avg_latency_ms. 0
-
-                  exactly when avg_latency_ms is null, and never greater than
-
-                  `count`.
-
-                  '
-        tokens_used:
-          type: integer
-          description: Per-request token sum over governed audit rows (authoritative gateway view)
-        cost:
-          type: number
-          format: double
-        avg_latency_ms:
-          type:
-          - number
-          - 'null'
-          format: double
-          description: 'Mean latency in milliseconds over the rows in this bucket that
-
-            carried a measurement, or `null` when none did (#3433, for parity
-
-            with `/api/v1/audit/summary` and `/api/v1/audit/report`).
-
-
-            `null` is not `0`. Whole planes record no duration by design (HITL
-
-            approvals, workflow lifecycle rows, the connector-exec MCP
-
-            closure), so a bucket whose traffic was entirely one of those has
-
-            nothing to report. It used to be coalesced to 0, which reads
-
-            exactly like a measured zero. Clients MUST accept null here; a
-
-            strict deserializer binding this to a non-optional float will
-
-            raise. It can also be BELOW 1: response_time_ms is whole
-
-            milliseconds, so a decision completing in under a millisecond
-
-            contributes a 0.
-
-
-            Read latency_sample_count to tell "fast" from "empty".
-
-
-            WHICH quantity this is differs from the compliance summary''s tile.
-
-            This surface sits beside provider tokens and cost, so it
-
-            deliberately keeps the LLM plane''s provider round trip in the
-
-            average; the audit page''s tile is the ENFORCEMENT number and
-
-            excludes that plane. Naming the three quantities
-
-            `response_time_ms` carries is tracked in #3431.
+            verdict, so it matches both current and legacy rows.
 
             '
-        latency_sample_count:
-          type: integer
-          description: 'How many rows backed avg_latency_ms. 0 exactly when avg_latency_ms
+        session_id:
+          type: string
+          description: 'Exact match on the first-class session_id column — used to
 
-            is null, and never greater than `total`.
+            drill into a session-summary bucket''s raw events (#2857).
 
             '
-        usage_metrics:
-          $ref: '#/components/schemas/SessionSummaryUsageMetrics'
-    AuditToolCallResponse:
-      type: object
-      properties:
-        audit_id:
+        limit:
+          type: integer
+          default: 100
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 'Pagination offset — number of audit-log rows to skip from
+
+            the start of the result set. Pair with `limit` to walk
+
+            multi-page audit reads.
+
+            '
+        decision_id:
           type: string
-          description: Unique identifier for the audit entry
-        status:
+          description: 'Filter audit reads to a specific governance decision id
+
+            (mints from MCPCheckInputResponse / MCPCheckOutputResponse
+
+            etc.). Matches `policy_details->>''decision_id''`. Useful when
+
+            correlating a specific request through its full audit trail.
+
+            '
+        override_id:
           type: string
-          description: Recording status
-          enum:
-          - recorded
-        timestamp:
+          description: 'Filter to audit entries that recorded an override-used
+
+            event for this override id (matches
+
+            `policy_details->>''override_id''`).
+
+            '
+        policy_name:
           type: string
-          format: date-time
-          description: When the audit entry was recorded
-    ErrorResponse:
-      type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
+          description: 'Filter to audit entries where this policy fired. Matches the
 
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+            three shapes audit writers store in the policy_details JSONB:
 
-        writer (240 call sites), so it is the shape of every error from the
+            the scalar `policy_details.policy_name`, the CSV string
 
-        core request, audit, plan, workflow, execution and connector surfaces.
+            `policy_details.policy_names`, and
 
+            `policy_details.policy_matches[*].policy_name` (workflow step
 
-        It is one of THREE error SHAPES this document describes. See
+            gates + decision records).
 
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
-      required:
-      - success
-      - error
+            '
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
   headers:
     XAxonflowReadScope:
       description: "RBAC read-scope diagnostic. Echoes the read scope the orchestrator\nresolved server-side for this caller and applied to the query:\n\n- `tenant` — the caller may read every user's rows within the\n  (header-forced) tenant: a validated `admin`/`owner` role over the\n  internal proxy-auth channel, the customer-portal's tenant-scope\n  assertion, or a single-operator deployment (`DEPLOYMENT_MODE=community`,\n  and `community-saas` for requests proven to have arrived over the\n  agent gateway — there the organization, tenant and credential are one\n  `cs_<uuid>`, so \"tenant-wide\" is that one evaluator's own data).\n- `own-rows` — the caller has a validated per-user identity but no\n  tenant-wide authority, so the read was restricted to rows stamped\n  with their own canonical `user_email`.\n- `none` — fail-closed. The caller presented neither tenant-wide\n  authority nor a per-user identity, so **zero rows** were returned.\n  The orchestrator also logs one diagnostic line on this path.\n\nThe header exists so that a `200` with an empty page — or a `404` on a\nrecord that does exist — is distinguishable from a genuinely empty\ntrail. That ambiguity is what let a whole deployment read zero rows\nwithout anyone noticing.\n\n**Diagnostic only.** The response body is byte-for-byte unchanged by\nits presence or value, and nothing keys authorization off it. It is a\nRESPONSE header the orchestrator writes, never an input: a\nclient-supplied `X-Axonflow-Read-Scope` REQUEST header is stripped by\nthe agent gateway and is never trusted. Scope is derived from the\nvalidated identity carried over the internal agent→orchestrator\nproxy-auth channel.\n\nRead scope is also a separate axis from administrative authority.\n`tenant` here does not imply the caller may run whole-tenant compliance\nexports or the cost/usage/execution family — those stay admin-gated and\nstill return 403.\n\nStamped before the handler writes its status line, so it is present on\nany response produced after the scope is resolved (including the\ndeliberately non-oracle `404`s), and absent on requests rejected before\nthat point (e.g. a missing `X-Tenant-ID`).\n"
@@ -1965,16 +1935,6 @@ components:
       schema:
         type: string
       example: travel-us
-  responses:
-    BadRequest:
-      description: Invalid request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: Invalid request body
   securitySchemes:
     basicAuth:
       type: http
@@ -1985,6 +1945,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

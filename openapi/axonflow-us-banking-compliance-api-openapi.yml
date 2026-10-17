@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow US Banking Compliance API
+  title: AxonFlow Orchestrator US Banking Compliance API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged US Banking Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -111,11 +111,6 @@ paths:
             connection).
 
             '
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
     USBankingSourceReadiness:
@@ -171,41 +166,6 @@ components:
             will carry an INCOMPLETE section.
 
             '
-    USBankingProfile:
-      type: object
-      properties:
-        id:
-          type: string
-          enum:
-          - federal
-          - farm-credit
-        display_name:
-          type: string
-        frameworks:
-          type: array
-          description: The framework tokens that select this profile.
-          items:
-            type: string
-            enum:
-            - US_MRM
-            - US_TPRM
-            - GLBA_SAFEGUARDS
-            - BSA_AML
-            - FCA_EM31
-        board_pack_cadence:
-          type: string
-          description: 'What the profile''s supervisor EXPECTS, not a claim that this
-
-            deployment produces a pack on that schedule.
-
-            '
-          enum:
-          - annual
-          - quarterly
-        model_risk_citation:
-          type: string
-        incident_clock:
-          type: string
     USBankingExamReadiness:
       type: object
       description: 'The US banking examination-readiness summary. Counts, presence and
@@ -280,6 +240,41 @@ components:
         generated_at:
           type: string
           format: date-time
+    USBankingProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          enum:
+          - federal
+          - farm-credit
+        display_name:
+          type: string
+        frameworks:
+          type: array
+          description: The framework tokens that select this profile.
+          items:
+            type: string
+            enum:
+            - US_MRM
+            - US_TPRM
+            - GLBA_SAFEGUARDS
+            - BSA_AML
+            - FCA_EM31
+        board_pack_cadence:
+          type: string
+          description: 'What the profile''s supervisor EXPECTS, not a claim that this
+
+            deployment produces a pack on that schedule.
+
+            '
+          enum:
+          - annual
+          - quarterly
+        model_risk_citation:
+          type: string
+        incident_clock:
+          type: string
   securitySchemes:
     basicAuth:
       type: http
@@ -290,6 +285,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

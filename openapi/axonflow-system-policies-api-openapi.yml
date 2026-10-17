@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow System Policies API
+  title: AxonFlow Agent System Policies API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged System Policies across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -53,13 +53,6 @@ paths:
                 $ref: '#/components/schemas/PolicyOverridesListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/system-policies:
     get:
       deprecated: true
@@ -263,13 +256,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           $ref: '#/components/responses/LegacyPolicyWriteFrozen'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/system-policies/effective:
     get:
       deprecated: true
@@ -310,13 +296,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/system-policies/test:
     post:
       deprecated: true
@@ -363,13 +342,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/system-policies/overrides:
     get:
       deprecated: true
@@ -410,13 +382,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/system-policies/{id}:
     get:
       deprecated: true
@@ -648,13 +613,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           $ref: '#/components/responses/LegacyPolicyWriteFrozen'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/system-policies/{id}/versions:
     get:
       deprecated: true
@@ -697,13 +655,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/system-policies/{id}/override:
     get:
       deprecated: true
@@ -844,89 +795,112 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '409':
           $ref: '#/components/responses/PerPolicyOverrideRetired'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+    PerPolicyOverrideRetired:
+      description: 'Per-policy overrides of system controls are retired in v11 (PRD v11
+
+        §1.5). A system control is enabled, disabled or re-actioned in the
+
+        organization''s typed document, in its `system_controls` section,
+
+        through the typed authoring route (`/api/v1/typed-policies`, in
+
+        `orchestrator-api.yaml`). The route stays registered so a caller is
+
+        told where the write went. It writes nothing, and it answers this in
+
+        every edition and on every database role: `policy_overrides` is not
+
+        revoked by core/172, and no route writes it in v11 (the session
+
+        override writes answer the same refusal since #4252), so the refusal
+
+        is the handler''s. The body is the
+
+        `LegacyPolicyWriteFrozen` envelope: `JSONError` with `code` the string
+
+        `LEGACY_POLICY_WRITE_FROZEN`.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    enum:
+                    - LEGACY_POLICY_WRITE_FROZEN
+                  message:
+                    type: string
+          example:
+            error:
+              code: LEGACY_POLICY_WRITE_FROZEN
+              message: 'Policy overrides are retired in v11: a policy is enabled, disabled or re-actioned in the organization''s typed document (a shipped system control in its system_controls section) through the typed authoring route at /api/v1/typed-policies. Reads on this endpoint are unaffected.'
+    LegacyPolicyWriteFrozen:
+      description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
+
+        INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` from the
+
+        application roles, and this endpoint writes it, so the write is
+
+        refused permanently rather than transiently. It is not an entitlement
+
+        fact: no licence, edition or upgrade changes it. Author policies
+
+        through the typed authoring route (`/api/v1/typed-policies`, in
+
+        `orchestrator-api.yaml`) instead. Reads are unaffected. A deployment
+
+        whose connection may still write the table (the database owner; a
+
+        property of the connection, not of `AXONFLOW_DB_USE_APP_ROLE` alone)
+
+        is not bound by the revoke and does not receive this response. The body
+
+        is the `JSONError` envelope with `code` as the string
+
+        `LEGACY_POLICY_WRITE_FROZEN` rather than the numeric status.
+
+        '
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    enum:
+                    - LEGACY_POLICY_WRITE_FROZEN
+                  message:
+                    type: string
+          example:
+            error:
+              code: LEGACY_POLICY_WRITE_FROZEN
+              message: 'The legacy policy tables are read-only in v11: migrations/core/172 revoked write access from the application role, and this endpoint writes them. Author policies through the typed authoring route at /api/v1/typed-policies instead. Reads on this endpoint are unaffected.'
   schemas:
-    EffectivePoliciesResponse:
-      type: object
-      description: Effective policies with overrides resolved
-      properties:
-        static:
-          type: array
-          items:
-            $ref: '#/components/schemas/StaticPolicy'
-          description: Static policies with overrides applied
-        tenant_id:
-          type: string
-        organization_id:
-          type: string
-          description: 'The organisation these effective policies were computed for,
-
-            alongside `tenant_id` and `computed_at`. It is metadata about the
-
-            resolution, not an owner of any one policy in the list.
-
-
-            This is the current wire field name and it is not deprecated: it is
-
-            unrelated to a database column of the same name that was retired in
-
-            an earlier release. The two share a name and nothing else.
-
-            '
-        computed_at:
-          type: string
-          format: date-time
-          description: When the effective policies were computed
-    PolicyVersionsResponse:
-      type: object
-      description: Version history for a policy
-      properties:
-        policy_id:
-          type: string
-          description: Policy UUID
-        versions:
-          type: array
-          items:
-            $ref: '#/components/schemas/PolicyVersion'
-        count:
-          type: integer
-          description: Number of versions returned
-    PolicyVersion:
-      type: object
-      description: A version snapshot of a policy
-      properties:
-        id:
-          type: string
-          format: uuid
-        policy_id:
-          type: string
-        version:
-          type: integer
-        snapshot:
-          type: object
-          description: Complete policy state at this version
-        change_type:
-          type: string
-          enum:
-          - created
-          - updated
-          - deleted
-          - enabled
-          - disabled
-        change_summary:
-          type: string
-        changed_by:
-          type: string
-        changed_at:
-          type: string
-          format: date-time
     ErrorResponse:
       type: object
       description: 'Handler-written error envelope. Note the agent has a second error
@@ -943,32 +917,74 @@ components:
         error:
           type: string
           description: Error message
-    PolicyOverridesListResponse:
+    CreateStaticPolicyRequest:
       type: object
-      description: List of policy overrides
+      description: Request body for creating a static policy
+      required:
+      - name
+      - pattern
+      - category
+      - action
       properties:
-        overrides:
+        name:
+          type: string
+          description: Display name of the policy
+          example: Custom Employee ID Detection
+        description:
+          type: string
+          description: Detailed policy description
+        category:
+          type: string
+          enum:
+          - security-sqli
+          - security-admin
+          - pii-global
+          - pii-us
+          - pii-eu
+          - pii-india
+          - custom
+          description: Policy category
+        tier:
+          type: string
+          enum:
+          - organization
+          - tenant
+          description: Policy tier (system not allowed via API). Default is tenant.
+          default: tenant
+        pattern:
+          type: string
+          description: Regex pattern for detection
+          example: EMP-[0-9]{6}
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+          description: Action to take when pattern matches
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          description: Severity level
+        priority:
+          type: integer
+          description: Priority order (lower = higher priority)
+          default: 100
+        enabled:
+          type: boolean
+          description: Whether the policy is active
+          default: true
+        tags:
           type: array
           items:
-            $ref: '#/components/schemas/PolicyOverride'
-        count:
-          type: integer
-          description: Total number of overrides
-    StaticPolicyPagination:
-      type: object
-      properties:
-        page:
-          type: integer
-          description: Current page number (1-indexed)
-        page_size:
-          type: integer
-          description: Number of items per page
-        total:
-          type: integer
-          description: Total number of policies
-        total_pages:
-          type: integer
-          description: Total number of pages
+            type: string
+          description: Tags for categorization
     PolicyOverride:
       type: object
       description: Override configuration for system policies (Enterprise only)
@@ -1019,6 +1035,261 @@ components:
         updated_at:
           type: string
           format: date-time
+    JSONError:
+      type: object
+      description: 'Middleware-written error envelope (auth middleware 401s, static
+
+        policy API errors). Source of truth:
+
+        `platform/agent/static_policy_api_handlers.go` (writeJSONError).
+
+        One exception on the system-policy routes: the v11 legacy policy
+
+        freeze answers with the same two keys and a STRING code - see the
+
+        `LegacyPolicyWriteFrozen` response.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              description: HTTP status code
+            message:
+              type: string
+    TestPatternResponse:
+      type: object
+      description: Response from pattern testing
+      properties:
+        valid:
+          type: boolean
+          description: Whether the pattern is valid regex
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              input:
+                type: string
+                description: The input that was tested
+              matched:
+                type: boolean
+                description: Whether the pattern matched
+              matches:
+                type: array
+                items:
+                  type: string
+                description: Captured match groups
+        error:
+          type: string
+          description: Error message if pattern is invalid
+    StaticPolicyPagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+        page_size:
+          type: integer
+          description: Number of items per page
+        total:
+          type: integer
+          description: Total number of policies
+        total_pages:
+          type: integer
+          description: Total number of pages
+    CreateOverrideRequest:
+      type: object
+      description: Request body for creating a policy override
+      required:
+      - override_reason
+      properties:
+        action_override:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+          description: Override the policy action
+        enabled_override:
+          type: boolean
+          description: Override the enabled status
+        override_reason:
+          type: string
+          description: Required explanation for audit trail
+        expires_at:
+          type: string
+          format: date-time
+          description: Optional expiration for the override
+    UpdateStaticPolicyRequest:
+      type: object
+      description: Request body for updating a static policy (all fields optional)
+      properties:
+        name:
+          type: string
+          description: Display name of the policy
+        description:
+          type: string
+          description: Detailed policy description
+        pattern:
+          type: string
+          description: Regex pattern (only for non-system policies)
+        action:
+          type: string
+          enum:
+          - block
+          - require_approval
+          - redact
+          - warn
+          - log
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        category:
+          type: string
+          description: 'Policy category. Updates can re-categorise non-system
+
+            policies; system policies stay pinned to their seeded
+
+            category.
+
+            '
+          enum:
+          - security-sqli
+          - security-admin
+          - pii-global
+          - pii-us
+          - pii-eu
+          - pii-india
+          - custom
+        tags:
+          type: array
+          items:
+            type: string
+    PolicyOverridesListResponse:
+      type: object
+      description: List of policy overrides
+      properties:
+        overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyOverride'
+        count:
+          type: integer
+          description: Total number of overrides
+    PolicyVersion:
+      type: object
+      description: A version snapshot of a policy
+      properties:
+        id:
+          type: string
+          format: uuid
+        policy_id:
+          type: string
+        version:
+          type: integer
+        snapshot:
+          type: object
+          description: Complete policy state at this version
+        change_type:
+          type: string
+          enum:
+          - created
+          - updated
+          - deleted
+          - enabled
+          - disabled
+        change_summary:
+          type: string
+        changed_by:
+          type: string
+        changed_at:
+          type: string
+          format: date-time
+    TestPatternRequest:
+      type: object
+      description: Request body for testing a regex pattern
+      required:
+      - pattern
+      properties:
+        pattern:
+          type: string
+          description: Regex pattern to test
+        input:
+          type: string
+          description: Single input string to test (for backward compatibility)
+        inputs:
+          type: array
+          items:
+            type: string
+          description: Multiple input strings to test
+    PolicyVersionsResponse:
+      type: object
+      description: Version history for a policy
+      properties:
+        policy_id:
+          type: string
+          description: Policy UUID
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyVersion'
+        count:
+          type: integer
+          description: Number of versions returned
+    EffectivePoliciesResponse:
+      type: object
+      description: Effective policies with overrides resolved
+      properties:
+        static:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaticPolicy'
+          description: Static policies with overrides applied
+        tenant_id:
+          type: string
+        organization_id:
+          type: string
+          description: 'The organisation these effective policies were computed for,
+
+            alongside `tenant_id` and `computed_at`. It is metadata about the
+
+            resolution, not an owner of any one policy in the list.
+
+
+            This is the current wire field name and it is not deprecated: it is
+
+            unrelated to a database column of the same name that was retired in
+
+            an earlier release. The two share a name and nothing else.
+
+            '
+        computed_at:
+          type: string
+          format: date-time
+          description: When the effective policies were computed
+    StaticPoliciesListResponse:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaticPolicy'
+          description: List of static policies
+        pagination:
+          $ref: '#/components/schemas/StaticPolicyPagination'
     StaticPolicy:
       type: object
       description: 'A static policy with three-tier hierarchy support (v2.0.0).
@@ -1122,333 +1393,6 @@ components:
       - tenant_id
       - created_at
       - updated_at
-    CreateOverrideRequest:
-      type: object
-      description: Request body for creating a policy override
-      required:
-      - override_reason
-      properties:
-        action_override:
-          type: string
-          enum:
-          - block
-          - require_approval
-          - redact
-          - warn
-          - log
-          description: Override the policy action
-        enabled_override:
-          type: boolean
-          description: Override the enabled status
-        override_reason:
-          type: string
-          description: Required explanation for audit trail
-        expires_at:
-          type: string
-          format: date-time
-          description: Optional expiration for the override
-    StaticPoliciesListResponse:
-      type: object
-      properties:
-        policies:
-          type: array
-          items:
-            $ref: '#/components/schemas/StaticPolicy'
-          description: List of static policies
-        pagination:
-          $ref: '#/components/schemas/StaticPolicyPagination'
-    UpdateStaticPolicyRequest:
-      type: object
-      description: Request body for updating a static policy (all fields optional)
-      properties:
-        name:
-          type: string
-          description: Display name of the policy
-        description:
-          type: string
-          description: Detailed policy description
-        pattern:
-          type: string
-          description: Regex pattern (only for non-system policies)
-        action:
-          type: string
-          enum:
-          - block
-          - require_approval
-          - redact
-          - warn
-          - log
-        severity:
-          type: string
-          enum:
-          - critical
-          - high
-          - medium
-          - low
-        priority:
-          type: integer
-        enabled:
-          type: boolean
-        category:
-          type: string
-          description: 'Policy category. Updates can re-categorise non-system
-
-            policies; system policies stay pinned to their seeded
-
-            category.
-
-            '
-          enum:
-          - security-sqli
-          - security-admin
-          - pii-global
-          - pii-us
-          - pii-eu
-          - pii-india
-          - custom
-        tags:
-          type: array
-          items:
-            type: string
-    CreateStaticPolicyRequest:
-      type: object
-      description: Request body for creating a static policy
-      required:
-      - name
-      - pattern
-      - category
-      - action
-      properties:
-        name:
-          type: string
-          description: Display name of the policy
-          example: Custom Employee ID Detection
-        description:
-          type: string
-          description: Detailed policy description
-        category:
-          type: string
-          enum:
-          - security-sqli
-          - security-admin
-          - pii-global
-          - pii-us
-          - pii-eu
-          - pii-india
-          - custom
-          description: Policy category
-        tier:
-          type: string
-          enum:
-          - organization
-          - tenant
-          description: Policy tier (system not allowed via API). Default is tenant.
-          default: tenant
-        pattern:
-          type: string
-          description: Regex pattern for detection
-          example: EMP-[0-9]{6}
-        action:
-          type: string
-          enum:
-          - block
-          - require_approval
-          - redact
-          - warn
-          - log
-          description: Action to take when pattern matches
-        severity:
-          type: string
-          enum:
-          - critical
-          - high
-          - medium
-          - low
-          description: Severity level
-        priority:
-          type: integer
-          description: Priority order (lower = higher priority)
-          default: 100
-        enabled:
-          type: boolean
-          description: Whether the policy is active
-          default: true
-        tags:
-          type: array
-          items:
-            type: string
-          description: Tags for categorization
-    TestPatternResponse:
-      type: object
-      description: Response from pattern testing
-      properties:
-        valid:
-          type: boolean
-          description: Whether the pattern is valid regex
-        results:
-          type: array
-          items:
-            type: object
-            properties:
-              input:
-                type: string
-                description: The input that was tested
-              matched:
-                type: boolean
-                description: Whether the pattern matched
-              matches:
-                type: array
-                items:
-                  type: string
-                description: Captured match groups
-        error:
-          type: string
-          description: Error message if pattern is invalid
-    JSONError:
-      type: object
-      description: 'Middleware-written error envelope (auth middleware 401s, static
-
-        policy API errors). Source of truth:
-
-        `platform/agent/static_policy_api_handlers.go` (writeJSONError).
-
-        One exception on the system-policy routes: the v11 legacy policy
-
-        freeze answers with the same two keys and a STRING code - see the
-
-        `LegacyPolicyWriteFrozen` response.
-
-        '
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: integer
-              description: HTTP status code
-            message:
-              type: string
-    TestPatternRequest:
-      type: object
-      description: Request body for testing a regex pattern
-      required:
-      - pattern
-      properties:
-        pattern:
-          type: string
-          description: Regex pattern to test
-        input:
-          type: string
-          description: Single input string to test (for backward compatibility)
-        inputs:
-          type: array
-          items:
-            type: string
-          description: Multiple input strings to test
-  responses:
-    PerPolicyOverrideRetired:
-      description: 'Per-policy overrides of system controls are retired in v11 (PRD v11
-
-        §1.5). A system control is enabled, disabled or re-actioned in the
-
-        organization''s typed document, in its `system_controls` section,
-
-        through the typed authoring route (`/api/v1/typed-policies`, in
-
-        `orchestrator-api.yaml`). The route stays registered so a caller is
-
-        told where the write went. It writes nothing, and it answers this in
-
-        every edition and on every database role: `policy_overrides` is not
-
-        revoked by core/172, and no route writes it in v11 (the session
-
-        override writes answer the same refusal since #4252), so the refusal
-
-        is the handler''s. The body is the
-
-        `LegacyPolicyWriteFrozen` envelope: `JSONError` with `code` the string
-
-        `LEGACY_POLICY_WRITE_FROZEN`.
-
-        '
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              error:
-                type: object
-                properties:
-                  code:
-                    type: string
-                    enum:
-                    - LEGACY_POLICY_WRITE_FROZEN
-                  message:
-                    type: string
-          example:
-            error:
-              code: LEGACY_POLICY_WRITE_FROZEN
-              message: 'Policy overrides are retired in v11: a policy is enabled, disabled or re-actioned in the organization''s typed document (a shipped system control in its system_controls section) through the typed authoring route at /api/v1/typed-policies. Reads on this endpoint are unaffected.'
-    LegacyPolicyWriteFrozen:
-      description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
-
-        INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` from the
-
-        application roles, and this endpoint writes it, so the write is
-
-        refused permanently rather than transiently. It is not an entitlement
-
-        fact: no licence, edition or upgrade changes it. Author policies
-
-        through the typed authoring route (`/api/v1/typed-policies`, in
-
-        `orchestrator-api.yaml`) instead. Reads are unaffected. A deployment
-
-        whose connection may still write the table (the database owner; a
-
-        property of the connection, not of `AXONFLOW_DB_USE_APP_ROLE` alone)
-
-        is not bound by the revoke and does not receive this response. The body
-
-        is the `JSONError` envelope with `code` as the string
-
-        `LEGACY_POLICY_WRITE_FROZEN` rather than the numeric status.
-
-        '
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              error:
-                type: object
-                properties:
-                  code:
-                    type: string
-                    enum:
-                    - LEGACY_POLICY_WRITE_FROZEN
-                  message:
-                    type: string
-          example:
-            error:
-              code: LEGACY_POLICY_WRITE_FROZEN
-              message: 'The legacy policy tables are read-only in v11: migrations/core/172 revoked write access from the application role, and this endpoint writes them. Author policies through the typed authoring route at /api/v1/typed-policies instead. Reads on this endpoint are unaffected.'
-    Unauthorized:
-      description: 'Missing or invalid authentication. Handler-written 401s use the
-
-        `{success, error}` envelope; 401s written by the auth middleware
-
-        use the `{"error": {"code", "message"}}` envelope (JSONError).
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
   parameters:
     LicenseKey:
       name: Authorization
@@ -1541,6 +1485,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

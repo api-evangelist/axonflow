@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Gateway Mode API
+  title: AxonFlow Agent Gateway Mode API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Gateway Mode across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -196,13 +196,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/audit/llm-call:
     post:
       tags:
@@ -267,198 +260,42 @@ paths:
                 error: Invalid or expired context
         '401':
           $ref: '#/components/responses/Unauthorized'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
-  schemas:
-    AuditLLMCallRequest:
-      type: object
-      required:
-      - context_id
-      - client_id
-      - provider
-      - model
-      - token_usage
-      properties:
-        context_id:
-          type: string
-          description: Context ID from pre-check
-        client_id:
-          type: string
-          description: Client application ID
-        response_summary:
-          type: string
-          description: Brief summary of LLM response (for audit)
-          maxLength: 500
-        provider:
-          type: string
-          description: LLM provider name
-          enum:
-          - openai
-          - azure-openai
-          - anthropic
-          - bedrock
-          - ollama
-          - gemini
-        model:
-          type: string
-          description: Model identifier
-          example: gpt-4
-        token_usage:
-          $ref: '#/components/schemas/TokenUsage'
-        latency_ms:
-          type: integer
-          description: LLM call latency in milliseconds
-        metadata:
-          type: object
-          additionalProperties: true
-          description: Additional metadata for audit
-    RateLimitEnvelope:
-      type: object
-      description: 'Shared tier rate-limit envelope written by the Community SaaS
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
 
-        limiter for daily-quota 429s (the same shape is used with 403 for
+        `{success, error}` envelope; 401s written by the auth middleware
 
-        Pro-only feature limits). On the REST routes, per-minute 429s use
-
-        a plain `{"error": "..."}` body with only a Retry-After header —
-
-        not this envelope. On `/api/v1/mcp-server` both limits use it
-
-        (`per_minute` and `daily_quota`, 429, #4261), and so do the
-
-        `tools/call` tier gates (403, #4274) and the tier admission
-
-        refusals on every method (403, or 429 while the admission ledger
-
-        cannot be reached; #4249 row 5682255301), wrapped in a JSON-RPC
-
-        result.
-
-        Accompanied by the `X-Axonflow-Tier-Limit` and
-
-        `X-Axonflow-Upgrade-URL` headers, and by `Retry-After` when the
-
-        limit has a reset time (not for `feature_pro_only`). Source of truth:
-
-        `platform/agent/community_saas_ratelimit_response.go`
-
-        (rateLimitEnvelope).
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
 
         '
-      properties:
-        error:
-          type: string
-        limit_type:
-          type: string
-          description: 'Which limiter fired: `daily_quota`, `per_minute` (MCP server
-
-            only), `hitl_approvals_window`,
-
-            `feature_pro_only`, or the refused admission dimension
-
-            (`service_principal` / `human_principal`, MCP server only).
-
-            '
-        tier:
-          type: string
-        limit:
-          type: integer
-        remaining:
-          type: integer
-        window:
-          type: string
-        resets_at:
-          type: string
-          format: date-time
-        upgrade:
-          type: object
-          properties:
-            tier:
-              type: string
-            wording:
-              type: string
-            compare_url:
-              type: string
-            buy_url:
-              type: string
-              description: 'Empty on a tier admission refusal: the V1 buy link is
-
-                Plugin Pro''s, which lifts no edition ceiling.
-
-                '
-        code:
-          type: string
-          description: 'The refusal''s machine-readable code where it has one: a tier
-
-            admission refusal''s `ERR_TIER_LIMIT_<DIMENSION>` (MCP server).
-
-            Omitted on every other limit.
-
-            '
-    AuditLLMCallResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        audit_id:
-          type: string
-          description: Unique audit record ID
-    RateLimitInfo:
-      type: object
-      properties:
-        limit:
-          type: integer
-          description: Rate limit per window
-        remaining:
-          type: integer
-          description: Remaining requests in current window
-        reset_at:
-          type: string
-          format: date-time
-          description: When the rate limit resets
-    TokenUsage:
-      type: object
-      properties:
-        prompt_tokens:
-          type: integer
-          description: Tokens in the prompt
-        completion_tokens:
-          type: integer
-          description: Tokens in the completion
-        total_tokens:
-          type: integer
-          description: Total tokens used
-    PreCheckRequest:
-      type: object
-      required:
-      - query
-      - client_id
-      properties:
-        query:
-          type: string
-          description: Query to validate
-          minLength: 1
-        user_token:
-          type: string
-          description: JWT token for user authentication
-        client_id:
-          type: string
-          description: Client application ID
-        data_sources:
-          type: array
-          items:
-            type: string
-          description: MCP connectors to fetch data from
-        context:
-          type: object
-          additionalProperties: true
-          description: Additional context
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    Forbidden:
+      description: Access denied by policy or tenant mismatch
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Tenant mismatch
+  schemas:
     PreCheckResponse:
       type: object
       properties:
@@ -663,40 +500,189 @@ components:
         error:
           type: string
           description: Error message
-  responses:
-    Unauthorized:
-      description: 'Missing or invalid authentication. Handler-written 401s use the
+    AuditLLMCallResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        audit_id:
+          type: string
+          description: Unique audit record ID
+    RateLimitEnvelope:
+      type: object
+      description: 'Shared tier rate-limit envelope written by the Community SaaS
 
-        `{success, error}` envelope; 401s written by the auth middleware
+        limiter for daily-quota 429s (the same shape is used with 403 for
 
-        use the `{"error": {"code", "message"}}` envelope (JSONError).
+        Pro-only feature limits). On the REST routes, per-minute 429s use
+
+        a plain `{"error": "..."}` body with only a Retry-After header —
+
+        not this envelope. On `/api/v1/mcp-server` both limits use it
+
+        (`per_minute` and `daily_quota`, 429, #4261), and so do the
+
+        `tools/call` tier gates (403, #4274) and the tier admission
+
+        refusals on every method (403, or 429 while the admission ledger
+
+        cannot be reached; #4249 row 5682255301), wrapped in a JSON-RPC
+
+        result.
+
+        Accompanied by the `X-Axonflow-Tier-Limit` and
+
+        `X-Axonflow-Upgrade-URL` headers, and by `Retry-After` when the
+
+        limit has a reset time (not for `feature_pro_only`). Source of truth:
+
+        `platform/agent/community_saas_ratelimit_response.go`
+
+        (rateLimitEnvelope).
 
         '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
-    Forbidden:
-      description: Access denied by policy or tenant mismatch
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: Tenant mismatch
-    BadRequest:
-      description: Invalid request body or parameters
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: Invalid request body
+      properties:
+        error:
+          type: string
+        limit_type:
+          type: string
+          description: 'Which limiter fired: `daily_quota`, `per_minute` (MCP server
+
+            only), `hitl_approvals_window`,
+
+            `feature_pro_only`, or the refused admission dimension
+
+            (`service_principal` / `human_principal`, MCP server only).
+
+            '
+        tier:
+          type: string
+        limit:
+          type: integer
+        remaining:
+          type: integer
+        window:
+          type: string
+        resets_at:
+          type: string
+          format: date-time
+        upgrade:
+          type: object
+          properties:
+            tier:
+              type: string
+            wording:
+              type: string
+            compare_url:
+              type: string
+            buy_url:
+              type: string
+              description: 'Empty on a tier admission refusal: the V1 buy link is
+
+                Plugin Pro''s, which lifts no edition ceiling.
+
+                '
+        code:
+          type: string
+          description: 'The refusal''s machine-readable code where it has one: a tier
+
+            admission refusal''s `ERR_TIER_LIMIT_<DIMENSION>` (MCP server).
+
+            Omitted on every other limit.
+
+            '
+    AuditLLMCallRequest:
+      type: object
+      required:
+      - context_id
+      - client_id
+      - provider
+      - model
+      - token_usage
+      properties:
+        context_id:
+          type: string
+          description: Context ID from pre-check
+        client_id:
+          type: string
+          description: Client application ID
+        response_summary:
+          type: string
+          description: Brief summary of LLM response (for audit)
+          maxLength: 500
+        provider:
+          type: string
+          description: LLM provider name
+          enum:
+          - openai
+          - azure-openai
+          - anthropic
+          - bedrock
+          - ollama
+          - gemini
+        model:
+          type: string
+          description: Model identifier
+          example: gpt-4
+        token_usage:
+          $ref: '#/components/schemas/TokenUsage'
+        latency_ms:
+          type: integer
+          description: LLM call latency in milliseconds
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata for audit
+    TokenUsage:
+      type: object
+      properties:
+        prompt_tokens:
+          type: integer
+          description: Tokens in the prompt
+        completion_tokens:
+          type: integer
+          description: Tokens in the completion
+        total_tokens:
+          type: integer
+          description: Total tokens used
+    RateLimitInfo:
+      type: object
+      properties:
+        limit:
+          type: integer
+          description: Rate limit per window
+        remaining:
+          type: integer
+          description: Remaining requests in current window
+        reset_at:
+          type: string
+          format: date-time
+          description: When the rate limit resets
+    PreCheckRequest:
+      type: object
+      required:
+      - query
+      - client_id
+      properties:
+        query:
+          type: string
+          description: Query to validate
+          minLength: 1
+        user_token:
+          type: string
+          description: JWT token for user authentication
+        client_id:
+          type: string
+          description: Client application ID
+        data_sources:
+          type: array
+          items:
+            type: string
+          description: MCP connectors to fetch data from
+        context:
+          type: object
+          additionalProperties: true
+          description: Additional context
   parameters:
     AxonflowPEPHandshake:
       name: X-Axonflow-PEP-Handshake
@@ -891,6 +877,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

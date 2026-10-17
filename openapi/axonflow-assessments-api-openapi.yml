@@ -1,6 +1,9 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Assessments API
+  title: AxonFlow MAS FEAT Compliance Assessments API
+  description: '> **Enterprise only** — the MAS FEAT module is compiled only into Enterprise
+
+    > builds (`//go:build enterprise`).'
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +11,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Assessments across 2 of this provider''s published API definitions: axonflow-masfeat-api.yaml, axonflow-masfeat-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (via AxonFlow agent proxy)
@@ -116,13 +118,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/assessments/{id}:
     get:
       summary: Get FEAT Assessment
@@ -214,13 +209,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/assessments/{id}/submit:
     post:
       summary: Submit Assessment for Review
@@ -255,13 +243,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/assessments/{id}/approve:
     post:
       summary: Approve Assessment
@@ -298,13 +279,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/assessments/{id}/reject:
     post:
       summary: Reject Assessment
@@ -345,131 +319,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
 components:
   schemas:
-    CriterionAssessment:
-      type: object
-      description: Assessment of a specific FEAT criterion
-      properties:
-        criterion_id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        score:
-          type: integer
-          minimum: 0
-          maximum: 100
-        status:
-          type: string
-          enum:
-          - met
-          - partial
-          - not_met
-          - not_applicable
-        evidence:
-          type: string
-        notes:
-          type: string
-    EvidenceItem:
-      type: object
-      description: Evidence supporting FEAT assessment claims
-      properties:
-        id:
-          type: string
-        type:
-          type: string
-          enum:
-          - document
-          - test_result
-          - audit_log
-          - model_card
-        title:
-          type: string
-        description:
-          type: string
-        file_path:
-          type: string
-        url:
-          type: string
-        uploaded_at:
-          type: string
-          format: date-time
-        uploaded_by:
-          type: string
-    PillarAssessment:
-      type: object
-      description: Structured detail for a single FEAT pillar
-      properties:
-        score:
-          type: number
-          format: double
-          description: Pillar score (0-100)
-        status:
-          type: string
-          enum:
-          - compliant
-          - partial
-          - non_compliant
-        criteria:
-          type: array
-          items:
-            $ref: '#/components/schemas/CriterionAssessment'
-        evidence:
-          type: array
-          items:
-            $ref: '#/components/schemas/EvidenceItem'
-        notes:
-          type: string
-    Finding:
-      type: object
-      description: A FEAT assessment finding
-      properties:
-        id:
-          type: string
-        pillar:
-          type: string
-          enum:
-          - fairness
-          - ethics
-          - accountability
-          - transparency
-        severity:
-          type: string
-          enum:
-          - critical
-          - major
-          - minor
-          - observation
-        category:
-          type: string
-        description:
-          type: string
-        remediation:
-          type: string
-        status:
-          type: string
-          enum:
-          - open
-          - resolved
-          - accepted
-        due_date:
-          type: string
-          format: date-time
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error message
     UpdateAssessmentRequest:
       type: object
       properties:
@@ -525,27 +376,67 @@ components:
         reason:
           type: string
           description: Rejection reason
-    CreateAssessmentRequest:
+    Finding:
       type: object
-      required:
-      - system_id
+      description: A FEAT assessment finding
       properties:
-        system_id:
+        id:
           type: string
-          description: ID of the AI system to assess
-        assessment_type:
+        pillar:
           type: string
           enum:
-          - initial
-          - periodic
-          - ad_hoc
-          default: periodic
-          description: Type of assessment
-        assessors:
-          type: array
-          items:
-            type: string
-          description: List of assessor emails
+          - fairness
+          - ethics
+          - accountability
+          - transparency
+        severity:
+          type: string
+          enum:
+          - critical
+          - major
+          - minor
+          - observation
+        category:
+          type: string
+        description:
+          type: string
+        remediation:
+          type: string
+        status:
+          type: string
+          enum:
+          - open
+          - resolved
+          - accepted
+        due_date:
+          type: string
+          format: date-time
+    EvidenceItem:
+      type: object
+      description: Evidence supporting FEAT assessment claims
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+          - document
+          - test_result
+          - audit_log
+          - model_card
+        title:
+          type: string
+        description:
+          type: string
+        file_path:
+          type: string
+        url:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+        uploaded_by:
+          type: string
     FEATAssessment:
       type: object
       properties:
@@ -640,6 +531,33 @@ components:
           type: string
         rejection_reason:
           type: string
+    CreateAssessmentRequest:
+      type: object
+      required:
+      - system_id
+      properties:
+        system_id:
+          type: string
+          description: ID of the AI system to assess
+        assessment_type:
+          type: string
+          enum:
+          - initial
+          - periodic
+          - ad_hoc
+          default: periodic
+          description: Type of assessment
+        assessors:
+          type: array
+          items:
+            type: string
+          description: List of assessor emails
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
     AssessmentListResponse:
       type: object
       properties:
@@ -650,6 +568,55 @@ components:
         count:
           type: integer
           description: Number of assessments returned
+    PillarAssessment:
+      type: object
+      description: Structured detail for a single FEAT pillar
+      properties:
+        score:
+          type: number
+          format: double
+          description: Pillar score (0-100)
+        status:
+          type: string
+          enum:
+          - compliant
+          - partial
+          - non_compliant
+        criteria:
+          type: array
+          items:
+            $ref: '#/components/schemas/CriterionAssessment'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceItem'
+        notes:
+          type: string
+    CriterionAssessment:
+      type: object
+      description: Assessment of a specific FEAT criterion
+      properties:
+        criterion_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        status:
+          type: string
+          enum:
+          - met
+          - partial
+          - not_met
+          - not_applicable
+        evidence:
+          type: string
+        notes:
+          type: string
   parameters:
     AssessmentID:
       name: id
@@ -680,6 +647,3 @@ components:
         `"system"`.
 
         '
-x-refined-from:
-- axonflow-masfeat-api.yaml
-- axonflow-masfeat-openapi.yml

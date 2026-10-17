@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Audit Verification API
+  title: AxonFlow Agent Audit Verification API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Audit Verification across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -129,13 +129,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditVerifyError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/audit/records/{recordID}/verify:
     get:
       tags:
@@ -247,13 +240,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditVerifyError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/audit/signing-key:
     get:
       tags:
@@ -325,15 +311,82 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditVerifyError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
   schemas:
+    RecordVerificationResult:
+      type: object
+      description: 'Outcome of verifying a SINGLE decision record standalone. Republishes the
+
+        recomputed material so the result is independently checkable offline.
+
+        '
+      properties:
+        record_id:
+          type: string
+          format: uuid
+        chain_id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        chain_seq:
+          type: integer
+          format: int64
+        signed:
+          type: boolean
+        signature_valid:
+          type: boolean
+        valid:
+          type: boolean
+        reason:
+          type: string
+          description: Explanation when the record does not verify (omitted when valid).
+        digest_preimage_b64:
+          type: string
+          description: 'Base64 of the exact byte string that SHA-256-hashes to
+
+            `record_digest`. Decode, hash, and confirm it equals `record_digest`,
+
+            then rebuild it from the raw record fields to verify independently.
+
+            '
+        record_digest:
+          type: string
+          description: SHA-256 hex of the record pre-image.
+        prev_hash:
+          type: string
+          description: Hash of the previous record in the chain.
+        chain_hash:
+          type: string
+          description: 'sha256_hex(record_digest + "|" + prev_hash); the message that the
+
+            Ed25519 signature is computed over.
+
+            '
+        record_signature:
+          type: string
+          description: Base64 Ed25519 signature over `chain_hash` (omitted when unsigned).
+        signing_key_id:
+          type: string
+        public_key:
+          type: string
+          description: Base64 Ed25519 public key for offline re-verification.
+        verified_at:
+          type: string
+          format: date-time
+      required:
+      - record_id
+      - chain_id
+      - org_id
+      - chain_seq
+      - signed
+      - signature_valid
+      - valid
+      - digest_preimage_b64
+      - record_digest
+      - prev_hash
+      - chain_hash
+      - verified_at
     AuditVerifyError:
       type: object
       description: Error envelope returned by the audit-verification endpoints.
@@ -432,80 +485,6 @@ components:
       required:
       - algorithm
       - configured
-    RecordVerificationResult:
-      type: object
-      description: 'Outcome of verifying a SINGLE decision record standalone. Republishes the
-
-        recomputed material so the result is independently checkable offline.
-
-        '
-      properties:
-        record_id:
-          type: string
-          format: uuid
-        chain_id:
-          type: string
-          format: uuid
-        org_id:
-          type: string
-        chain_seq:
-          type: integer
-          format: int64
-        signed:
-          type: boolean
-        signature_valid:
-          type: boolean
-        valid:
-          type: boolean
-        reason:
-          type: string
-          description: Explanation when the record does not verify (omitted when valid).
-        digest_preimage_b64:
-          type: string
-          description: 'Base64 of the exact byte string that SHA-256-hashes to
-
-            `record_digest`. Decode, hash, and confirm it equals `record_digest`,
-
-            then rebuild it from the raw record fields to verify independently.
-
-            '
-        record_digest:
-          type: string
-          description: SHA-256 hex of the record pre-image.
-        prev_hash:
-          type: string
-          description: Hash of the previous record in the chain.
-        chain_hash:
-          type: string
-          description: 'sha256_hex(record_digest + "|" + prev_hash); the message that the
-
-            Ed25519 signature is computed over.
-
-            '
-        record_signature:
-          type: string
-          description: Base64 Ed25519 signature over `chain_hash` (omitted when unsigned).
-        signing_key_id:
-          type: string
-        public_key:
-          type: string
-          description: Base64 Ed25519 public key for offline re-verification.
-        verified_at:
-          type: string
-          format: date-time
-      required:
-      - record_id
-      - chain_id
-      - org_id
-      - chain_seq
-      - signed
-      - signature_valid
-      - valid
-      - digest_preimage_b64
-      - record_digest
-      - prev_hash
-      - chain_hash
-      - verified_at
   parameters:
     LicenseKey:
       name: Authorization
@@ -598,6 +577,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

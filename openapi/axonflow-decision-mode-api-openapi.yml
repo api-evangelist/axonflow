@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Decision Mode API
+  title: AxonFlow Agent Decision Mode API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Decision Mode across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -144,13 +144,6 @@ paths:
           description: Not the internal-service credential
         '503':
           description: What this agent enforces could not be counted; `reason` names the cause (`decision_enforcement_unavailable`, `active_document_unreadable`, `detection_overrides_unreadable`, `summary_unavailable`, or the activation's cause)
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/decide:
     post:
       tags:
@@ -405,304 +398,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DecideErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
-  parameters:
-    ApprovalId:
-      name: X-Axonflow-Approval-Id
-      in: header
-      required: false
-      description: 'The approval a retry spends (#4370). A call held for a person''s
-
-        approval is answered a `pending_approval` naming an id; once a
-
-        person approves it in the portal, the caller retries the SAME call
-
-        naming that id here (or in the body''s `approval_id` field, for a
-
-        client that cannot set headers - a header and a field naming
-
-        different ids are refused `approval_not_found`).
-
-
-        The retry is decided exactly as the first call was. Only when it is
-
-        again held for approval, and the approval is approved by a person
-
-        who is not the caller, before its expiry, unspent, and granted for
-
-        this very call (the same input, tool, route, requester and
-
-        requirement), does it pass - and the approval is spent: it admits
-
-        exactly one call. A call that is allowed anyway spends nothing; no
-
-        approval lifts a deny. Every other outcome is refused with one of
-
-        the `ApprovalHoldReason` codes. Enterprise; the Community build has
-
-        no approval queue and ignores the header.
-
-
-        WHAT "THE SAME CALL" MEANS. On the MCP routes: the connector, the
-
-        tool, the operation, the statement and its parameters (and the row
-
-        limit on `/mcp/resources/query`). On `/api/v1/decide`: the WHOLE
-
-        request the engine decided - `stage`, `target`, `query` AND
-
-        `context`. A retry that changes any of it is refused
-
-        `bound_input_changed`: resend the same `context`, and carry
-
-        per-request values (request ids, timestamps) in headers, never in
-
-        `context` - the correlation id is a header.
-
-        '
-      schema:
-        type: string
-        format: uuid
-    AxonflowPEPHandshake:
-      name: X-Axonflow-PEP-Handshake
-      in: header
-      required: false
-      description: 'The ADR-065 **PEP capability handshake**: base64url of a compact JSON
-
-        document in which an external enforcement point declares what it is and
-
-        which obligations it can discharge. See `PEPHandshake` for the document.
-
-
-        **Absent is the default and changes nothing.** A caller that omits the
-
-        header takes byte-for-byte the path it took before this header existed.
-
-
-        **What an absent header means for a redaction depends on the plane, by
-
-        design (PRD v11 section 1 item 16, #4257).** The MCP passes discharge a
-
-        redaction of the content they hand back: the request pass
-
-        (`check-input`, `check_policy`) masks the statement, and a redaction
-
-        that masks nothing in the statement is refused `unsupported_obligation`
-
-        to every caller, and one that masks a request parameter to every caller
-
-        that has not declared `field_redact` at version 2 (on Community, to
-
-        every caller) (#4264);
-
-        the response passes (`check-output`, the MCP server''s `check_output`)
-
-        mask the rows or the message. `/api/v1/decide` and the gateway
-
-        pre-check return a decision rather than content, so a required
-
-        redaction is a `field_redact` obligation for the enforcement point, and
-
-        a caller that has not declared `field_redact` is refused
-
-        `unsupported_obligation`. A caller that declares NO redaction
-
-        (`capabilities: []`) is refused on each of these planes; on
-
-        Community the MCP passes still return a checksum validator''s masked
-
-        content to it (reachable only through a directly inserted
-
-        `detection_action_overrides` row) until #4122.
-
-
-        A header that is PRESENT and cannot be read is **refused**, never
-
-        treated as absent: degrading a malformed declaration to "legacy caller"
-
-        would go on handing an enforcement point obligations it had just said it
-
-        cannot discharge. The refusal is `400` and its message names this header,
-
-        which matters on `/api/v1/access/evaluation` where the refusal is
-
-        rendered through that surface''s existing `incomplete_evaluation` code and
-
-        the message is the only thing distinguishing a malformed HEADER from a
-
-        malformed body ENVELOPE.
-
-
-        Present more than once is refused: RFC 7230 permits an intermediary to
-
-        join repeated field lines with a comma, and a comma is outside the
-
-        base64 alphabet, so a joined pair can only decode to malformed. That is
-
-        why the document is base64 rather than raw JSON, which would join into
-
-        something a lenient parser might accept.
-
-
-        When a decision carries a **mandatory** obligation the declared set does
-
-        not cover, the request is answered `200` with `verdict: deny` and the
-
-        reason `unsupported_obligation` (ADR-065 invariant 8) - a decision about
-
-        the request, not a transport error. That holds on every edition. An
-
-        Enterprise deployment adds a second reason beginning
-
-        `pep_capability_unsupported` naming the gap, and refuses a checksum
-
-        validator''s mask on the MCP passes; a Community deployment hands that
-
-        masked content over (#4257 split 2, #4122).
-
-        '
-      schema:
-        type: string
-        maxLength: 4096
-        description: base64url (padding optional) of the PEPHandshake document.
-    AxonflowClient:
-      name: X-Axonflow-Client
-      in: header
-      required: false
-      description: 'Optional client-version telemetry header (`<client>/<version>`,
-
-        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
-
-        deployments with the `client_version_telemetry` capability count
-
-        validated values in the `axonflow_client_version_requests_total`
-
-        metric on the decide and MCP check-output planes. Telemetry only —
-
-        never used for authentication or authorization; invalid values are
-
-        ignored.
-
-        '
-      schema:
-        type: string
-        example: mcp-proxy/0.3.1
   schemas:
-    DecisionObligation:
-      type: object
-      required:
-      - type
-      description: 'A PEP-side requirement attached to an `allow` verdict. Obligations are
-
-        SELF-DESCRIBING and ENGINE-FULFILLABLE (ADR-056 / ADR-057, #2563):
-
-        `/decide` is a pure PDP and never mutates content, so a `redact_pii`
-
-        obligation is not "redact this yourself with your own patterns" — it is
-
-        "call the AxonFlow engine endpoint named in `fulfillment` to obtain
-
-        engine-redacted content." Client-side redaction is forbidden; the
-
-        blessed client path is `platform/shared/pep`.
-
-        '
-      properties:
-        type:
-          type: string
-          description: 'Obligation kind. Currently emitted: `redact_pii`. Future
-
-            obligations will be added here as needed by PEP adapters.
-
-            '
-          example: redact_pii
-        detail:
-          type: string
-          description: Human-readable detail for audit logs.
-        fulfillment:
-          $ref: '#/components/schemas/ObligationFulfillment'
-    ObligationFulfillment:
-      type: object
-      description: 'Names the engine call a PEP makes to discharge an obligation (since
-
-        8.6.0). Fulfillment is a property of the contract, not of PEP-author
-
-        discipline: a conforming PEP POSTs the obligation''s source content to
-
-        `endpoint` and forwards the engine-redacted content the endpoint
-
-        returns. There is no other blessed way to satisfy a `redact_pii`
-
-        obligation. A PEP holding content of a type NOT in `content_types`
-
-        (e.g. an image awaiting OCR-PII redaction) MUST fail closed rather than
-
-        forward it unredacted.
-
-        '
-      required:
-      - endpoint
-      - method
-      - phase
-      properties:
-        endpoint:
-          type: string
-          description: 'Engine path the PEP POSTs to in order to discharge the obligation.
-
-            For a request-phase `redact_pii` obligation this is
-
-            `/api/v1/mcp/check-input`; the response-phase counterpart is
-
-            `/api/v1/mcp/check-output`. `/decide` runs pre-call, so it only
-
-            ever emits request-phase obligations.
-
-            '
-          example: /api/v1/mcp/check-input
-        method:
-          type: string
-          description: HTTP method to use against `endpoint`.
-          example: POST
-        phase:
-          type: string
-          enum:
-          - request
-          - response
-          description: 'Which content the PEP submits. `request` = the PEP redacts the
-
-            request it is about to forward (the `query` it asked `/decide`
-
-            about); `response` = the PEP redacts a backend response before
-
-            returning it. `/decide` emits only `request` obligations; the
-
-            `response` value is part of the contract for PEP helpers that fan
-
-            out to both phases.
-
-            '
-        content_types:
-          type: array
-          items:
-            type: string
-          description: 'The mime-types `endpoint`''s redaction detectors can handle today
-
-            (e.g. `text/plain`). Deliberately content-type-agnostic: adding a
-
-            modality is a server-side detector registration plus a new entry
-
-            here, not a redesign of this shape.
-
-            '
-          example:
-          - text/plain
     RateLimitEnvelope:
       type: object
       description: 'Shared tier rate-limit envelope written by the Community SaaS
@@ -786,54 +483,6 @@ components:
             Omitted on every other limit.
 
             '
-    DecideErrorResponse:
-      type: object
-      required:
-      - error
-      - verdict
-      properties:
-        error:
-          type: string
-          description: Human-readable error message.
-        verdict:
-          type: string
-          enum:
-          - deny
-          description: 'Always `deny` on error responses. PEP code can treat the
-
-            envelope as a deny verdict for fail-closed enforcement, or
-
-            inspect the HTTP status code to apply a different posture
-
-            (e.g. fail-open on 503).
-
-            '
-        decision_id:
-          type: string
-          format: uuid
-          description: 'Decision ID for the request. Since #2643 the agent mints
-
-            decision_id and trace_id BEFORE decoding the body, so in
-
-            practice both fields are present on every error the decide
-
-            handler writes, including 400s. The fields remain optional
-
-            in the schema (omitted-when-empty on the wire).
-
-            '
-        trace_id:
-          type: string
-          minLength: 32
-          maxLength: 32
-          pattern: ^[0-9a-f]{32}$
-          description: 'W3C trace-id for the request. Minted before body decode
-
-            (see decision_id note) — present on every handler-written
-
-            error in practice; optional in the schema.
-
-            '
     PolicyIdentity:
       type: object
       description: 'One policy a decision matched, as `policy_identities` names it (PRD
@@ -880,6 +529,82 @@ components:
             shipped control.
 
             '
+    DecisionTarget:
+      type: object
+      description: What the gateway is about to call.
+      properties:
+        type:
+          type: string
+          description: 'What kind of thing is being called: `llm`, `tool`, `agent`, or
+
+            `http` (an LLM-shaped target under the transport name the ext_proc
+
+            and ext_authz seams send).
+
+
+            `tool` IS LOAD-BEARING, not descriptive. It is the only value for
+
+            which the platform records `server` and `tool` as the decision''s
+
+            tool attribution -- onto the audit row (`policy_details.tool_server`
+
+            / `.tool_name`) and into the descriptor a human approver sees on a
+
+            HITL queue entry. A tool call sent under any other value is decided
+
+            and enforced exactly the same way, and its audit row carries neither
+
+            field: a complete-looking record that does not say which tool it was
+
+            about. Matching is case-insensitive, so `TOOL` and `Tool` are the
+
+            same value; there is no second accepted WORD and no alias (#3717).
+
+
+            Capability-scoped policy evaluation is a separate question and is
+
+            NOT offered for every tool target. A target that also names a
+
+            `server` describes a call the caller routes to a backend it does not
+
+            itself execute, so its `tool` is not used to relax evaluation --
+
+            those requests always get full evaluation.
+
+
+            SO SETTING `server` IS A TRADE, AND IT IS THE SAFE DIRECTION OF ONE:
+
+            it is what puts `tool_server` on the audit row, and it also opts the
+
+            request out of any evaluation relaxation. It cannot weaken
+
+            enforcement. What it costs is false positives on prose that looks
+
+            like a statement, and the ADR-065 shadow comparison''s tool label,
+
+            which follows the scoping key and is empty for these requests. Audit
+
+            attribution, the HITL descriptor and the FinCrime scoring context
+
+            all still carry the tool name.
+
+            '
+        model:
+          type: string
+          description: Model identifier when type is llm.
+          example: gpt-4o
+        provider:
+          type: string
+          description: Provider identifier when type is llm.
+          example: openai
+        server:
+          type: string
+          description: Server/connector identifier when type is tool (#2904).
+          example: postgres
+        tool:
+          type: string
+          description: Tool identifier when type is tool.
+          example: query
     DecideResponse:
       type: object
       required:
@@ -1145,82 +870,186 @@ components:
                 enum:
                 - blocked
                 - masked
-    DecisionTarget:
+    DecisionObligation:
       type: object
-      description: What the gateway is about to call.
+      required:
+      - type
+      description: 'A PEP-side requirement attached to an `allow` verdict. Obligations are
+
+        SELF-DESCRIBING and ENGINE-FULFILLABLE (ADR-056 / ADR-057, #2563):
+
+        `/decide` is a pure PDP and never mutates content, so a `redact_pii`
+
+        obligation is not "redact this yourself with your own patterns" — it is
+
+        "call the AxonFlow engine endpoint named in `fulfillment` to obtain
+
+        engine-redacted content." Client-side redaction is forbidden; the
+
+        blessed client path is `platform/shared/pep`.
+
+        '
       properties:
         type:
           type: string
-          description: 'What kind of thing is being called: `llm`, `tool`, `agent`, or
+          description: 'Obligation kind. Currently emitted: `redact_pii`. Future
 
-            `http` (an LLM-shaped target under the transport name the ext_proc
-
-            and ext_authz seams send).
-
-
-            `tool` IS LOAD-BEARING, not descriptive. It is the only value for
-
-            which the platform records `server` and `tool` as the decision''s
-
-            tool attribution -- onto the audit row (`policy_details.tool_server`
-
-            / `.tool_name`) and into the descriptor a human approver sees on a
-
-            HITL queue entry. A tool call sent under any other value is decided
-
-            and enforced exactly the same way, and its audit row carries neither
-
-            field: a complete-looking record that does not say which tool it was
-
-            about. Matching is case-insensitive, so `TOOL` and `Tool` are the
-
-            same value; there is no second accepted WORD and no alias (#3717).
-
-
-            Capability-scoped policy evaluation is a separate question and is
-
-            NOT offered for every tool target. A target that also names a
-
-            `server` describes a call the caller routes to a backend it does not
-
-            itself execute, so its `tool` is not used to relax evaluation --
-
-            those requests always get full evaluation.
-
-
-            SO SETTING `server` IS A TRADE, AND IT IS THE SAFE DIRECTION OF ONE:
-
-            it is what puts `tool_server` on the audit row, and it also opts the
-
-            request out of any evaluation relaxation. It cannot weaken
-
-            enforcement. What it costs is false positives on prose that looks
-
-            like a statement, and the ADR-065 shadow comparison''s tool label,
-
-            which follows the scoping key and is empty for these requests. Audit
-
-            attribution, the HITL descriptor and the FinCrime scoring context
-
-            all still carry the tool name.
+            obligations will be added here as needed by PEP adapters.
 
             '
-        model:
+          example: redact_pii
+        detail:
           type: string
-          description: Model identifier when type is llm.
-          example: gpt-4o
-        provider:
+          description: Human-readable detail for audit logs.
+        fulfillment:
+          $ref: '#/components/schemas/ObligationFulfillment'
+    PendingApproval:
+      type: object
+      description: 'A call held for a person''s approval (#4370, PRD v11 §1.13). Pending
+
+        is NOT allow: nothing ran, and the enforcement point must not
+
+        forward. An approver approves the queue entry in the portal
+
+        (Approvals), and the caller retries the same call naming
+
+        `approval_id` (see the `X-Axonflow-Approval-Id` parameter).
+
+
+        The approval expires at `expires_at`: the approval requirement''s
+
+        own deadline, which the engine stamps 15 minutes after the decision
+
+        on v11. It is never extended; a retry after it is refused
+
+        `approval_expired`.
+
+        '
+      required:
+      - approval_id
+      - status
+      - plane
+      - retry
+      properties:
+        approval_id:
           type: string
-          description: Provider identifier when type is llm.
-          example: openai
-        server:
+          format: uuid
+          description: The queue entry's id; the retry names it.
+        status:
           type: string
-          description: Server/connector identifier when type is tool (#2904).
-          example: postgres
-        tool:
+          enum:
+          - pending
+          - approved
+          description: '`pending`: nobody has decided it yet. `approved`: a person
+
+            approved it and it is waiting for this caller''s retry, which
+
+            must name the id.
+
+            '
+        plane:
           type: string
-          description: Tool identifier when type is tool.
-          example: query
+          enum:
+          - mcp:request
+          - decide
+        expires_at:
+          type: string
+          format: date-time
+          description: When the approval lapses. Omitted on a retry of a still-pending approval.
+        retry:
+          type: object
+          required:
+          - header
+          properties:
+            header:
+              type: string
+              enum:
+              - X-Axonflow-Approval-Id
+            argument:
+              type: string
+              enum:
+              - approval_id
+              description: The MCP tool argument / MCP route body field that carries the id.
+            body_field:
+              type: string
+              enum:
+              - approval_id
+              description: The decide request field that carries the id.
+    ObligationFulfillment:
+      type: object
+      description: 'Names the engine call a PEP makes to discharge an obligation (since
+
+        8.6.0). Fulfillment is a property of the contract, not of PEP-author
+
+        discipline: a conforming PEP POSTs the obligation''s source content to
+
+        `endpoint` and forwards the engine-redacted content the endpoint
+
+        returns. There is no other blessed way to satisfy a `redact_pii`
+
+        obligation. A PEP holding content of a type NOT in `content_types`
+
+        (e.g. an image awaiting OCR-PII redaction) MUST fail closed rather than
+
+        forward it unredacted.
+
+        '
+      required:
+      - endpoint
+      - method
+      - phase
+      properties:
+        endpoint:
+          type: string
+          description: 'Engine path the PEP POSTs to in order to discharge the obligation.
+
+            For a request-phase `redact_pii` obligation this is
+
+            `/api/v1/mcp/check-input`; the response-phase counterpart is
+
+            `/api/v1/mcp/check-output`. `/decide` runs pre-call, so it only
+
+            ever emits request-phase obligations.
+
+            '
+          example: /api/v1/mcp/check-input
+        method:
+          type: string
+          description: HTTP method to use against `endpoint`.
+          example: POST
+        phase:
+          type: string
+          enum:
+          - request
+          - response
+          description: 'Which content the PEP submits. `request` = the PEP redacts the
+
+            request it is about to forward (the `query` it asked `/decide`
+
+            about); `response` = the PEP redacts a backend response before
+
+            returning it. `/decide` emits only `request` obligations; the
+
+            `response` value is part of the contract for PEP helpers that fan
+
+            out to both phases.
+
+            '
+        content_types:
+          type: array
+          items:
+            type: string
+          description: 'The mime-types `endpoint`''s redaction detectors can handle today
+
+            (e.g. `text/plain`). Deliberately content-type-agnostic: adding a
+
+            modality is a server-side detector registration plus a new entry
+
+            here, not a redesign of this shape.
+
+            '
+          example:
+          - text/plain
     DecisionCallerIdentity:
       type: object
       description: 'Gateway-asserted caller identity. `org_id` and `tenant_id` are
@@ -1358,78 +1187,235 @@ components:
             - request_body_redaction
             - request_header_mutation
           description: "What this PEP's **seam** can mechanically do to a request before\nforwarding it. A different axis from the capability handshake, which\ndeclares which OBLIGATIONS the enforcement point can discharge:\n`request_header_mutation` has no obligation type at all, and\n`immutable_audit` has no seam mechanic, so neither list is derivable\nfrom the other.\n\nThree wire states, three meanings:\n\n* **member omitted** - a legacy (pre-9.11.0) caller. Obligations are\n  emitted exactly as before.\n* **`[]`** - still a **legacy caller**, deliberately. These bytes\n  have always been acceptable to the server and any non-Go client\n  could send them, so giving them a new meaning would move an\n  unchanged caller from \"obligation emitted, the PEP fails closed\"\n  to \"obligation suppressed, organization fallback posture\" - default\n  `log`, i.e. allowed without the redaction. Since v10.4.0 the state\n  is representable in the Go client and distinguishable in the type;\n  its reading is unchanged.\n* **non-empty** - only the obligations these capabilities can\n  discharge are emitted; the organization's obligation-fallback\n  posture decides what happens to any the platform suppresses.\n\nUnknown values are ignored, never an error and never a block, so an\nolder platform meeting a newer PEP's vocabulary degrades instead of\nfailing.\n"
-    PendingApproval:
+    DecideErrorResponse:
       type: object
-      description: 'A call held for a person''s approval (#4370, PRD v11 §1.13). Pending
-
-        is NOT allow: nothing ran, and the enforcement point must not
-
-        forward. An approver approves the queue entry in the portal
-
-        (Approvals), and the caller retries the same call naming
-
-        `approval_id` (see the `X-Axonflow-Approval-Id` parameter).
-
-
-        The approval expires at `expires_at`: the approval requirement''s
-
-        own deadline, which the engine stamps 15 minutes after the decision
-
-        on v11. It is never extended; a retry after it is refused
-
-        `approval_expired`.
-
-        '
       required:
-      - approval_id
-      - status
-      - plane
-      - retry
+      - error
+      - verdict
       properties:
-        approval_id:
+        error:
           type: string
-          format: uuid
-          description: The queue entry's id; the retry names it.
-        status:
+          description: Human-readable error message.
+        verdict:
           type: string
           enum:
-          - pending
-          - approved
-          description: '`pending`: nobody has decided it yet. `approved`: a person
+          - deny
+          description: 'Always `deny` on error responses. PEP code can treat the
 
-            approved it and it is waiting for this caller''s retry, which
+            envelope as a deny verdict for fail-closed enforcement, or
 
-            must name the id.
+            inspect the HTTP status code to apply a different posture
+
+            (e.g. fail-open on 503).
 
             '
-        plane:
+        decision_id:
           type: string
-          enum:
-          - mcp:request
-          - decide
-        expires_at:
+          format: uuid
+          description: 'Decision ID for the request. Since #2643 the agent mints
+
+            decision_id and trace_id BEFORE decoding the body, so in
+
+            practice both fields are present on every error the decide
+
+            handler writes, including 400s. The fields remain optional
+
+            in the schema (omitted-when-empty on the wire).
+
+            '
+        trace_id:
           type: string
-          format: date-time
-          description: When the approval lapses. Omitted on a retry of a still-pending approval.
-        retry:
-          type: object
-          required:
-          - header
-          properties:
-            header:
-              type: string
-              enum:
-              - X-Axonflow-Approval-Id
-            argument:
-              type: string
-              enum:
-              - approval_id
-              description: The MCP tool argument / MCP route body field that carries the id.
-            body_field:
-              type: string
-              enum:
-              - approval_id
-              description: The decide request field that carries the id.
+          minLength: 32
+          maxLength: 32
+          pattern: ^[0-9a-f]{32}$
+          description: 'W3C trace-id for the request. Minted before body decode
+
+            (see decision_id note) — present on every handler-written
+
+            error in practice; optional in the schema.
+
+            '
+  parameters:
+    AxonflowClient:
+      name: X-Axonflow-Client
+      in: header
+      required: false
+      description: 'Optional client-version telemetry header (`<client>/<version>`,
+
+        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
+
+        deployments with the `client_version_telemetry` capability count
+
+        validated values in the `axonflow_client_version_requests_total`
+
+        metric on the decide and MCP check-output planes. Telemetry only —
+
+        never used for authentication or authorization; invalid values are
+
+        ignored.
+
+        '
+      schema:
+        type: string
+        example: mcp-proxy/0.3.1
+    AxonflowPEPHandshake:
+      name: X-Axonflow-PEP-Handshake
+      in: header
+      required: false
+      description: 'The ADR-065 **PEP capability handshake**: base64url of a compact JSON
+
+        document in which an external enforcement point declares what it is and
+
+        which obligations it can discharge. See `PEPHandshake` for the document.
+
+
+        **Absent is the default and changes nothing.** A caller that omits the
+
+        header takes byte-for-byte the path it took before this header existed.
+
+
+        **What an absent header means for a redaction depends on the plane, by
+
+        design (PRD v11 section 1 item 16, #4257).** The MCP passes discharge a
+
+        redaction of the content they hand back: the request pass
+
+        (`check-input`, `check_policy`) masks the statement, and a redaction
+
+        that masks nothing in the statement is refused `unsupported_obligation`
+
+        to every caller, and one that masks a request parameter to every caller
+
+        that has not declared `field_redact` at version 2 (on Community, to
+
+        every caller) (#4264);
+
+        the response passes (`check-output`, the MCP server''s `check_output`)
+
+        mask the rows or the message. `/api/v1/decide` and the gateway
+
+        pre-check return a decision rather than content, so a required
+
+        redaction is a `field_redact` obligation for the enforcement point, and
+
+        a caller that has not declared `field_redact` is refused
+
+        `unsupported_obligation`. A caller that declares NO redaction
+
+        (`capabilities: []`) is refused on each of these planes; on
+
+        Community the MCP passes still return a checksum validator''s masked
+
+        content to it (reachable only through a directly inserted
+
+        `detection_action_overrides` row) until #4122.
+
+
+        A header that is PRESENT and cannot be read is **refused**, never
+
+        treated as absent: degrading a malformed declaration to "legacy caller"
+
+        would go on handing an enforcement point obligations it had just said it
+
+        cannot discharge. The refusal is `400` and its message names this header,
+
+        which matters on `/api/v1/access/evaluation` where the refusal is
+
+        rendered through that surface''s existing `incomplete_evaluation` code and
+
+        the message is the only thing distinguishing a malformed HEADER from a
+
+        malformed body ENVELOPE.
+
+
+        Present more than once is refused: RFC 7230 permits an intermediary to
+
+        join repeated field lines with a comma, and a comma is outside the
+
+        base64 alphabet, so a joined pair can only decode to malformed. That is
+
+        why the document is base64 rather than raw JSON, which would join into
+
+        something a lenient parser might accept.
+
+
+        When a decision carries a **mandatory** obligation the declared set does
+
+        not cover, the request is answered `200` with `verdict: deny` and the
+
+        reason `unsupported_obligation` (ADR-065 invariant 8) - a decision about
+
+        the request, not a transport error. That holds on every edition. An
+
+        Enterprise deployment adds a second reason beginning
+
+        `pep_capability_unsupported` naming the gap, and refuses a checksum
+
+        validator''s mask on the MCP passes; a Community deployment hands that
+
+        masked content over (#4257 split 2, #4122).
+
+        '
+      schema:
+        type: string
+        maxLength: 4096
+        description: base64url (padding optional) of the PEPHandshake document.
+    ApprovalId:
+      name: X-Axonflow-Approval-Id
+      in: header
+      required: false
+      description: 'The approval a retry spends (#4370). A call held for a person''s
+
+        approval is answered a `pending_approval` naming an id; once a
+
+        person approves it in the portal, the caller retries the SAME call
+
+        naming that id here (or in the body''s `approval_id` field, for a
+
+        client that cannot set headers - a header and a field naming
+
+        different ids are refused `approval_not_found`).
+
+
+        The retry is decided exactly as the first call was. Only when it is
+
+        again held for approval, and the approval is approved by a person
+
+        who is not the caller, before its expiry, unspent, and granted for
+
+        this very call (the same input, tool, route, requester and
+
+        requirement), does it pass - and the approval is spent: it admits
+
+        exactly one call. A call that is allowed anyway spends nothing; no
+
+        approval lifts a deny. Every other outcome is refused with one of
+
+        the `ApprovalHoldReason` codes. Enterprise; the Community build has
+
+        no approval queue and ignores the header.
+
+
+        WHAT "THE SAME CALL" MEANS. On the MCP routes: the connector, the
+
+        tool, the operation, the statement and its parameters (and the row
+
+        limit on `/mcp/resources/query`). On `/api/v1/decide`: the WHOLE
+
+        request the engine decided - `stage`, `target`, `query` AND
+
+        `context`. A retry that changes any of it is refused
+
+        `bound_input_changed`: resend the same `context`, and carry
+
+        per-request values (request ids, timestamps) in headers, never in
+
+        `context` - the correlation id is a header.
+
+        '
+      schema:
+        type: string
+        format: uuid
   securitySchemes:
     BasicAuth:
       type: http
@@ -1501,6 +1487,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

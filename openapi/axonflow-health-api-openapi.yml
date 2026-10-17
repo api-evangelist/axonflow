@@ -8,7 +8,7 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Health across 4 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-orchestrator-api.yaml, axonflow-agent-openapi.yml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+  description: 'Operations tagged Health across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-orchestrator-api.yaml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -69,74 +69,6 @@ paths:
       description: Local Development
 components:
   schemas:
-    SDKCompatInfo:
-      type: object
-      description: 'SDK version compatibility information. Each key in the maps below
-
-        is one of `python` / `typescript` / `go` / `java` / `rust`. SDKs
-
-        that find their own runtime version below
-
-        `min_sdk_version[<their lang>]` log a one-time upgrade warning;
-
-        below `recommended_sdk_version` is informational only.
-
-
-        The examples below are the values this platform actually serves.
-
-        They are not illustrative: a regression test compares them against
-
-        platform/shared/sdkcompat, the single source of truth both /health
-
-        planes read, so a stale example fails CI rather than misleading a
-
-        reader.
-
-        '
-      properties:
-        min_sdk_version:
-          type: object
-          additionalProperties:
-            type: string
-          description: 'Per-language minimum SDK version compatible with this
-
-            platform. Pre-v4.8.0 platforms returned a bare string; SDKs
-
-            v6.0.0+ accept either shape.
-
-            '
-          example:
-            python: 8.0.0
-            typescript: 8.0.0
-            go: 8.0.0
-            java: 8.0.0
-            rust: 0.7.0
-        recommended_sdk_version:
-          type: object
-          additionalProperties:
-            type: string
-          description: Per-language SDK version this platform was tested against.
-          example:
-            python: 9.4.0
-            typescript: 9.4.0
-            go: 9.4.0
-            java: 9.4.0
-            rust: 0.11.0
-    PlatformCapability:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Capability identifier
-          example: workflow_control
-        since:
-          type: string
-          description: Platform version that introduced this capability
-          example: 4.3.0
-        description:
-          type: string
-          description: Human-readable description
-          example: WCP workflow lifecycle management
     HealthResponse:
       type: object
       properties:
@@ -246,18 +178,57 @@ components:
             claude-desktop: 0.4.0
             n8n: 1.2.1
             google-adk: 1.3.1
-    SDKCompatInfo_2:
+    PlatformCapability:
       type: object
+      properties:
+        name:
+          type: string
+          description: Capability identifier
+          example: workflow_control
+        since:
+          type: string
+          description: Platform version that introduced this capability
+          example: 4.3.0
+        description:
+          type: string
+          description: Human-readable description
+          example: WCP workflow lifecycle management
+    SDKCompatInfo:
+      type: object
+      description: 'SDK version compatibility information. Each key in the maps below
+
+        is one of `python` / `typescript` / `go` / `java` / `rust`. SDKs
+
+        that find their own runtime version below
+
+        `min_sdk_version[<their lang>]` log a one-time upgrade warning;
+
+        below `recommended_sdk_version` is informational only.
+
+
+        The examples below are the values this platform actually serves.
+
+        They are not illustrative: a regression test compares them against
+
+        platform/shared/sdkcompat, the single source of truth both /health
+
+        planes read, so a stale example fails CI rather than misleading a
+
+        reader.
+
+        '
       properties:
         min_sdk_version:
           type: object
-          description: 'Minimum SDK version compatible with this platform, keyed by SDK
-
-            language (e.g. go, python, typescript, java, rust)
-
-            '
           additionalProperties:
             type: string
+          description: 'Per-language minimum SDK version compatible with this
+
+            platform. Pre-v4.8.0 platforms returned a bare string; SDKs
+
+            v6.0.0+ accept either shape.
+
+            '
           example:
             python: 8.0.0
             typescript: 8.0.0
@@ -266,13 +237,9 @@ components:
             rust: 0.7.0
         recommended_sdk_version:
           type: object
-          description: 'Recommended SDK version for full feature coverage, keyed by SDK
-
-            language
-
-            '
           additionalProperties:
             type: string
+          description: Per-language SDK version this platform was tested against.
           example:
             python: 9.4.0
             typescript: 9.4.0
@@ -383,7 +350,7 @@ components:
             claude-desktop: 0.4.0
             n8n: 1.2.1
             google-adk: 1.3.1
-    SDKCompatInfo_3:
+    SDKCompatInfo_2:
       type: object
       properties:
         min_sdk_version:
@@ -416,110 +383,6 @@ components:
             go: 9.4.0
             java: 9.4.0
             rust: 0.11.0
-    HealthResponse_3:
-      type: object
-      description: 'Besides the component booleans, the health body always carries the
-
-        platform capability list (`capabilities`), the per-language SDK
-
-        version pins (`sdk_compatibility`) and the per-plugin version pins
-
-        (`plugin_compatibility`). The pin maps are additionalProperties-style
-
-        maps keyed by SDK language / canonical plugin id; the exact key sets
-
-        evolve per release and are not enumerated here.
-
-        '
-      properties:
-        status:
-          type: string
-          enum:
-          - healthy
-          - starting
-          - unhealthy
-        service:
-          type: string
-        version:
-          type: string
-          description: 'Platform version, preferring the value baked into the binary at
-
-            build time and falling back to AXONFLOW_VERSION for dev builds
-
-            '
-          example: 9.8.0
-        timestamp:
-          type: string
-          format: date-time
-        capabilities:
-          type: array
-          description: List of platform capabilities with the version that introduced them
-          items:
-            $ref: '#/components/schemas/PlatformCapability'
-        sdk_compatibility:
-          $ref: '#/components/schemas/SDKCompatInfo_3'
-        plugin_compatibility:
-          $ref: '#/components/schemas/PluginCompatInfo_3'
-        components:
-          type: object
-          properties:
-            policy_engine:
-              type: boolean
-            llm_router:
-              type: boolean
-            response_processor:
-              type: boolean
-            audit_logger:
-              type: boolean
-            workflow_engine:
-              type: boolean
-            planning_engine:
-              type: boolean
-            result_aggregator:
-              type: boolean
-        features:
-          type: object
-          properties:
-            multi_agent_planning:
-              type: boolean
-    PluginCompatInfo_3:
-      type: object
-      description: 'Plugin version pins, mirroring SDKCompatInfo. Keys are the canonical
-
-        plugin ids (openclaw, claude-code, cursor, codex, claude-desktop,
-
-        n8n, google-adk). Versions below the minimum receive a
-
-        downgrade-warning header on every governed call.
-
-        '
-      properties:
-        min_plugin_version:
-          type: object
-          additionalProperties:
-            type: string
-          description: Per-plugin minimum version compatible with this platform.
-          example:
-            openclaw: 2.4.0
-            claude-code: 1.4.0
-            cursor: 1.4.0
-            codex: 1.4.0
-            claude-desktop: 0.2.0
-            n8n: 1.2.0
-            google-adk: 1.2.0
-        recommended_plugin_version:
-          type: object
-          additionalProperties:
-            type: string
-          description: Per-plugin version this platform was tested against.
-          example:
-            openclaw: 2.9.1
-            claude-code: 1.13.0
-            cursor: 1.9.0
-            codex: 1.9.0
-            claude-desktop: 0.4.0
-            n8n: 1.2.1
-            google-adk: 1.3.1
   securitySchemes:
     BasicAuth:
       type: http
@@ -603,5 +466,3 @@ components:
 x-refined-from:
 - axonflow-agent-api.yaml
 - axonflow-orchestrator-api.yaml
-- axonflow-agent-openapi.yml
-- axonflow-orchestrator-openapi.yml

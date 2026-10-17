@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow MAP API
+  title: AxonFlow Orchestrator MAP API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged MAP across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -134,13 +134,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    PendingApprovalsResponse:
+      type: object
+      description: List of pending approvals across workflows for the caller's tenant.
+      properties:
+        pending_approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingApproval'
+        count:
+          type: integer
+          description: Total number of pending approvals matching the scope.
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
     PendingApproval:
       type: object
       description: 'A workflow step awaiting human approval. Returned by both
@@ -229,58 +276,6 @@ components:
           type: string
           format: date-time
           description: Time of the first /gate call that paused the step.
-    PendingApprovalsResponse:
-      type: object
-      description: List of pending approvals across workflows for the caller's tenant.
-      properties:
-        pending_approvals:
-          type: array
-          items:
-            $ref: '#/components/schemas/PendingApproval'
-        count:
-          type: integer
-          description: Total number of pending approvals matching the scope.
-    ErrorResponse:
-      type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
-
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
-
-        writer (240 call sites), so it is the shape of every error from the
-
-        core request, audit, plan, workflow, execution and connector surfaces.
-
-
-        It is one of THREE error SHAPES this document describes. See
-
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
-      required:
-      - success
-      - error
   securitySchemes:
     basicAuth:
       type: http
@@ -291,6 +286,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

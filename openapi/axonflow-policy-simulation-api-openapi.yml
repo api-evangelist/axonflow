@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Policy Simulation API
+  title: AxonFlow Orchestrator Policy Simulation API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Policy Simulation across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -108,11 +108,6 @@ paths:
           description: Feature requires Evaluation or Enterprise license
         '429':
           description: Daily simulation limit exceeded
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/policies/impact-report:
     post:
       deprecated: true
@@ -201,11 +196,6 @@ paths:
           description: Bad request (missing fields or input limit exceeded)
         '403':
           description: Feature requires Evaluation or Enterprise license
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/policies/conflicts:
     post:
       deprecated: true
@@ -291,13 +281,19 @@ paths:
           description: Feature requires Evaluation or Enterprise license
         '429':
           description: Daily simulation limit exceeded
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    ClientContext:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        org_id:
+          type: string
+        tenant_id:
+          type: string
     UserContext:
       type: object
       properties:
@@ -319,17 +315,6 @@ components:
         org_id:
           type: string
           description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
-    ClientContext:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        org_id:
-          type: string
-        tenant_id:
-          type: string
   securitySchemes:
     basicAuth:
       type: http
@@ -340,6 +325,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

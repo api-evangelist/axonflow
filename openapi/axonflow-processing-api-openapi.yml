@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Processing API
+  title: AxonFlow Orchestrator Processing API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Processing across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -160,13 +160,85 @@ paths:
                 verdict: blocked
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    MediaAnalysisResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaAnalysisItemResponse'
+        total_cost_usd:
+          type: number
+          format: double
+          description: Total cost of media analysis across all items
+        analysis_time_ms:
+          type: integer
+          format: int64
+          description: Total analysis time in milliseconds
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+        region:
+          type: string
+          description: User's region, read by geo-based routing policies.
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
     PolicyEvaluationResult:
       type: object
       description: 'The policy verdict carried on every orchestrator response. Its property
@@ -296,17 +368,6 @@ components:
         routing_reason:
           type: string
           description: Why routing was changed.
-    ClientContext:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        org_id:
-          type: string
-        tenant_id:
-          type: string
     ProviderInfo:
       type: object
       properties:
@@ -328,33 +389,6 @@ components:
           type: integer
         cost:
           type: number
-    MediaContentRequest:
-      type: object
-      required:
-      - source
-      - mime_type
-      properties:
-        source:
-          type: string
-          enum:
-          - base64
-          - url
-          description: How the media is provided
-        base64_data:
-          type: string
-          description: Base64-encoded image data (required when source=base64)
-        url:
-          type: string
-          format: uri
-          description: URL to image (required when source=url)
-        mime_type:
-          type: string
-          enum:
-          - image/jpeg
-          - image/png
-          - image/gif
-          - image/webp
-          description: Media content type
     AppliedPolicyDetail:
       type: object
       description: 'One structured per-policy match inside `PolicyEvaluationResult`.
@@ -392,164 +426,6 @@ components:
             the same `allow_override` contract as a tenant policy.
 
             '
-    MediaAnalysisResponse:
-      type: object
-      properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/MediaAnalysisItemResponse'
-        total_cost_usd:
-          type: number
-          format: double
-          description: Total cost of media analysis across all items
-        analysis_time_ms:
-          type: integer
-          format: int64
-          description: Total analysis time in milliseconds
-    UserContext:
-      type: object
-      properties:
-        id:
-          type: integer
-        email:
-          type: string
-        role:
-          type: string
-        region:
-          type: string
-          description: User's region, read by geo-based routing policies.
-        permissions:
-          type: array
-          items:
-            type: string
-        tenant_id:
-          type: string
-        org_id:
-          type: string
-          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
-    OrchestratorResponse:
-      type: object
-      properties:
-        request_id:
-          type: string
-        success:
-          type: boolean
-        data:
-          description: Response data
-        error:
-          type: string
-        redacted:
-          type: boolean
-        redacted_fields:
-          type: array
-          items:
-            type: string
-        policy_info:
-          $ref: '#/components/schemas/PolicyEvaluationResult'
-        provider_info:
-          $ref: '#/components/schemas/ProviderInfo'
-        processing_time:
-          type: string
-        media_analysis:
-          description: Media governance analysis results (present when media was submitted and analysed, on an allowed response and on a policy refusal)
-          allOf:
-          - $ref: '#/components/schemas/MediaAnalysisResponse'
-        engine:
-          type: string
-          enum:
-          - anchored
-          description: 'The engine that decided: `anchored`, the ADR-065 decision plane
-
-            (PRD v11 §1.1). On a request the request plane withholds (403,
-
-            `error` "Request blocked by policy") it names that decision; otherwise
-
-            it names the response plane''s verdict on the LLM response, decided
-
-            over the shared engine''s detector facts. Omitted on an answer no
-
-            anchored decision covers.
-
-            '
-        subject_type:
-          type: string
-          description: 'The type of principal the request or response was decided for.
-
-            The orchestrator admits the client credential the agent''s proxy
-
-            authentication forwards, so it is `Client` on every edition.
-
-            Omitted on an answer withheld before a subject was admitted, and
-
-            wherever `engine` is.
-
-            '
-        policy_bundle:
-          type: string
-          description: 'The digest of the policy set that decided the request or the
-
-            response. Omitted wherever `subject_type` is.
-
-            '
-        verdict:
-          type: string
-          enum:
-          - allowed
-          - redacted
-          - blocked
-          description: 'The verdict `engine` names: `allowed` (released as the provider
-
-            sent it), `redacted` (released masked, as a `field_redact`
-
-            obligation required; `data` carries the masked content) or
-
-            `blocked` (withheld: `success` is false and `error` says so; a
-
-            request the request plane withholds is always `blocked`). A request
-
-            or response that could not be decided is withheld, never released.
-
-            Omitted wherever `engine` is.
-
-            '
-    OrchestratorRequest:
-      type: object
-      required:
-      - query
-      - user
-      - client
-      properties:
-        request_id:
-          type: string
-          description: Unique request identifier
-        query:
-          type: string
-          description: Query to process
-        request_type:
-          type: string
-          description: Type of request
-        skip_llm:
-          type: boolean
-          default: false
-          description: Skip LLM calls (for testing)
-        user:
-          $ref: '#/components/schemas/UserContext'
-        client:
-          $ref: '#/components/schemas/ClientContext'
-        context:
-          type: object
-          description: "Free-form request metadata. Routing controls:\n- `provider` (string): preferred provider\n- `strict_provider` (boolean, optional): when true, hard-pins `provider` and disables fallback\n  for this request. Default is false unless server env `LLM_STRICT_PROVIDER_DEFAULT=true`.\n"
-          additionalProperties: true
-        timestamp:
-          type: string
-          format: date-time
-        media:
-          type: array
-          items:
-            $ref: '#/components/schemas/MediaContentRequest'
-          maxItems: 10
-          description: Optional media content (images) for multimodal governance analysis
     MediaAnalysisItemResponse:
       type: object
       properties:
@@ -670,47 +546,166 @@ components:
                 type: string
                 description: Human-readable warning message
           description: Structured governance warnings with codes
-    ErrorResponse:
+    OrchestratorRequest:
       type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
-
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
-
-        writer (240 call sites), so it is the shape of every error from the
-
-        core request, audit, plan, workflow, execution and connector surfaces.
-
-
-        It is one of THREE error SHAPES this document describes. See
-
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
+      required:
+      - query
+      - user
+      - client
       properties:
+        request_id:
+          type: string
+          description: Unique request identifier
+        query:
+          type: string
+          description: Query to process
+        request_type:
+          type: string
+          description: Type of request
+        skip_llm:
+          type: boolean
+          default: false
+          description: Skip LLM calls (for testing)
+        user:
+          $ref: '#/components/schemas/UserContext'
+        client:
+          $ref: '#/components/schemas/ClientContext'
+        context:
+          type: object
+          description: "Free-form request metadata. Routing controls:\n- `provider` (string): preferred provider\n- `strict_provider` (boolean, optional): when true, hard-pins `provider` and disables fallback\n  for this request. Default is false unless server env `LLM_STRICT_PROVIDER_DEFAULT=true`.\n"
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaContentRequest'
+          maxItems: 10
+          description: Optional media content (images) for multimodal governance analysis
+    OrchestratorResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
         success:
           type: boolean
-          example: false
+        data:
+          description: Response data
         error:
           type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
+        redacted:
+          type: boolean
+        redacted_fields:
+          type: array
+          items:
+            type: string
+        policy_info:
+          $ref: '#/components/schemas/PolicyEvaluationResult'
+        provider_info:
+          $ref: '#/components/schemas/ProviderInfo'
+        processing_time:
+          type: string
+        media_analysis:
+          description: Media governance analysis results (present when media was submitted and analysed, on an allowed response and on a policy refusal)
+          allOf:
+          - $ref: '#/components/schemas/MediaAnalysisResponse'
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'The engine that decided: `anchored`, the ADR-065 decision plane
+
+            (PRD v11 §1.1). On a request the request plane withholds (403,
+
+            `error` "Request blocked by policy") it names that decision; otherwise
+
+            it names the response plane''s verdict on the LLM response, decided
+
+            over the shared engine''s detector facts. Omitted on an answer no
+
+            anchored decision covers.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the request or response was decided for.
+
+            The orchestrator admits the client credential the agent''s proxy
+
+            authentication forwards, so it is `Client` on every edition.
+
+            Omitted on an answer withheld before a subject was admitted, and
+
+            wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided the request or the
+
+            response. Omitted wherever `subject_type` is.
+
+            '
+        verdict:
+          type: string
+          enum:
+          - allowed
+          - redacted
+          - blocked
+          description: 'The verdict `engine` names: `allowed` (released as the provider
+
+            sent it), `redacted` (released masked, as a `field_redact`
+
+            obligation required; `data` carries the masked content) or
+
+            `blocked` (withheld: `success` is false and `error` says so; a
+
+            request the request plane withholds is always `blocked`). A request
+
+            or response that could not be decided is withheld, never released.
+
+            Omitted wherever `engine` is.
+
+            '
+    ClientContext:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        org_id:
+          type: string
+        tenant_id:
+          type: string
+    MediaContentRequest:
+      type: object
       required:
-      - success
-      - error
+      - source
+      - mime_type
+      properties:
+        source:
+          type: string
+          enum:
+          - base64
+          - url
+          description: How the media is provided
+        base64_data:
+          type: string
+          description: Base64-encoded image data (required when source=base64)
+        url:
+          type: string
+          format: uri
+          description: URL to image (required when source=url)
+        mime_type:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - image/gif
+          - image/webp
+          description: Media content type
   responses:
     BadRequest:
       description: Invalid request
@@ -740,6 +735,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

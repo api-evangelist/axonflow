@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Cost Controls API
+  title: AxonFlow Orchestrator Cost Controls API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Cost Controls across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -123,11 +123,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BudgetList'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/budgets/{id}:
     get:
       tags:
@@ -214,11 +209,6 @@ paths:
           description: Budget deleted
         '404':
           description: Budget not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/budgets/{id}/status:
     get:
       tags:
@@ -263,11 +253,6 @@ paths:
                 is_blocked: false
         '404':
           description: Budget not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/budgets/{id}/alerts:
     get:
       tags:
@@ -302,11 +287,6 @@ paths:
                 $ref: '#/components/schemas/BudgetAlertList'
         '404':
           description: Budget not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/budgets/check:
     post:
       tags:
@@ -354,11 +334,6 @@ paths:
                     limit_usd: 500.0
                     percentage: 104.0
                     message: Budget 'Engineering Team Budget' exceeded - requests blocked
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/usage:
     get:
       tags:
@@ -401,11 +376,6 @@ paths:
                 total_tokens_out: 375000
                 total_requests: 5420
                 average_cost_per_request: 0.083
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/usage/breakdown:
     get:
       tags:
@@ -474,11 +444,6 @@ paths:
                   tokens_out: 130000
                   request_count: 2220
                   percentage: 28.8
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/usage/records:
     get:
       tags:
@@ -544,11 +509,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UsageRecordList'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/pricing:
     get:
       tags:
@@ -603,133 +563,56 @@ paths:
                         gpt-4o:
                           input_per_1k: 0.0025
                           output_per_1k: 0.01
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
-    UsageRecordList:
+    UsageBreakdownItem:
       type: object
       properties:
-        records:
-          type: array
-          items:
-            $ref: '#/components/schemas/UsageRecord'
-        count:
-          type: integer
-        total:
-          type: integer
-    BudgetAlertList:
-      type: object
-      properties:
-        alerts:
-          type: array
-          items:
-            $ref: '#/components/schemas/BudgetAlert'
-        count:
-          type: integer
-    PricingInfo:
-      type: object
-      required:
-      - provider
-      - model
-      - pricing
-      properties:
-        provider:
+        group_by:
           type: string
-        model:
+          description: Dimension name (provider, model, agent, etc.)
+        group_value:
           type: string
-        pricing:
-          $ref: '#/components/schemas/ModelPricing'
-    BudgetCheckResponse:
-      type: object
-      properties:
-        allowed:
-          type: boolean
-          description: Whether the request should be allowed
-        action:
-          type: string
-          enum:
-          - warn
-          - block
-          - downgrade
-          description: Action that was taken (if budget exceeded)
-        budget_id:
-          type: string
-          description: ID of the budget that blocked the request
-        budget_name:
-          type: string
-        used_usd:
+          description: Value of the dimension
+        cost_usd:
           type: number
           format: double
-        limit_usd:
-          type: number
-          format: double
+        tokens_in:
+          type: integer
+        tokens_out:
+          type: integer
+        request_count:
+          type: integer
         percentage:
           type: number
           format: double
-        message:
-          type: string
-    BudgetUpdate:
+    UsageBreakdown:
       type: object
       properties:
-        name:
+        group_by:
           type: string
-        limit_usd:
+        total_cost_usd:
           type: number
           format: double
-        on_exceed:
-          type: string
-          enum:
-          - warn
-          - block
-          - downgrade
-        alert_thresholds:
+        items:
           type: array
           items:
-            type: integer
-    ModelPricing:
-      type: object
-      properties:
-        input_per_1k:
-          type: number
-          format: double
-          description: Cost per 1,000 input tokens in USD
-        output_per_1k:
-          type: number
-          format: double
-          description: Cost per 1,000 output tokens in USD
-    BudgetStatus:
-      type: object
-      properties:
-        budget:
-          $ref: '#/components/schemas/Budget'
-        used_usd:
-          type: number
-          format: double
-          description: Amount spent in current period
-        remaining_usd:
-          type: number
-          format: double
-          description: Remaining budget
-        percentage:
-          type: number
-          format: double
-          description: Percentage of budget used
+            $ref: '#/components/schemas/UsageBreakdownItem'
+        period:
+          type: string
+          description: 'Bucket label for the rolled-up period (e.g. `2026-04`,
+
+            `2026-W17`). Same field as `UsageSummary.period`.
+
+            '
         period_start:
           type: string
           format: date-time
+          description: Inclusive start of the rolled-up period.
         period_end:
           type: string
           format: date-time
-        is_exceeded:
-          type: boolean
-          description: Whether budget limit has been exceeded
-        is_blocked:
-          type: boolean
-          description: Whether requests are being blocked
+          description: Exclusive end of the rolled-up period.
     Budget:
       type: object
       required:
@@ -805,70 +688,47 @@ components:
         updated_at:
           type: string
           format: date-time
-    UsageBreakdownItem:
+    ErrorResponse:
       type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
       properties:
-        group_by:
+        success:
+          type: boolean
+          example: false
+        error:
           type: string
-          description: Dimension name (provider, model, agent, etc.)
-        group_value:
-          type: string
-          description: Value of the dimension
-        cost_usd:
-          type: number
-          format: double
-        tokens_in:
-          type: integer
-        tokens_out:
-          type: integer
-        request_count:
-          type: integer
-        percentage:
-          type: number
-          format: double
-    PricingList:
-      type: object
+          description: Human-readable message. There is no machine-readable code on this envelope.
       required:
-      - providers
-      properties:
-        providers:
-          type: object
-          additionalProperties:
-            type: object
-            additionalProperties:
-              $ref: '#/components/schemas/ModelPricing'
-    UsageSummary:
-      type: object
-      properties:
-        total_cost_usd:
-          type: number
-          format: double
-        total_tokens_in:
-          type: integer
-        total_tokens_out:
-          type: integer
-        total_requests:
-          type: integer
-        average_cost_per_request:
-          type: number
-          format: double
-        period_start:
-          type: string
-          format: date-time
-        period_end:
-          type: string
-          format: date-time
-        period:
-          type: string
-          description: 'Bucket label for the rolled-up period (e.g. `2026-04`,
-
-            `2026-W17`, `2026-04-29`). Echoes the request''s bucket
-
-            granularity so callers can label charts without parsing
-
-            `period_start` / `period_end`.
-
-            '
+      - success
+      - error
     BudgetCreate:
       type: object
       required:
@@ -914,14 +774,56 @@ components:
           type: array
           items:
             type: integer
-    BudgetList:
+    PricingList:
+      type: object
+      required:
+      - providers
+      properties:
+        providers:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              $ref: '#/components/schemas/ModelPricing'
+    BudgetCheckResponse:
       type: object
       properties:
-        budgets:
+        allowed:
+          type: boolean
+          description: Whether the request should be allowed
+        action:
+          type: string
+          enum:
+          - warn
+          - block
+          - downgrade
+          description: Action that was taken (if budget exceeded)
+        budget_id:
+          type: string
+          description: ID of the budget that blocked the request
+        budget_name:
+          type: string
+        used_usd:
+          type: number
+          format: double
+        limit_usd:
+          type: number
+          format: double
+        percentage:
+          type: number
+          format: double
+        message:
+          type: string
+    UsageRecordList:
+      type: object
+      properties:
+        records:
           type: array
           items:
-            $ref: '#/components/schemas/Budget'
+            $ref: '#/components/schemas/UsageRecord'
         count:
+          type: integer
+        total:
           type: integer
     BudgetAlert:
       type: object
@@ -952,21 +854,35 @@ components:
           format: date-time
         acknowledged:
           type: boolean
-    BudgetCheckRequest:
+    BudgetStatus:
       type: object
-      required:
-      - org_id
       properties:
-        org_id:
+        budget:
+          $ref: '#/components/schemas/Budget'
+        used_usd:
+          type: number
+          format: double
+          description: Amount spent in current period
+        remaining_usd:
+          type: number
+          format: double
+          description: Remaining budget
+        percentage:
+          type: number
+          format: double
+          description: Percentage of budget used
+        period_start:
           type: string
-        team_id:
+          format: date-time
+        period_end:
           type: string
-        agent_id:
-          type: string
-        workflow_id:
-          type: string
-        user_id:
-          type: string
+          format: date-time
+        is_exceeded:
+          type: boolean
+          description: Whether budget limit has been exceeded
+        is_blocked:
+          type: boolean
+          description: Whether requests are being blocked
     UsageRecord:
       type: object
       properties:
@@ -1016,74 +932,113 @@ components:
             paths emit this as the canonical event time.
 
             '
-    UsageBreakdown:
+    ModelPricing:
       type: object
       properties:
-        group_by:
+        input_per_1k:
+          type: number
+          format: double
+          description: Cost per 1,000 input tokens in USD
+        output_per_1k:
+          type: number
+          format: double
+          description: Cost per 1,000 output tokens in USD
+    BudgetUpdate:
+      type: object
+      properties:
+        name:
           type: string
+        limit_usd:
+          type: number
+          format: double
+        on_exceed:
+          type: string
+          enum:
+          - warn
+          - block
+          - downgrade
+        alert_thresholds:
+          type: array
+          items:
+            type: integer
+    BudgetCheckRequest:
+      type: object
+      required:
+      - org_id
+      properties:
+        org_id:
+          type: string
+        team_id:
+          type: string
+        agent_id:
+          type: string
+        workflow_id:
+          type: string
+        user_id:
+          type: string
+    UsageSummary:
+      type: object
+      properties:
         total_cost_usd:
           type: number
           format: double
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/UsageBreakdownItem'
+        total_tokens_in:
+          type: integer
+        total_tokens_out:
+          type: integer
+        total_requests:
+          type: integer
+        average_cost_per_request:
+          type: number
+          format: double
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
         period:
           type: string
           description: 'Bucket label for the rolled-up period (e.g. `2026-04`,
 
-            `2026-W17`). Same field as `UsageSummary.period`.
+            `2026-W17`, `2026-04-29`). Echoes the request''s bucket
+
+            granularity so callers can label charts without parsing
+
+            `period_start` / `period_end`.
 
             '
-        period_start:
-          type: string
-          format: date-time
-          description: Inclusive start of the rolled-up period.
-        period_end:
-          type: string
-          format: date-time
-          description: Exclusive end of the rolled-up period.
-    ErrorResponse:
+    BudgetList:
       type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
-
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
-
-        writer (240 call sites), so it is the shape of every error from the
-
-        core request, audit, plan, workflow, execution and connector surfaces.
-
-
-        It is one of THREE error SHAPES this document describes. See
-
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
       properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
+        budgets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Budget'
+        count:
+          type: integer
+    BudgetAlertList:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetAlert'
+        count:
+          type: integer
+    PricingInfo:
+      type: object
       required:
-      - success
-      - error
+      - provider
+      - model
+      - pricing
+      properties:
+        provider:
+          type: string
+        model:
+          type: string
+        pricing:
+          $ref: '#/components/schemas/ModelPricing'
   securitySchemes:
     basicAuth:
       type: http
@@ -1094,6 +1049,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

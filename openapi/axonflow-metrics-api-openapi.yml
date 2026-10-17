@@ -8,7 +8,7 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Metrics across 4 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-orchestrator-api.yaml, axonflow-agent-openapi.yml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
+  description: 'Operations tagged Metrics across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-orchestrator-api.yaml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -254,71 +254,6 @@ components:
         timestamp:
           type: string
           format: date-time
-    MetricsResponse_3:
-      type: object
-      properties:
-        orchestrator_metrics:
-          type: object
-          properties:
-            uptime_seconds:
-              type: number
-            total_requests:
-              type: integer
-            success_requests:
-              type: integer
-            failed_requests:
-              type: integer
-            blocked_requests:
-              type: integer
-            success_rate:
-              type: number
-            rps:
-              type: number
-            error_rate_per_sec:
-              type: number
-            dynamic_policy_eval_p50_ms:
-              type: number
-            dynamic_policy_eval_p95_ms:
-              type: number
-            dynamic_policy_eval_p99_ms:
-              type: number
-            llm_routing_p50_ms:
-              type: number
-            llm_routing_p95_ms:
-              type: number
-            llm_routing_p99_ms:
-              type: number
-        health:
-          type: object
-          properties:
-            up:
-              type: integer
-            consecutive_errors:
-              type: integer
-        request_types:
-          type: object
-          additionalProperties:
-            type: object
-        providers:
-          type: object
-          additionalProperties:
-            type: object
-            properties:
-              total_calls:
-                type: integer
-              success_calls:
-                type: integer
-              failed_calls:
-                type: integer
-              total_tokens:
-                type: integer
-              total_cost:
-                type: number
-              p99_ms:
-                type: number
-        timestamp:
-          type: string
-          format: date-time
   securitySchemes:
     BasicAuth:
       type: http
@@ -402,5 +337,3 @@ components:
 x-refined-from:
 - axonflow-agent-api.yaml
 - axonflow-orchestrator-api.yaml
-- axonflow-agent-openapi.yml
-- axonflow-orchestrator-openapi.yml

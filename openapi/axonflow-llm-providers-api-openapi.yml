@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow LLM Providers API
+  title: AxonFlow Orchestrator LLM Providers API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged LLM Providers across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -56,11 +56,6 @@ paths:
                   - mistral
                   weight: 0.2
                   avg_latency_ms: 500
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/providers/weights:
     put:
       tags:
@@ -103,11 +98,6 @@ paths:
                 message: Provider weights updated
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/llm-provider-types:
     get:
       tags:
@@ -176,11 +166,6 @@ paths:
                   requires_api_key: false
         '401':
           $ref: '#/components/responses/CodedUnauthorized'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/llm-providers:
     get:
       tags:
@@ -262,11 +247,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LLMProviderAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/llm-providers/{name}:
     get:
       tags:
@@ -358,11 +338,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LLMProviderAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/llm-providers/{name}/health:
     get:
       tags:
@@ -392,11 +367,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LLMProviderAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/llm-providers/{name}/test:
     post:
       tags:
@@ -481,11 +451,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LLMProviderAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/llm-providers/status:
     get:
       tags:
@@ -537,11 +502,6 @@ paths:
                   models_count: 3
         '401':
           $ref: '#/components/responses/CodedUnauthorized'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/llm-providers/routing:
     get:
       tags:
@@ -583,13 +543,86 @@ paths:
           $ref: '#/components/responses/CodedBadRequest'
         '401':
           $ref: '#/components/responses/CodedUnauthorized'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    PaginationMeta:
+      type: object
+      description: Pagination metadata for list responses
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+          example: 1
+        page_size:
+          type: integer
+          description: Number of items per page
+          example: 20
+        total_items:
+          type: integer
+          description: Total number of items across all pages
+          example: 42
+        total_pages:
+          type: integer
+          description: Total number of pages
+          example: 3
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    LLMProviderHealthInfo:
+      type: object
+      description: Provider health status
+      properties:
+        status:
+          type: string
+          enum:
+          - healthy
+          - unhealthy
+          - unknown
+        message:
+          type: string
+          description: Health check message
+        last_checked:
+          type: string
+          format: date-time
+          description: Last health check timestamp
     LLMRoutingConfigResponse:
       type: object
       properties:
@@ -602,57 +635,57 @@ components:
             openai: 100
             anthropic: 80
             bedrock: 60
-    LLMProviderResource:
+    LLMProviderResponse:
       type: object
-      description: LLM provider configuration
       properties:
-        name:
-          type: string
-          description: Unique provider name
-        type:
-          type: string
-          enum:
-          - openai
-          - azure-openai
-          - anthropic
-          - bedrock
-          - ollama
-          - gemini
-          - custom
-          description: Provider type
-        endpoint:
-          type: string
-          description: API endpoint URL
-        model:
-          type: string
-          description: Default model name
-        region:
-          type: string
-          description: AWS region (for Bedrock)
-        enabled:
-          type: boolean
-          description: Whether provider is enabled
-        priority:
-          type: integer
-          description: Routing priority (lower = higher priority)
-        weight:
-          type: integer
-          description: Routing weight for load balancing
-        rate_limit:
-          type: integer
-          description: Max requests per second
-        timeout_seconds:
-          type: integer
-          description: Request timeout in seconds
-        has_api_key:
-          type: boolean
-          description: Whether API key is configured (key not exposed)
-        settings:
+        provider:
+          $ref: '#/components/schemas/LLMProviderResource'
+    LLMProviderListResponse:
+      type: object
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/LLMProviderResource'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+    CodedErrorResponse:
+      type: object
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+
+        screaming-snake string enum. This is what the per-handler `writeError`
+
+        methods emit across the policy API, the LLM provider API, the agents,
+
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
+
+
+        It is one of TWO error SHAPES this document describes. `code` is a
+
+        STRING on this envelope; it is never an HTTP status integer.
+
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+
+        the five values the LLM-provider handlers emit.
+
+        '
+      properties:
+        error:
           type: object
-          additionalProperties: true
-          description: Provider-specific settings
-        health:
-          $ref: '#/components/schemas/LLMProviderHealthInfo'
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
     UpdateLLMProviderRequest:
       type: object
       description: Partial update - only provided fields are updated
@@ -680,6 +713,42 @@ components:
         settings:
           type: object
           additionalProperties: true
+    LLMProviderAPIError:
+      description: 'A REFINEMENT OF `CodedErrorResponse`, not a third envelope: the same
+
+        `{error: {code, message}}` shape with `code` constrained to the five
+
+        values the LLM-provider handlers emit.
+
+
+        It is kept rather than collapsed into `CodedErrorResponse` because the
+
+        enum is real information a generated client can switch on, and deleting
+
+        it to make a count come out at two would make the document less precise
+
+        in order to make a sentence in it true. The error-family guard
+
+        classifies it as a member of the coded family, so an operation cannot
+
+        mix it with the flat family and pass.
+
+        '
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+              - NOT_FOUND
+              - ALREADY_EXISTS
+              - INVALID_REQUEST
+              - UNAUTHORIZED
+              - INTERNAL_ERROR
+            message:
+              type: string
     CreateLLMProviderRequest:
       type: object
       required:
@@ -732,40 +801,74 @@ components:
         settings:
           type: object
           additionalProperties: true
-    LLMProviderListResponse:
+    LLMProviderResource:
+      type: object
+      description: LLM provider configuration
+      properties:
+        name:
+          type: string
+          description: Unique provider name
+        type:
+          type: string
+          enum:
+          - openai
+          - azure-openai
+          - anthropic
+          - bedrock
+          - ollama
+          - gemini
+          - custom
+          description: Provider type
+        endpoint:
+          type: string
+          description: API endpoint URL
+        model:
+          type: string
+          description: Default model name
+        region:
+          type: string
+          description: AWS region (for Bedrock)
+        enabled:
+          type: boolean
+          description: Whether provider is enabled
+        priority:
+          type: integer
+          description: Routing priority (lower = higher priority)
+        weight:
+          type: integer
+          description: Routing weight for load balancing
+        rate_limit:
+          type: integer
+          description: Max requests per second
+        timeout_seconds:
+          type: integer
+          description: Request timeout in seconds
+        has_api_key:
+          type: boolean
+          description: Whether API key is configured (key not exposed)
+        settings:
+          type: object
+          additionalProperties: true
+          description: Provider-specific settings
+        health:
+          $ref: '#/components/schemas/LLMProviderHealthInfo'
+    UpdateLLMRoutingRequest:
+      type: object
+      required:
+      - weights
+      properties:
+        weights:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Provider name to weight mapping
+    LLMProviderHealthResponse:
       type: object
       properties:
-        providers:
-          type: array
-          items:
-            $ref: '#/components/schemas/LLMProviderResource'
-        pagination:
-          $ref: '#/components/schemas/PaginationMeta'
-    LLMProviderResponse:
-      type: object
-      properties:
-        provider:
-          $ref: '#/components/schemas/LLMProviderResource'
-    PaginationMeta:
-      type: object
-      description: Pagination metadata for list responses
-      properties:
-        page:
-          type: integer
-          description: Current page number (1-indexed)
-          example: 1
-        page_size:
-          type: integer
-          description: Number of items per page
-          example: 20
-        total_items:
-          type: integer
-          description: Total number of items across all pages
-          example: 42
-        total_pages:
-          type: integer
-          description: Total number of pages
-          example: 3
+        name:
+          type: string
+        health:
+          $ref: '#/components/schemas/LLMProviderHealthInfo'
     ProviderStatusResponse:
       type: object
       properties:
@@ -786,154 +889,6 @@ components:
                 type: number
               avg_latency_ms:
                 type: integer
-    CodedErrorResponse:
-      type: object
-      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
-
-        screaming-snake string enum. This is what the per-handler `writeError`
-
-        methods emit across the policy API, the LLM provider API, the agents,
-
-        template, unified-execution and media-governance APIs, and every
-
-        handler in the RBI module (362 call sites in total).
-
-
-        It is one of TWO error SHAPES this document describes. `code` is a
-
-        STRING on this envelope; it is never an HTTP status integer.
-
-        `LLMProviderAPIError` is this shape with the `code` enum constrained to
-
-        the five values the LLM-provider handlers emit.
-
-        '
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              description: Machine-readable error code, screaming snake case.
-              example: NOT_FOUND
-            message:
-              type: string
-          required:
-          - code
-          - message
-      required:
-      - error
-    LLMProviderHealthResponse:
-      type: object
-      properties:
-        name:
-          type: string
-        health:
-          $ref: '#/components/schemas/LLMProviderHealthInfo'
-    LLMProviderHealthInfo:
-      type: object
-      description: Provider health status
-      properties:
-        status:
-          type: string
-          enum:
-          - healthy
-          - unhealthy
-          - unknown
-        message:
-          type: string
-          description: Health check message
-        last_checked:
-          type: string
-          format: date-time
-          description: Last health check timestamp
-    UpdateLLMRoutingRequest:
-      type: object
-      required:
-      - weights
-      properties:
-        weights:
-          type: object
-          additionalProperties:
-            type: integer
-          description: Provider name to weight mapping
-    LLMProviderAPIError:
-      description: 'A REFINEMENT OF `CodedErrorResponse`, not a third envelope: the same
-
-        `{error: {code, message}}` shape with `code` constrained to the five
-
-        values the LLM-provider handlers emit.
-
-
-        It is kept rather than collapsed into `CodedErrorResponse` because the
-
-        enum is real information a generated client can switch on, and deleting
-
-        it to make a count come out at two would make the document less precise
-
-        in order to make a sentence in it true. The error-family guard
-
-        classifies it as a member of the coded family, so an operation cannot
-
-        mix it with the flat family and pass.
-
-        '
-      type: object
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              enum:
-              - NOT_FOUND
-              - ALREADY_EXISTS
-              - INVALID_REQUEST
-              - UNAUTHORIZED
-              - INTERNAL_ERROR
-            message:
-              type: string
-    ErrorResponse:
-      type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
-
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
-
-        writer (240 call sites), so it is the shape of every error from the
-
-        core request, audit, plan, workflow, execution and connector surfaces.
-
-
-        It is one of THREE error SHAPES this document describes. See
-
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
-      required:
-      - success
-      - error
   responses:
     CodedUnauthorized:
       description: Unauthorized - missing or invalid organization scope (coded envelope)
@@ -974,6 +929,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

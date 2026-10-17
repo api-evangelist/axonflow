@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Bulk Operations API
+  title: AxonFlow Policy Management Bulk Operations API
+  description: REST API for managing dynamic policies in AxonFlow.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Bulk Operations across 2 of this provider''s published API definitions: axonflow-policy-api.yaml, axonflow-policy-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (Agent single entry point, ADR-024)
@@ -72,13 +72,6 @@ paths:
           $ref: '#/components/responses/LegacyPolicyWriteFrozen'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
   /api/v1/policies/export:
     get:
       deprecated: true
@@ -106,111 +99,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
 components:
-  responses:
-    Unauthorized:
-      description: Missing or invalid tenant ID
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: UNAUTHORIZED
-              message: Missing tenant ID
-    ValidationError:
-      description: Request validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: VALIDATION_ERROR
-              message: Request validation failed
-              details:
-              - field: name
-                message: Name must be between 3 and 100 characters
-              - field: conditions[0].operator
-                message: 'Invalid operator: like. Must be one of: equals, contains, regex'
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: INTERNAL_ERROR
-              message: An unexpected error occurred
-    LegacyPolicyWriteFrozen:
-      description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
-
-        INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` and
-
-        `dynamic_policies` from the application roles, and this endpoint
-
-        writes them, so the write is refused permanently rather than
-
-        transiently. It is not an entitlement fact: no licence, edition or
-
-        upgrade changes it. Author policies through the typed authoring route
-
-        (`/api/v1/typed-policies`, in `orchestrator-api.yaml`) instead. Reads on
-
-        this endpoint are unaffected. A deployment whose connection may still
-
-        write the tables (the database owner; a property of the connection,
-
-        not of `AXONFLOW_DB_USE_APP_ROLE` alone) is not bound by the revoke
-
-        and does not receive this response. Where the connection cannot write
-
-        them, the create, update and bulk-import routes answer this before
-
-        reading the request body, whatever it contains.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/APIError'
-          example:
-            error:
-              code: LEGACY_POLICY_WRITE_FROZEN
-              message: 'The legacy policy tables are read-only in v11: migrations/core/172 revoked write access from the application role, and this endpoint writes them. Author policies through the typed authoring route at /api/v1/typed-policies instead. Reads on this endpoint are unaffected.'
-  parameters:
-    UserID:
-      name: X-User-ID
-      in: header
-      required: false
-      description: User identifier for audit logging
-      schema:
-        type: string
-        example: user@company.com
-    TenantID:
-      name: X-Tenant-ID
-      in: header
-      required: true
-      description: 'Tenant identifier for multi-tenancy isolation. When calling through
-
-        the Agent (recommended), this header is stamped automatically from the
-
-        authenticated client — you do not set it yourself. Required only on
-
-        direct Orchestrator calls (internal deployments).
-
-        '
-      schema:
-        type: string
-        example: tenant_abc123
   schemas:
     PolicyResource:
       type: object
@@ -308,25 +197,6 @@ components:
           type: string
           format: date-time
           description: Soft-delete timestamp (present only on deleted policies)
-    ImportPoliciesRequest:
-      type: object
-      required:
-      - policies
-      properties:
-        policies:
-          type: array
-          items:
-            $ref: '#/components/schemas/CreatePolicyRequest'
-          minItems: 1
-          maxItems: 100
-        overwrite_mode:
-          type: string
-          enum:
-          - skip
-          - overwrite
-          - error
-          default: skip
-          description: How to handle existing policies
     PolicyType:
       type: string
       enum:
@@ -361,6 +231,50 @@ components:
         - `role-access`, `mcp`, `connector`: MCP access controls
 
         '
+    ActionType:
+      type: string
+      enum:
+      - block
+      - require_approval
+      - redact
+      - warn
+      - alert
+      - log
+      - route
+      - modify_risk
+      description: 'Action to take when policy matches:
+
+        - `block`: Block the request with message
+
+        - `require_approval`: Hold the request for human approval (HITL)
+
+        - `redact`: Redact sensitive content from response
+
+        - `warn`: Allow the request but attach a warning
+
+        - `alert`: Send alert to configured channel
+
+        - `log`: Log to audit trail
+
+        - `route`: Route to specific provider
+
+        - `modify_risk`: Adjust risk score
+
+        '
+    PolicyAction:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          $ref: '#/components/schemas/ActionType'
+        config:
+          type: object
+          additionalProperties: true
+          description: Action-specific configuration
+          example:
+            message: Request blocked by policy
+            channel: security-alerts
     APIError:
       type: object
       properties:
@@ -383,18 +297,25 @@ components:
                   message:
                     type: string
               description: Field-level validation errors
-    ExportPoliciesResponse:
+    ImportPoliciesRequest:
       type: object
+      required:
+      - policies
       properties:
         policies:
           type: array
           items:
-            $ref: '#/components/schemas/PolicyResource'
-        exported_at:
+            $ref: '#/components/schemas/CreatePolicyRequest'
+          minItems: 1
+          maxItems: 100
+        overwrite_mode:
           type: string
-          format: date-time
-        tenant_id:
-          type: string
+          enum:
+          - skip
+          - overwrite
+          - error
+          default: skip
+          description: How to handle existing policies
     CreatePolicyRequest:
       type: object
       required:
@@ -450,36 +371,6 @@ components:
           items:
             type: string
           description: Tags for categorization
-    ActionType:
-      type: string
-      enum:
-      - block
-      - require_approval
-      - redact
-      - warn
-      - alert
-      - log
-      - route
-      - modify_risk
-      description: 'Action to take when policy matches:
-
-        - `block`: Block the request with message
-
-        - `require_approval`: Hold the request for human approval (HITL)
-
-        - `redact`: Redact sensitive content from response
-
-        - `warn`: Allow the request but attach a warning
-
-        - `alert`: Send alert to configured channel
-
-        - `log`: Log to audit trail
-
-        - `route`: Route to specific provider
-
-        - `modify_risk`: Adjust risk score
-
-        '
     ConditionOperator:
       type: string
       enum:
@@ -494,6 +385,18 @@ components:
       - in
       - not_in
       description: Comparison operator for conditions
+    ExportPoliciesResponse:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyResource'
+        exported_at:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
     ImportPoliciesResponse:
       type: object
       properties:
@@ -568,20 +471,100 @@ components:
             items:
               type: string
           description: Value to compare against
-    PolicyAction:
-      type: object
-      required:
-      - type
-      properties:
-        type:
-          $ref: '#/components/schemas/ActionType'
-        config:
-          type: object
-          additionalProperties: true
-          description: Action-specific configuration
+  responses:
+    Unauthorized:
+      description: Missing or invalid tenant ID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
           example:
-            message: Request blocked by policy
-            channel: security-alerts
-x-refined-from:
-- axonflow-policy-api.yaml
-- axonflow-policy-openapi.yml
+            error:
+              code: UNAUTHORIZED
+              message: Missing tenant ID
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+              - field: name
+                message: Name must be between 3 and 100 characters
+              - field: conditions[0].operator
+                message: 'Invalid operator: like. Must be one of: equals, contains, regex'
+    LegacyPolicyWriteFrozen:
+      description: 'The legacy policy tables are read-only. `migrations/core/172` revoked
+
+        INSERT, UPDATE, DELETE and TRUNCATE on `static_policies` and
+
+        `dynamic_policies` from the application roles, and this endpoint
+
+        writes them, so the write is refused permanently rather than
+
+        transiently. It is not an entitlement fact: no licence, edition or
+
+        upgrade changes it. Author policies through the typed authoring route
+
+        (`/api/v1/typed-policies`, in `orchestrator-api.yaml`) instead. Reads on
+
+        this endpoint are unaffected. A deployment whose connection may still
+
+        write the tables (the database owner; a property of the connection,
+
+        not of `AXONFLOW_DB_USE_APP_ROLE` alone) is not bound by the revoke
+
+        and does not receive this response. Where the connection cannot write
+
+        them, the create, update and bulk-import routes answer this before
+
+        reading the request body, whatever it contains.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: LEGACY_POLICY_WRITE_FROZEN
+              message: 'The legacy policy tables are read-only in v11: migrations/core/172 revoked write access from the application role, and this endpoint writes them. Author policies through the typed authoring route at /api/v1/typed-policies instead. Reads on this endpoint are unaffected.'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An unexpected error occurred
+  parameters:
+    TenantID:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier for multi-tenancy isolation. When calling through
+
+        the Agent (recommended), this header is stamped automatically from the
+
+        authenticated client — you do not set it yourself. Required only on
+
+        direct Orchestrator calls (internal deployments).
+
+        '
+      schema:
+        type: string
+        example: tenant_abc123
+    UserID:
+      name: X-User-ID
+      in: header
+      required: false
+      description: User identifier for audit logging
+      schema:
+        type: string
+        example: user@company.com

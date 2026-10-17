@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow MCP Connectors API
+  title: AxonFlow Agent MCP Connectors API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged MCP Connectors across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -113,13 +113,6 @@ paths:
               example:
                 success: false
                 error: MCP registry not initialized
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /mcp/connectors/{name}/health:
     get:
       tags:
@@ -205,13 +198,6 @@ paths:
               example:
                 success: false
                 error: MCP registry not initialized
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /mcp/resources/query:
     post:
       tags:
@@ -312,13 +298,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /mcp/tools/execute:
     post:
       tags:
@@ -391,13 +370,6 @@ paths:
           $ref: '#/components/responses/MCPSegmentForbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/mcp/check-input:
     post:
       tags:
@@ -593,13 +565,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/mcp/check-output:
     post:
       tags:
@@ -766,13 +731,6 @@ paths:
                   row_limit: 10000
                   bytes_returned: 5242880
                   byte_limit: 10485760
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /mcp/health:
     get:
       tags:
@@ -859,13 +817,6 @@ paths:
               example:
                 success: false
                 error: MCP registry not initialized
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/connectors/refresh:
     post:
       tags:
@@ -1000,13 +951,6 @@ paths:
               example:
                 success: false
                 error: TenantConnectorRegistry not initialized
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/connectors/refresh/{tenant_id}:
     post:
       tags:
@@ -1143,13 +1087,6 @@ paths:
               example:
                 success: false
                 error: TenantConnectorRegistry not initialized
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/connectors/refresh/{tenant_id}/{connector_name}:
     post:
       tags:
@@ -1275,13 +1212,6 @@ paths:
               example:
                 success: false
                 error: TenantConnectorRegistry not initialized
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/connectors/cache/stats:
     get:
       tags:
@@ -1412,15 +1342,346 @@ paths:
               example:
                 success: false
                 error: TenantConnectorRegistry not initialized
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
+    MCPSegmentForbidden:
+      description: "Access denied. Causes on these routes:\n\n- **Tenant mismatch**, or a connector this tenant may not access.\n- **A policy refusal**: `error` is `Request blocked: <reason>`, the\n  reason code first.\n- **A call held for a person's approval** (#4370, Enterprise):\n  `error` is `Request blocked: approval_pending: ...` and\n  `pending_approval` names the approval the retry spends (see the\n  `X-Axonflow-Approval-Id` parameter). Nothing ran.\n\n`segment_resolution_failed` is no longer a cause (it was one from\n#3447). No segment gate stands on these routes any more: the anchored\nengine reads no segments, as on decide.\n"
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: '#/components/schemas/ErrorResponse'
+            - type: object
+              properties:
+                pending_approval:
+                  $ref: '#/components/schemas/PendingApproval'
+          example:
+            success: false
+            error: Tenant mismatch
+    MCPPerUserTokenUnauthorized:
+      description: "Missing or invalid authentication on an MCP REST route. FOUR distinct\ncauses; the status code is the same for all four, and the audit row is\nwhat distinguishes the last two.\n\n1. **Credentials.** No usable Basic auth / license credential.\n2. **A tenant the credential may not act for.**\n3. **`user_token_rejected`** -- a `user_token` WAS supplied in the\n   request body and failed to validate: malformed, expired, signed\n   with the wrong algorithm, carrying a bad signature, or revoked by\n   `jti`. **This is new behaviour on these four routes.** Previously\n   ANY user-token failure in enterprise mode was answered by\n   synthesizing a service identity and serving the request, so\n   revocation and expiry had no effect here; a presented token that\n   fails to validate is now a refused access attempt, audited and\n   returned as `401`. This is not opt-in and no flag restores the old\n   behaviour.\n4. **`user_token_required`** (#3476) -- NO `user_token` was supplied\n   and the caller's organisation requires one. **Off by default**;\n   this cause cannot occur unless an operator has set\n   `organizations.require_user_token` for that organisation, or the\n   deployment-wide `AXONFLOW_REQUIRE_USER_TOKEN` default. With the\n   posture off, a token-less enterprise caller is still served under a\n   synthetic service identity, which is the correct answer for an\n   infrastructure gateway that has no end-user token to forward.\n\nCauses 3 and 4 are recorded as reserved identifiers in the audit row's\npolicy ids and MUST NOT be collapsed: they have opposite operator\nremedies (repair the caller's token, versus provision one at all).\nQuery them with JSONB containment against\n`policy_details->'policy_ids'`, never with `LIKE` -- `_` is a\nsingle-character wildcard, so a `%user_token_required%` pattern also\nmatches unrelated prose in the same row.\n\nThese routes read the per-user token from the `user_token` field of\nthe request body. They do not read the `X-User-Token` header; that\nheader belongs to the MCP-server JSON-RPC envelope.\n\nHandler-written 401s use the `{success, error}` envelope; 401s written\nby the auth middleware use the `{\"error\": {\"code\", \"message\"}}`\nenvelope (JSONError).\n"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Invalid user token: token has expired'
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Invalid request body
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Internal server error
   schemas:
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+    MCPCheckOutputRequest:
+      type: object
+      required:
+      - connector_type
+      anyOf:
+      - required:
+        - response_data
+      - required:
+        - message
+      properties:
+        client_id:
+          type: string
+          description: Client identifier (required in Enterprise mode)
+        user_token:
+          type: string
+          description: JWT user token (required in Enterprise mode)
+        tenant_id:
+          type: string
+          description: Tenant identifier (required in Enterprise mode, defaults to "default" in Community)
+        user_id:
+          type: string
+          description: Optional user identifier
+        connector_type:
+          type: string
+          description: MCP connector/server type (e.g., "postgres", "snowflake", "salesforce")
+        tool:
+          type: string
+          description: Optional tool identifier whose output is being validated, distinct from connector_type/server (#2904/#2955). Feeds capability-scoped response evaluation when set (a text-document tool's output skips execution-class detectors); omitted → full (fail-closed) evaluation, no fallback from connector_type.
+        response_data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          description: Query-style response rows to validate
+        message:
+          type: string
+          description: Execute-style response message (e.g., "5 rows affected")
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Connector metadata for SQLi response scanning (e.g., query echo, database name)
+        row_count:
+          type: integer
+          description: Total number of rows returned (used for exfiltration limit checks)
+    MCPCheckOutputResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the output passed all policy checks
+        block_reason:
+          type: string
+          description: Human-readable reason if blocked (omitted when allowed)
+        redacted_data:
+          description: 'Response data with PII fields masked. For query-style checks
+
+            (tabular `response_data`) this carries the masked rows; for
+
+            execute-style checks (`message`) it carries the masked message
+
+            string. Omitted if no redaction was needed.
+
+
+            ⚠️ **Contract pending (#2870):** unlike the `/api/v1/mcp-server`
+
+            JSON-RPC `check_output` tool (which returns a separate
+
+            `redacted_message` field), this standalone REST endpoint returns
+
+            only `redacted_data` — it never emits `redacted_message`, even
+
+            though several SDK response types model that field. Do not rely
+
+            on `redacted_message` here until #2870 lands. Source of truth:
+
+            `platform/agent/mcp_handler.go` (MCPCheckOutputResponse).
+
+            '
+        policies_evaluated:
+          type: integer
+          description: Total number of policies evaluated
+        exfiltration_info:
+          $ref: '#/components/schemas/ExfiltrationCheckInfo'
+        policy_info:
+          $ref: '#/components/schemas/PolicyInfo'
+        decision_id:
+          type: string
+          description: Unique audit correlator for this policy decision.
+        redaction_evaluated:
+          type: boolean
+          description: 'Whether the response-phase redaction pipeline actually ran
+
+            (#2865). Mirrors MCPCheckInputResponse.redaction_evaluated for the
+
+            response leg. A PEP fulfilling a response-phase redact_pii
+
+            obligation MUST fail closed when this is false/absent — the
+
+            redactor did not run (detection disabled for the connector, or no
+
+            policy engine), so absence of `redacted_data` cannot be trusted as
+
+            "nothing to mask." Omitted (false) preserves the pre-#2865 shape.
+
+            '
+        engine:
+          type: string
+          enum:
+          - anchored
+          description: 'Which policy engine authored this verdict: the ADR-065 decision
+
+            plane, the only author on this route (PRD v11 §1.1).
+
+            It rides this body and the 403 envelope of a refusal by the
+
+            same pass. Omitted
+
+            on a refusal no engine decided - an authentication failure, or a
+
+            request refused before the policy pass ran.
+
+            '
+        subject_type:
+          type: string
+          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
+
+            `User` for a verified user token, `Client` when the request
+
+            presented no user identity and its client credential is the
+
+            principal. Omitted wherever `engine` is.
+
+            '
+        policy_bundle:
+          type: string
+          description: 'The digest of the policy set that decided: the system corpus''s
+
+            restriction for this route and the organization root - the
+
+            organization''s active typed document composed with the
+
+            deployment''s baseline permission pack, or, while it has published
+
+            nothing, the implicit bundle of that pack and the organization
+
+            template. A rollback reinstates an earlier digest. Omitted wherever
+
+            `engine` is.
+
+            '
+        policy_packs:
+          type: array
+          items:
+            type: string
+          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
+
+            into `policy_bundle` on the response pass, each as `<pack id>@<digest
+
+            of the pack document the deployment instantiated>`, sorted. Omitted
+
+            when the deployment installs no pack or none binds on this route.
+
+            '
+        legacy_validators:
+          type: array
+          description: 'A checksum validator that acted BEFORE the anchored engine decided
+
+            (#4122): under an organization''s recorded `pii=block` or
+
+            `pii=redact` detection override, the Indonesia or India validator
+
+            blocked the request or masked the response ahead of the decision
+
+            plane. Omitted when none did, which is every request without
+
+            such an override.
+
+            '
+          items:
+            type: object
+            required:
+            - validator
+            - action
+            properties:
+              validator:
+                type: string
+                enum:
+                - indonesia_pii
+                - india_pii
+              action:
+                type: string
+                enum:
+                - blocked
+                - masked
+    PolicyMatchInfo:
+      type: object
+      description: Information about a policy match during evaluation
+      properties:
+        policy_id:
+          type: string
+          description: Unique policy identifier
+        policy_name:
+          type: string
+          description: Human-readable policy name
+        category:
+          type: string
+          description: Policy category (e.g., "pii-us", "security-sqli")
+        severity:
+          type: string
+          description: Match severity (low, medium, high, critical)
+        action:
+          type: string
+          description: Action taken (block, redact, warn, log)
+    ConnectorRefreshResponse:
+      type: object
+      description: 'Response from connector cache refresh operations. Source of truth:
+
+        `platform/agent/connector_refresh_api.go` (`ConnectorRefreshResponse`,
+
+        lines 61-69).
+
+        '
+      properties:
+        success:
+          type: boolean
+          description: Whether the refresh operation succeeded
+        message:
+          type: string
+          description: 'Human-readable status message. Also the signal for which scope
+
+            the credential bought: `Tenant connector caches refreshed` vs
+
+            `All connector caches refreshed`.
+
+            '
+        scope:
+          type: string
+          enum:
+          - all
+          - tenant
+          - connector
+          description: Which route produced this response
+        tenant_id:
+          type: string
+          description: 'The authenticated tenant. Omitted on a deployment-wide refresh
+
+            (internal-service credential on `POST /api/v1/connectors/refresh`),
+
+            because no single tenancy describes the work done.
+
+            '
+        connector:
+          type: string
+          description: Connector name (when scope is connector)
+        duration:
+          type: string
+          description: Duration of the refresh operation
+          example: 12.345ms
+        stats:
+          $ref: '#/components/schemas/ConnectorRefreshStats'
+      required:
+      - success
+      - message
+      - scope
+      - duration
     MCPExecuteRequest:
       type: object
       required:
@@ -1460,152 +1721,6 @@ components:
           type: object
           additionalProperties: true
         timeout:
-          type: string
-    PolicyInfo:
-      type: object
-      description: Policy evaluation information included in MCP responses
-      properties:
-        policies_evaluated:
-          type: integer
-          description: Number of policies evaluated during request/response processing
-        blocked:
-          type: boolean
-          description: Whether the request was blocked by policy
-        block_reason:
-          type: string
-          description: Reason if the request was blocked
-        redactions_applied:
-          type: integer
-          description: Number of field redactions applied to the response
-        processing_time_ms:
-          type: integer
-          description: Time spent on policy evaluation in milliseconds
-        matched_policies:
-          type: array
-          items:
-            $ref: '#/components/schemas/PolicyMatchInfo'
-          description: Policies that matched during evaluation
-        exfiltration_check:
-          $ref: '#/components/schemas/ExfiltrationCheckInfo'
-    ConnectorRefreshStats:
-      type: object
-      description: 'Cache statistics after refresh. Source of truth:
-
-        `platform/agent/connector_refresh_api.go` (`RefreshStatsInfo`, lines
-
-        83-88).
-
-
-        This object carries `cached_connectors` **and nothing else**. It used
-
-        to also declare `hits`, `misses`, `evictions` and `hit_rate_percent`;
-
-        no producer ever set them, so they always serialized as misleading
-
-        hard zeros, and they are deployment-wide figures that disclose other
-
-        tenants'' cache activity. They were removed from the struct in #3067 —
-
-        read them from the `deployment` block of
-
-        `GET /api/v1/connectors/cache/stats` (internal-service credential) or
-
-        from the un-scoped `/prometheus` gauges.
-
-        '
-      properties:
-        cached_connectors:
-          type: integer
-          format: int64
-          description: 'Cached-connector count *after* the eviction, scoped to the work
-
-            just done: the caller''s own count on a tenant refresh
-
-            (`tenantRefreshStats`, lines 404-408), the deployment-wide count
-
-            on an internal-service deployment-wide refresh
-
-            (`deploymentRefreshStats`, lines 415-419).
-
-
-            Structurally `0` on `POST /api/v1/connectors/refresh` and
-
-            `POST /api/v1/connectors/refresh/{tenant_id}` — those routes evict
-
-            the whole scope immediately before counting it. Only informative
-
-            on `.../{tenant_id}/{connector_name}`.
-
-            '
-    ErrorResponse:
-      type: object
-      description: 'Handler-written error envelope. Note the agent has a second error
-
-        envelope for middleware-written errors (see JSONError) — clients
-
-        should tolerate both shapes on 4xx/5xx.
-
-        '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Error message
-    MCPQueryRequest:
-      type: object
-      required:
-      - client_id
-      - connector
-      properties:
-        approval_id:
-          type: string
-          format: uuid
-          description: 'The approval a retry spends (#4370), for a client that cannot set
-
-            the `X-Axonflow-Approval-Id` header (see that parameter). Never
-
-            part of what the approval binds.
-
-            '
-        client_id:
-          type: string
-        license_key:
-          type: string
-          description: Can also be provided in X-License-Key header
-        user_token:
-          type: string
-        connector:
-          type: string
-          description: Connector name
-        operation:
-          type: string
-          description: Operation name (for API connectors like Amadeus)
-        statement:
-          type: string
-          description: SQL/CQL statement (for database connectors)
-        parameters:
-          type: object
-          additionalProperties: true
-          description: Query parameters
-        limit:
-          type: integer
-          description: Maximum rows to return
-        timeout:
-          type: string
-          description: Timeout duration (e.g., "10s")
-    ConnectorHealthResponse:
-      type: object
-      properties:
-        healthy:
-          type: boolean
-        latency_ms:
-          type: integer
-        last_check:
-          type: string
-          format: date-time
-        error:
           type: string
     MCPExecuteResponse:
       type: object
@@ -1719,102 +1834,6 @@ components:
                 enum:
                 - blocked
                 - masked
-    MCPCheckOutputRequest:
-      type: object
-      required:
-      - connector_type
-      anyOf:
-      - required:
-        - response_data
-      - required:
-        - message
-      properties:
-        client_id:
-          type: string
-          description: Client identifier (required in Enterprise mode)
-        user_token:
-          type: string
-          description: JWT user token (required in Enterprise mode)
-        tenant_id:
-          type: string
-          description: Tenant identifier (required in Enterprise mode, defaults to "default" in Community)
-        user_id:
-          type: string
-          description: Optional user identifier
-        connector_type:
-          type: string
-          description: MCP connector/server type (e.g., "postgres", "snowflake", "salesforce")
-        tool:
-          type: string
-          description: Optional tool identifier whose output is being validated, distinct from connector_type/server (#2904/#2955). Feeds capability-scoped response evaluation when set (a text-document tool's output skips execution-class detectors); omitted → full (fail-closed) evaluation, no fallback from connector_type.
-        response_data:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-          description: Query-style response rows to validate
-        message:
-          type: string
-          description: Execute-style response message (e.g., "5 rows affected")
-        metadata:
-          type: object
-          additionalProperties: true
-          description: Connector metadata for SQLi response scanning (e.g., query echo, database name)
-        row_count:
-          type: integer
-          description: Total number of rows returned (used for exfiltration limit checks)
-    ConnectorRefreshResponse:
-      type: object
-      description: 'Response from connector cache refresh operations. Source of truth:
-
-        `platform/agent/connector_refresh_api.go` (`ConnectorRefreshResponse`,
-
-        lines 61-69).
-
-        '
-      properties:
-        success:
-          type: boolean
-          description: Whether the refresh operation succeeded
-        message:
-          type: string
-          description: 'Human-readable status message. Also the signal for which scope
-
-            the credential bought: `Tenant connector caches refreshed` vs
-
-            `All connector caches refreshed`.
-
-            '
-        scope:
-          type: string
-          enum:
-          - all
-          - tenant
-          - connector
-          description: Which route produced this response
-        tenant_id:
-          type: string
-          description: 'The authenticated tenant. Omitted on a deployment-wide refresh
-
-            (internal-service credential on `POST /api/v1/connectors/refresh`),
-
-            because no single tenancy describes the work done.
-
-            '
-        connector:
-          type: string
-          description: Connector name (when scope is connector)
-        duration:
-          type: string
-          description: Duration of the refresh operation
-          example: 12.345ms
-        stats:
-          $ref: '#/components/schemas/ConnectorRefreshStats'
-      required:
-      - success
-      - message
-      - scope
-      - duration
     ConnectorCacheStats:
       type: object
       description: 'Connector cache statistics. Source of truth:
@@ -1947,32 +1966,60 @@ components:
                 created yet.
 
                 '
-    ConnectorListResponse:
+    PolicyInfo:
       type: object
+      description: Policy evaluation information included in MCP responses
       properties:
-        connectors:
+        policies_evaluated:
+          type: integer
+          description: Number of policies evaluated during request/response processing
+        blocked:
+          type: boolean
+          description: Whether the request was blocked by policy
+        block_reason:
+          type: string
+          description: Reason if the request was blocked
+        redactions_applied:
+          type: integer
+          description: Number of field redactions applied to the response
+        processing_time_ms:
+          type: integer
+          description: Time spent on policy evaluation in milliseconds
+        matched_policies:
           type: array
           items:
-            type: object
-            properties:
-              name:
-                type: string
-              type:
-                type: string
-              version:
-                type: string
-              healthy:
-                type: boolean
-              latency_ms:
-                type: integer
-              capabilities:
-                type: array
-                items:
-                  type: string
-              error:
-                type: string
-        count:
+            $ref: '#/components/schemas/PolicyMatchInfo'
+          description: Policies that matched during evaluation
+        exfiltration_check:
+          $ref: '#/components/schemas/ExfiltrationCheckInfo'
+    RicherPolicyMatch:
+      type: object
+      description: 'Per-policy match record on MCP check-input responses
+
+        (`platform/agent/mcp_handler.go`).
+
+        '
+      properties:
+        policy_id:
+          type: string
+          description: Unique policy identifier.
+        policy_name:
+          type: string
+          description: Human-readable policy name. Omitted when unknown.
+        risk_level:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+          description: Risk level configured on this policy. Omitted when unset.
+        allow_override:
+          type: boolean
+          description: Whether this policy permits a session override.
+        policy_version:
           type: integer
+          description: Policy version that matched. Omitted when zero.
     MCPCheckInputResponse:
       type: object
       properties:
@@ -2191,97 +2238,98 @@ components:
                 enum:
                 - blocked
                 - masked
-    PendingApproval:
+    MCPQueryRequest:
       type: object
-      description: 'A call held for a person''s approval (#4370, PRD v11 §1.13). Pending
-
-        is NOT allow: nothing ran, and the enforcement point must not
-
-        forward. An approver approves the queue entry in the portal
-
-        (Approvals), and the caller retries the same call naming
-
-        `approval_id` (see the `X-Axonflow-Approval-Id` parameter).
-
-
-        The approval expires at `expires_at`: the approval requirement''s
-
-        own deadline, which the engine stamps 15 minutes after the decision
-
-        on v11. It is never extended; a retry after it is refused
-
-        `approval_expired`.
-
-        '
       required:
-      - approval_id
-      - status
-      - plane
-      - retry
+      - client_id
+      - connector
       properties:
         approval_id:
           type: string
           format: uuid
-          description: The queue entry's id; the retry names it.
-        status:
-          type: string
-          enum:
-          - pending
-          - approved
-          description: '`pending`: nobody has decided it yet. `approved`: a person
+          description: 'The approval a retry spends (#4370), for a client that cannot set
 
-            approved it and it is waiting for this caller''s retry, which
+            the `X-Axonflow-Approval-Id` header (see that parameter). Never
 
-            must name the id.
+            part of what the approval binds.
 
             '
-        plane:
+        client_id:
           type: string
-          enum:
-          - mcp:request
-          - decide
-        expires_at:
+        license_key:
           type: string
-          format: date-time
-          description: When the approval lapses. Omitted on a retry of a still-pending approval.
-        retry:
+          description: Can also be provided in X-License-Key header
+        user_token:
+          type: string
+        connector:
+          type: string
+          description: Connector name
+        operation:
+          type: string
+          description: Operation name (for API connectors like Amadeus)
+        statement:
+          type: string
+          description: SQL/CQL statement (for database connectors)
+        parameters:
           type: object
-          required:
-          - header
-          properties:
-            header:
-              type: string
-              enum:
-              - X-Axonflow-Approval-Id
-            argument:
-              type: string
-              enum:
-              - approval_id
-              description: The MCP tool argument / MCP route body field that carries the id.
-            body_field:
-              type: string
-              enum:
-              - approval_id
-              description: The decide request field that carries the id.
-    ExfiltrationCheckInfo:
+          additionalProperties: true
+          description: Query parameters
+        limit:
+          type: integer
+          description: Maximum rows to return
+        timeout:
+          type: string
+          description: Timeout duration (e.g., "10s")
+    ConnectorRefreshStats:
       type: object
-      description: Information about exfiltration limit checks (v3.2.0+)
+      description: 'Cache statistics after refresh. Source of truth:
+
+        `platform/agent/connector_refresh_api.go` (`RefreshStatsInfo`, lines
+
+        83-88).
+
+
+        This object carries `cached_connectors` **and nothing else**. It used
+
+        to also declare `hits`, `misses`, `evictions` and `hit_rate_percent`;
+
+        no producer ever set them, so they always serialized as misleading
+
+        hard zeros, and they are deployment-wide figures that disclose other
+
+        tenants'' cache activity. They were removed from the struct in #3067 —
+
+        read them from the `deployment` block of
+
+        `GET /api/v1/connectors/cache/stats` (internal-service credential) or
+
+        from the un-scoped `/prometheus` gauges.
+
+        '
       properties:
-        rows_returned:
+        cached_connectors:
           type: integer
-          description: Number of rows in the response
-        row_limit:
-          type: integer
-          description: Configured row limit (MCP_MAX_ROWS_PER_QUERY)
-        bytes_returned:
-          type: integer
-          description: Response size in bytes
-        byte_limit:
-          type: integer
-          description: Configured byte limit (MCP_MAX_BYTES_PER_QUERY)
-        within_limits:
-          type: boolean
-          description: True when the response stayed within every configured limit
+          format: int64
+          description: 'Cached-connector count *after* the eviction, scoped to the work
+
+            just done: the caller''s own count on a tenant refresh
+
+            (`tenantRefreshStats`, lines 404-408), the deployment-wide count
+
+            on an internal-service deployment-wide refresh
+
+            (`deploymentRefreshStats`, lines 415-419).
+
+
+            Structurally `0` on `POST /api/v1/connectors/refresh` and
+
+            `POST /api/v1/connectors/refresh/{tenant_id}` — those routes evict
+
+            the whole scope immediately before counting it. Only informative
+
+            on `.../{tenant_id}/{connector_name}`.
+
+            '
     MCPCheckInputRequest:
       type: object
       required:
@@ -2358,203 +2406,104 @@ components:
             truth: `platform/agent/mcp_handler.go` (MCPCheckInputRequest).
 
             '
-    PolicyMatchInfo:
-      type: object
-      description: Information about a policy match during evaluation
-      properties:
-        policy_id:
-          type: string
-          description: Unique policy identifier
-        policy_name:
-          type: string
-          description: Human-readable policy name
-        category:
-          type: string
-          description: Policy category (e.g., "pii-us", "security-sqli")
-        severity:
-          type: string
-          description: Match severity (low, medium, high, critical)
-        action:
-          type: string
-          description: Action taken (block, redact, warn, log)
-    RicherPolicyMatch:
-      type: object
-      description: 'Per-policy match record on MCP check-input responses
-
-        (`platform/agent/mcp_handler.go`).
-
-        '
-      properties:
-        policy_id:
-          type: string
-          description: Unique policy identifier.
-        policy_name:
-          type: string
-          description: Human-readable policy name. Omitted when unknown.
-        risk_level:
-          type: string
-          enum:
-          - low
-          - medium
-          - high
-          - critical
-          description: Risk level configured on this policy. Omitted when unset.
-        allow_override:
-          type: boolean
-          description: Whether this policy permits a session override.
-        policy_version:
-          type: integer
-          description: Policy version that matched. Omitted when zero.
-    MCPCheckOutputResponse:
+    ConnectorListResponse:
       type: object
       properties:
-        allowed:
-          type: boolean
-          description: Whether the output passed all policy checks
-        block_reason:
-          type: string
-          description: Human-readable reason if blocked (omitted when allowed)
-        redacted_data:
-          description: 'Response data with PII fields masked. For query-style checks
-
-            (tabular `response_data`) this carries the masked rows; for
-
-            execute-style checks (`message`) it carries the masked message
-
-            string. Omitted if no redaction was needed.
-
-
-            ⚠️ **Contract pending (#2870):** unlike the `/api/v1/mcp-server`
-
-            JSON-RPC `check_output` tool (which returns a separate
-
-            `redacted_message` field), this standalone REST endpoint returns
-
-            only `redacted_data` — it never emits `redacted_message`, even
-
-            though several SDK response types model that field. Do not rely
-
-            on `redacted_message` here until #2870 lands. Source of truth:
-
-            `platform/agent/mcp_handler.go` (MCPCheckOutputResponse).
-
-            '
-        policies_evaluated:
-          type: integer
-          description: Total number of policies evaluated
-        exfiltration_info:
-          $ref: '#/components/schemas/ExfiltrationCheckInfo'
-        policy_info:
-          $ref: '#/components/schemas/PolicyInfo'
-        decision_id:
-          type: string
-          description: Unique audit correlator for this policy decision.
-        redaction_evaluated:
-          type: boolean
-          description: 'Whether the response-phase redaction pipeline actually ran
-
-            (#2865). Mirrors MCPCheckInputResponse.redaction_evaluated for the
-
-            response leg. A PEP fulfilling a response-phase redact_pii
-
-            obligation MUST fail closed when this is false/absent — the
-
-            redactor did not run (detection disabled for the connector, or no
-
-            policy engine), so absence of `redacted_data` cannot be trusted as
-
-            "nothing to mask." Omitted (false) preserves the pre-#2865 shape.
-
-            '
-        engine:
-          type: string
-          enum:
-          - anchored
-          description: 'Which policy engine authored this verdict: the ADR-065 decision
-
-            plane, the only author on this route (PRD v11 §1.1).
-
-            It rides this body and the 403 envelope of a refusal by the
-
-            same pass. Omitted
-
-            on a refusal no engine decided - an authentication failure, or a
-
-            request refused before the policy pass ran.
-
-            '
-        subject_type:
-          type: string
-          description: 'The type of principal the verdict was decided for (PRD v11 §1.6):
-
-            `User` for a verified user token, `Client` when the request
-
-            presented no user identity and its client credential is the
-
-            principal. Omitted wherever `engine` is.
-
-            '
-        policy_bundle:
-          type: string
-          description: 'The digest of the policy set that decided: the system corpus''s
-
-            restriction for this route and the organization root - the
-
-            organization''s active typed document composed with the
-
-            deployment''s baseline permission pack, or, while it has published
-
-            nothing, the implicit bundle of that pack and the organization
-
-            template. A rollback reinstates an earlier digest. Omitted wherever
-
-            `engine` is.
-
-            '
-        policy_packs:
+        connectors:
           type: array
-          items:
-            type: string
-          description: 'The add-on policy packs (PRD v11 §1.9) whose controls composed
-
-            into `policy_bundle` on the response pass, each as `<pack id>@<digest
-
-            of the pack document the deployment instantiated>`, sorted. Omitted
-
-            when the deployment installs no pack or none binds on this route.
-
-            '
-        legacy_validators:
-          type: array
-          description: 'A checksum validator that acted BEFORE the anchored engine decided
-
-            (#4122): under an organization''s recorded `pii=block` or
-
-            `pii=redact` detection override, the Indonesia or India validator
-
-            blocked the request or masked the response ahead of the decision
-
-            plane. Omitted when none did, which is every request without
-
-            such an override.
-
-            '
           items:
             type: object
-            required:
-            - validator
-            - action
             properties:
-              validator:
+              name:
                 type: string
-                enum:
-                - indonesia_pii
-                - india_pii
-              action:
+              type:
                 type: string
-                enum:
-                - blocked
-                - masked
+              version:
+                type: string
+              healthy:
+                type: boolean
+              latency_ms:
+                type: integer
+              capabilities:
+                type: array
+                items:
+                  type: string
+              error:
+                type: string
+        count:
+          type: integer
+    PendingApproval:
+      type: object
+      description: 'A call held for a person''s approval (#4370, PRD v11 §1.13). Pending
+
+        is NOT allow: nothing ran, and the enforcement point must not
+
+        forward. An approver approves the queue entry in the portal
+
+        (Approvals), and the caller retries the same call naming
+
+        `approval_id` (see the `X-Axonflow-Approval-Id` parameter).
+
+
+        The approval expires at `expires_at`: the approval requirement''s
+
+        own deadline, which the engine stamps 15 minutes after the decision
+
+        on v11. It is never extended; a retry after it is refused
+
+        `approval_expired`.
+
+        '
+      required:
+      - approval_id
+      - status
+      - plane
+      - retry
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+          description: The queue entry's id; the retry names it.
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          description: '`pending`: nobody has decided it yet. `approved`: a person
+
+            approved it and it is waiting for this caller''s retry, which
+
+            must name the id.
+
+            '
+        plane:
+          type: string
+          enum:
+          - mcp:request
+          - decide
+        expires_at:
+          type: string
+          format: date-time
+          description: When the approval lapses. Omitted on a retry of a still-pending approval.
+        retry:
+          type: object
+          required:
+          - header
+          properties:
+            header:
+              type: string
+              enum:
+              - X-Axonflow-Approval-Id
+            argument:
+              type: string
+              enum:
+              - approval_id
+              description: The MCP tool argument / MCP route body field that carries the id.
+            body_field:
+              type: string
+              enum:
+              - approval_id
+              description: The decide request field that carries the id.
     MCPQueryResponse:
       type: object
       properties:
@@ -2670,84 +2619,38 @@ components:
                 enum:
                 - blocked
                 - masked
-  responses:
-    MCPSegmentForbidden:
-      description: "Access denied. Causes on these routes:\n\n- **Tenant mismatch**, or a connector this tenant may not access.\n- **A policy refusal**: `error` is `Request blocked: <reason>`, the\n  reason code first.\n- **A call held for a person's approval** (#4370, Enterprise):\n  `error` is `Request blocked: approval_pending: ...` and\n  `pending_approval` names the approval the retry spends (see the\n  `X-Axonflow-Approval-Id` parameter). Nothing ran.\n\n`segment_resolution_failed` is no longer a cause (it was one from\n#3447). No segment gate stands on these routes any more: the anchored\nengine reads no segments, as on decide.\n"
-      content:
-        application/json:
-          schema:
-            allOf:
-            - $ref: '#/components/schemas/ErrorResponse'
-            - type: object
-              properties:
-                pending_approval:
-                  $ref: '#/components/schemas/PendingApproval'
-          example:
-            success: false
-            error: Tenant mismatch
-    InternalError:
-      description: Internal server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: Internal server error
-    Unauthorized:
-      description: 'Missing or invalid authentication. Handler-written 401s use the
-
-        `{success, error}` envelope; 401s written by the auth middleware
-
-        use the `{"error": {"code", "message"}}` envelope (JSONError).
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
-    BadRequest:
-      description: Invalid request body or parameters
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: Invalid request body
-    MCPPerUserTokenUnauthorized:
-      description: "Missing or invalid authentication on an MCP REST route. FOUR distinct\ncauses; the status code is the same for all four, and the audit row is\nwhat distinguishes the last two.\n\n1. **Credentials.** No usable Basic auth / license credential.\n2. **A tenant the credential may not act for.**\n3. **`user_token_rejected`** -- a `user_token` WAS supplied in the\n   request body and failed to validate: malformed, expired, signed\n   with the wrong algorithm, carrying a bad signature, or revoked by\n   `jti`. **This is new behaviour on these four routes.** Previously\n   ANY user-token failure in enterprise mode was answered by\n   synthesizing a service identity and serving the request, so\n   revocation and expiry had no effect here; a presented token that\n   fails to validate is now a refused access attempt, audited and\n   returned as `401`. This is not opt-in and no flag restores the old\n   behaviour.\n4. **`user_token_required`** (#3476) -- NO `user_token` was supplied\n   and the caller's organisation requires one. **Off by default**;\n   this cause cannot occur unless an operator has set\n   `organizations.require_user_token` for that organisation, or the\n   deployment-wide `AXONFLOW_REQUIRE_USER_TOKEN` default. With the\n   posture off, a token-less enterprise caller is still served under a\n   synthetic service identity, which is the correct answer for an\n   infrastructure gateway that has no end-user token to forward.\n\nCauses 3 and 4 are recorded as reserved identifiers in the audit row's\npolicy ids and MUST NOT be collapsed: they have opposite operator\nremedies (repair the caller's token, versus provision one at all).\nQuery them with JSONB containment against\n`policy_details->'policy_ids'`, never with `LIKE` -- `_` is a\nsingle-character wildcard, so a `%user_token_required%` pattern also\nmatches unrelated prose in the same row.\n\nThese routes read the per-user token from the `user_token` field of\nthe request body. They do not read the `X-User-Token` header; that\nheader belongs to the MCP-server JSON-RPC envelope.\n\nHandler-written 401s use the `{success, error}` envelope; 401s written\nby the auth middleware use the `{\"error\": {\"code\", \"message\"}}`\nenvelope (JSONError).\n"
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: 'Invalid user token: token has expired'
+    ExfiltrationCheckInfo:
+      type: object
+      description: Information about exfiltration limit checks (v3.2.0+)
+      properties:
+        rows_returned:
+          type: integer
+          description: Number of rows in the response
+        row_limit:
+          type: integer
+          description: Configured row limit (MCP_MAX_ROWS_PER_QUERY)
+        bytes_returned:
+          type: integer
+          description: Response size in bytes
+        byte_limit:
+          type: integer
+          description: Configured byte limit (MCP_MAX_BYTES_PER_QUERY)
+        within_limits:
+          type: boolean
+          description: True when the response stayed within every configured limit
+    ConnectorHealthResponse:
+      type: object
+      properties:
+        healthy:
+          type: boolean
+        latency_ms:
+          type: integer
+        last_check:
+          type: string
+          format: date-time
+        error:
+          type: string
   parameters:
-    LicenseKey:
-      name: Authorization
-      in: header
-      required: true
-      description: 'OAuth2-style Basic authentication header.
-
-        Format: `Basic base64(clientId:clientSecret)`
-
-
-        - `clientId`: Your organization identifier (required)
-
-        - `clientSecret`: Authentication credential (optional for community mode)
-
-
-        Not required when `DEPLOYMENT_MODE=community`.
-
-        '
-      schema:
-        type: string
-        example: Basic bXktb3JnOkFYT04tVjIteHh4
     ApprovalId:
       name: X-Axonflow-Approval-Id
       in: header
@@ -2844,6 +2747,28 @@ components:
         maxLength: 256
         pattern: ^[A-Za-z0-9_.:\-/]+$
         example: n8n-exec-abc123-node-Approve
+    AxonflowClient:
+      name: X-Axonflow-Client
+      in: header
+      required: false
+      description: 'Optional client-version telemetry header (`<client>/<version>`,
+
+        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
+
+        deployments with the `client_version_telemetry` capability count
+
+        validated values in the `axonflow_client_version_requests_total`
+
+        metric on the decide and MCP check-output planes. Telemetry only —
+
+        never used for authentication or authorization; invalid values are
+
+        ignored.
+
+        '
+      schema:
+        type: string
+        example: mcp-proxy/0.3.1
     AxonflowPEPHandshake:
       name: X-Axonflow-PEP-Handshake
       in: header
@@ -2946,28 +2871,26 @@ components:
         type: string
         maxLength: 4096
         description: base64url (padding optional) of the PEPHandshake document.
-    AxonflowClient:
-      name: X-Axonflow-Client
+    LicenseKey:
+      name: Authorization
       in: header
-      required: false
-      description: 'Optional client-version telemetry header (`<client>/<version>`,
+      required: true
+      description: 'OAuth2-style Basic authentication header.
 
-        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
+        Format: `Basic base64(clientId:clientSecret)`
 
-        deployments with the `client_version_telemetry` capability count
 
-        validated values in the `axonflow_client_version_requests_total`
+        - `clientId`: Your organization identifier (required)
 
-        metric on the decide and MCP check-output planes. Telemetry only —
+        - `clientSecret`: Authentication credential (optional for community mode)
 
-        never used for authentication or authorization; invalid values are
 
-        ignored.
+        Not required when `DEPLOYMENT_MODE=community`.
 
         '
       schema:
         type: string
-        example: mcp-proxy/0.3.1
+        example: Basic bXktb3JnOkFYT04tVjIteHh4
   securitySchemes:
     BasicAuth:
       type: http
@@ -3039,6 +2962,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

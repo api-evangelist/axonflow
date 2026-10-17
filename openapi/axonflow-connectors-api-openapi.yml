@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Connectors API
+  title: AxonFlow Orchestrator Connectors API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Connectors across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -34,11 +34,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ConnectorInfo'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/connectors/{id}:
     get:
       tags:
@@ -62,11 +57,6 @@ paths:
                 $ref: '#/components/schemas/ConnectorInfo'
         '404':
           description: Connector not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/connectors/{id}/install:
     post:
       tags:
@@ -86,11 +76,6 @@ paths:
           description: Connector installed
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/connectors/{id}/uninstall:
     delete:
       tags:
@@ -110,11 +95,6 @@ paths:
           description: Connector uninstalled
         '404':
           description: Connector not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/connectors/{id}/health:
     get:
       tags:
@@ -143,11 +123,6 @@ paths:
                     type: integer
         '404':
           description: Connector not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
     ErrorResponse:
@@ -232,6 +207,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

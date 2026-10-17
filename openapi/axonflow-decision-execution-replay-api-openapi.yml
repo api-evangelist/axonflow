@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Decision & Execution Replay API
+  title: AxonFlow Orchestrator Decision & Execution Replay API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Decision & Execution Replay across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -86,11 +86,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExecutionListResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/executions/{id}:
     get:
       tags:
@@ -136,11 +131,6 @@ paths:
           description: Execution deleted
         '404':
           description: Execution not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/executions/{id}/steps:
     get:
       tags:
@@ -166,11 +156,6 @@ paths:
                   $ref: '#/components/schemas/ExecutionSnapshot'
         '404':
           description: Execution not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/executions/{id}/steps/{stepIndex}:
     get:
       tags:
@@ -200,11 +185,6 @@ paths:
                 $ref: '#/components/schemas/ExecutionSnapshot'
         '404':
           description: Step not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/executions/{id}/timeline:
     get:
       tags:
@@ -230,11 +210,6 @@ paths:
                   $ref: '#/components/schemas/TimelineEntry'
         '404':
           description: Execution not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/executions/{id}/export:
     get:
       tags:
@@ -284,13 +259,58 @@ paths:
                 $ref: '#/components/schemas/ExecutionExport'
         '404':
           description: Execution not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    Execution:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/ExecutionSummary'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionSnapshot'
     PolicyEvent:
       type: object
       properties:
@@ -308,25 +328,6 @@ components:
           type: string
         resolution:
           type: string
-    Execution:
-      type: object
-      properties:
-        summary:
-          $ref: '#/components/schemas/ExecutionSummary'
-        steps:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExecutionSnapshot'
-    ExecutionExport:
-      type: object
-      properties:
-        exported_at:
-          type: string
-          format: date-time
-        format:
-          type: string
-        execution:
-          $ref: '#/components/schemas/Execution'
     ExecutionSnapshot:
       type: object
       properties:
@@ -403,21 +404,6 @@ components:
             `approval_required` is false or the gate was auto-resolved.
 
             '
-    ExecutionListResponse:
-      type: object
-      properties:
-        executions:
-          type:
-          - array
-          - 'null'
-          items:
-            $ref: '#/components/schemas/ExecutionSummary'
-        total:
-          type: integer
-        limit:
-          type: integer
-        offset:
-          type: integer
     ExecutionSummary:
       type: object
       properties:
@@ -475,47 +461,16 @@ components:
             output. Same redaction posture as `input_summary`.
 
             '
-    ErrorResponse:
+    ExecutionExport:
       type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
-
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
-
-        writer (240 call sites), so it is the shape of every error from the
-
-        core request, audit, plan, workflow, execution and connector surfaces.
-
-
-        It is one of THREE error SHAPES this document describes. See
-
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
       properties:
-        success:
-          type: boolean
-          example: false
-        error:
+        exported_at:
           type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
-      required:
-      - success
-      - error
+          format: date-time
+        format:
+          type: string
+        execution:
+          $ref: '#/components/schemas/Execution'
     TimelineEntry:
       type: object
       properties:
@@ -543,6 +498,21 @@ components:
           type: boolean
         has_approval:
           type: boolean
+    ExecutionListResponse:
+      type: object
+      properties:
+        executions:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/ExecutionSummary'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
   securitySchemes:
     basicAuth:
       type: http
@@ -553,6 +523,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Multi-Agent Planning API
+  title: AxonFlow Orchestrator Multi-Agent Planning API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Multi-Agent Planning across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -210,11 +210,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plan/execute:
     post:
       tags:
@@ -410,11 +405,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plan/{id}:
     get:
       tags:
@@ -617,11 +607,6 @@ paths:
                 error: 'Version conflict: expected version 1, current version is 2'
         '413':
           $ref: '#/components/responses/StepRequestTooLargeFlat'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plan/{id}/cancel:
     post:
       tags:
@@ -677,11 +662,6 @@ paths:
               example:
                 success: false
                 error: Plan is already completed and cannot be cancelled
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plan/{id}/versions:
     get:
       tags:
@@ -724,11 +704,6 @@ paths:
                   change_summary: Changed execution_mode to parallel
         '404':
           description: Plan not found
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plan/{id}/resume:
     post:
       tags:
@@ -958,11 +933,6 @@ paths:
               example:
                 success: false
                 error: 'Failed to approve step: approval_state_unreadable: the approval''s expiry could not be read, so the step is not approved (fail-closed)'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plan/{id}/rollback/{version}:
     post:
       tags:
@@ -1040,11 +1010,6 @@ paths:
               example:
                 success: false
                 error: 'Version conflict: plan was modified during rollback'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plans/{planId}/steps/{stepId}/approve:
     post:
       tags:
@@ -1169,11 +1134,6 @@ paths:
             plan has ended or more than one is running.
 
             '
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/plans/{planId}/steps/{stepId}/reject:
     post:
       tags:
@@ -1245,56 +1205,8 @@ paths:
             one is running. The same selection as the approve route.
 
             '
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
-    PolicyMatch:
-      type: object
-      description: Details of a policy match during evaluation (Issue
-      properties:
-        policy_id:
-          type: string
-          description: Unique identifier for the policy
-        policy_name:
-          type: string
-          description: Human-readable name of the policy
-        action:
-          type: string
-          description: Action taken by this policy
-          enum:
-          - allow
-          - block
-          - require_approval
-          - redact
-        reason:
-          type: string
-          description: Reason for the policy match
-    CancelPlanResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        plan_id:
-          type: string
-        status:
-          type: string
-          enum:
-          - cancelled
-        message:
-          type: string
-          description: 'Human-readable summary of the cancel outcome (e.g.
-
-            "Plan cancelled — 3 of 5 steps had already executed and
-
-            were rolled back"). Useful for end-user UI; programmatic
-
-            callers should prefer `status`.
-
-            '
     ErrorResponse:
       type: object
       description: 'The FLAT error envelope: `{success, error}`. This is what
@@ -1336,6 +1248,32 @@ components:
       required:
       - success
       - error
+    UpdatePlanRequest:
+      type: object
+      required:
+      - version
+      properties:
+        version:
+          type: integer
+          description: Expected current version (for optimistic locking)
+          example: 1
+        execution_mode:
+          type: string
+          enum:
+          - auto
+          - parallel
+          - sequential
+          - balanced
+          - confirm
+          - step
+          description: New execution mode
+        domain:
+          type: string
+          description: New domain
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata to set
     PlanStatusResponse:
       type: object
       description: 'Unified execution status for MAP plans. Provides step-level progress tracking,
@@ -1434,186 +1372,57 @@ components:
           type: object
           description: Additional plan metadata
           additionalProperties: true
-    PolicyEvaluationResult:
+    UpdatePlanResponse:
       type: object
-      description: 'The policy verdict carried on every orchestrator response. Its property
-
-        SET is held equal to the Go type''s JSON members by
-
-        `TestThePublishedSchemasMatchTheTypesThePlatformMarshals`, which
-
-        compares the two by reflection, so a field added to one and not the
-
-        other fails CI rather than reaching a spec-generated client (#3724).
-
-        The properties are also written in the Go type''s declaration order as a
-
-        courtesy to a reader diffing the two; nothing enforces that, and order
-
-        is not part of the contract.
-
-        '
       properties:
-        allowed:
+        success:
           type: boolean
-        applied_policies:
-          type: array
-          items:
-            type: string
-        risk_score:
-          type: number
-          minimum: 0
-          maximum: 1
-        severity:
+        plan_id:
           type: string
-          enum:
-          - critical
-          - high
-          - medium
-          - low
-          description: Highest severity among the matched policies.
-        severity_policy_id:
-          type: string
-          description: The policy that contributed `severity`.
-        required_actions:
-          type: array
-          items:
-            type: string
-        processing_time_ms:
+        version:
           type: integer
-        database_accessed:
-          type: boolean
-        evaluation_error:
-          type: boolean
-          description: 'Distinguishes **could not govern** from **a policy said block**,
-
-            and is the only signal that does. True when the engine could NOT
-
-            complete evaluation because governance-segment resolution failed
-
-            (a resolver or storage error -- never "the caller belongs to zero
-
-            segments"). `allowed` is always false when this is set, because the
-
-            engine fails CLOSED on that error, so a consumer reading only
-
-            `allowed` still behaves safely; a consumer that audits or alerts
-
-            MUST read this field to tell an availability failure apart from a
-
-            genuine policy match. Before it existed the only signal was the
-
-            magic string `applied_policies: ["segment_resolution_failed"]`.
-
-            '
-        segments_resolved:
-          type: boolean
-          description: 'True only when a resolved, non-empty governance-segment set was
-
-            actually factored into this verdict. False covers every legitimate
-
-            organisation-only case -- no identity supplied, no resolver wired
-
-            (community, or no SCIM), or the caller belongs to zero segments --
-
-            as well as the `evaluation_error` case. None of those are failures:
-
-            the flag exists so a reader of a policy-simulation preview does not
-
-            mistake a legitimate org-only allow for a segment-aware one.
-
-            '
-        applied_policies_detail:
-          type: array
-          description: 'Structured mirror of `applied_policies` carrying each matched
-
-            policy''s risk level and allow_override metadata, without a second
-
-            query. No session override is applied to a result in v11 (#4252).
-
-            '
-          items:
-            $ref: '#/components/schemas/AppliedPolicyDetail'
-        preferred_provider:
+          description: New version number after update
+        status:
           type: string
-          description: 'LLM provider a matched routing policy prefers. When more than one
-
-            applying route row names one, the LAST applying row in evaluation
-
-            order wins it and the routing reason: rows are walked by priority,
-
-            highest first, then newest first, so the winner is the
-
-            lowest-priority applying row (#4249).
-
-            '
-        allowed_providers:
-          type: array
-          items:
-            type: string
-          description: 'Strict provider allow-list for compliance routing. Failover stays
-
-            within this list. It is the intersection of every applying route
-
-            row''s list, whatever their order; an empty intersection refuses the
-
-            request (`no_compliant_provider`).
-
-            '
-        routing_reason:
-          type: string
-          description: Why routing was changed.
-    PlanRequest:
+    PolicyMatch:
       type: object
-      required:
-      - query
-      - user
+      description: Details of a policy match during evaluation (Issue
       properties:
-        query:
+        policy_id:
           type: string
-          description: Natural language task description
-        domain:
+          description: Unique identifier for the policy
+        policy_name:
+          type: string
+          description: Human-readable name of the policy
+        action:
+          type: string
+          description: Action taken by this policy
+          enum:
+          - allow
+          - block
+          - require_approval
+          - redact
+        reason:
+          type: string
+          description: Reason for the policy match
+    PlanVersionEntry:
+      type: object
+      properties:
+        version:
+          type: integer
+        changed_at:
+          type: string
+          format: date-time
+        changed_by:
+          type: string
+        change_type:
           type: string
           enum:
-          - travel
-          - healthcare
-          - finance
-          - generic
-          default: generic
-          description: Task domain for specialized handling
-        execution_mode:
+          - created
+          - updated
+          - rollback
+        change_summary:
           type: string
-          enum:
-          - auto
-          - parallel
-          - sequential
-          - balanced
-          - confirm
-          - step
-          default: auto
-          description: 'How to execute sub-tasks.
-
-            - `auto`: Automatically determines parallel/sequential (recommended)
-
-            - `parallel`: Force parallel execution of all independent steps
-
-            - `sequential`: Force sequential step-by-step execution
-
-            - `balanced`: I/O-bound connector steps parallel, LLM steps sequential
-
-            - `confirm`: Every step requires explicit approval before execution (Enterprise only)
-
-            - `step`: First step auto-executes, subsequent steps require approval (Enterprise only)
-
-            '
-        user:
-          $ref: '#/components/schemas/UserContext'
-        client:
-          type: object
-          additionalProperties: true
-        context:
-          type: object
-          additionalProperties: true
     MultiAgentStepRefusal:
       description: 'A multi-agent step refused before it ran (#4382), on
 
@@ -1652,417 +1461,6 @@ components:
         - code
         - policy
         - reason
-    AppliedPolicyDetail:
-      type: object
-      description: 'One structured per-policy match inside `PolicyEvaluationResult`.
-
-        '
-      properties:
-        policy_id:
-          type: string
-        policy_name:
-          type: string
-        description:
-          type: string
-        action:
-          type: string
-        risk_level:
-          type: string
-          enum:
-          - low
-          - medium
-          - high
-          - critical
-        allow_override:
-          type: boolean
-          description: False if and only if the policy forbids a session override.
-        matched_rule:
-          type: string
-        segment_id:
-          type: string
-          description: 'The governance segment this policy is scoped to, or absent when it
-
-            is not segment-scoped. ATTRIBUTION AND AUDIT ONLY -- it is not an
-
-            override-eligibility signal anywhere: a segment-scoped policy uses
-
-            the same `allow_override` contract as a tenant policy.
-
-            '
-    UpdatePlanResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        plan_id:
-          type: string
-        version:
-          type: integer
-          description: New version number after update
-        status:
-          type: string
-    StepStatus:
-      type: object
-      description: Status of an individual execution step
-      required:
-      - step_id
-      - step_index
-      - step_name
-      - status
-      properties:
-        step_id:
-          type: string
-          description: Unique step identifier
-          example: step_0_analyze
-        step_index:
-          type: integer
-          description: Position in the execution sequence (0-based)
-          example: 0
-        step_name:
-          type: string
-          description: Human-readable step name
-          example: analyze
-        step_type:
-          type: string
-          enum:
-          - llm_call
-          - tool_call
-          - connector_call
-          - human_task
-          - synthesis
-          - action
-          - gate
-          description: Type of step operation
-          example: llm_call
-        status:
-          type: string
-          enum:
-          - pending
-          - running
-          - completed
-          - failed
-          - skipped
-          - blocked
-          - approval
-          description: Current step status
-          example: completed
-        duration:
-          type: string
-          description: Human-readable step duration
-          example: 8s
-        started_at:
-          type: string
-          format: date-time
-          description: When the step started
-        ended_at:
-          type: string
-          format: date-time
-          description: When the step ended
-        model:
-          type: string
-          description: LLM model used (for llm_call steps)
-          example: gpt-4
-        provider:
-          type: string
-          description: LLM provider (for llm_call steps)
-          example: openai
-        cost_usd:
-          type: number
-          format: float
-          description: Cost of this step in USD
-          example: 0.04
-        input_tokens:
-          type: integer
-          description: Number of input tokens (for LLM steps)
-        output_tokens:
-          type: integer
-          description: Number of output tokens (for LLM steps)
-        error:
-          type: string
-          description: Error message if step failed
-    RetryContext:
-      type: object
-      description: 'First-class retry and execution state (Issue #1673 Phase 1). Always
-
-        present on every `StepGateResponse`, including the first gate call.
-
-        Replaces the ambiguous `cached: bool` signal with unambiguous state
-
-        the agent and policy engine can reason about.
-
-        '
-      required:
-      - gate_count
-      - completion_count
-      - prior_completion_status
-      - prior_output_available
-      - prior_output
-      - prior_completion_at
-      - first_attempt_at
-      - last_attempt_at
-      - last_decision
-      - idempotency_key
-      properties:
-        gate_count:
-          type: integer
-          minimum: 1
-          description: 'Number of /gate calls for this (workflow_id, step_id), including
-
-            the current call. First call returns 1.
-
-            '
-          example: 2
-        completion_count:
-          type: integer
-          minimum: 0
-          description: 'Number of /complete calls for this (workflow_id, step_id). Normally
-
-            0 on first gate, 1 after the step completes.
-
-            '
-          example: 1
-        prior_completion_status:
-          type: string
-          enum:
-          - none
-          - completed
-          - gated_not_completed
-          description: '"none" on first gate call. "completed" when a prior /gate + /complete
-
-            both landed. "gated_not_completed" when a prior /gate landed but no
-
-            /complete followed — uncertain territory the agent needs to reconcile
-
-            against the downstream system before re-executing.
-
-            '
-          example: completed
-        prior_output_available:
-          type: boolean
-          description: 'True iff prior_completion_status == "completed". Mirrors whether
-
-            prior_output *could* be returned if include_prior_output=true.
-
-            '
-          example: true
-        prior_output:
-          type:
-          - object
-          - 'null'
-          additionalProperties: true
-          description: 'Always present in the schema. Populated only when the caller set
-
-            ?include_prior_output=true AND prior_output_available is true.
-
-            Otherwise null.
-
-            '
-        prior_completion_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-          description: Timestamp of the prior /complete call, if any.
-        first_attempt_at:
-          type: string
-          format: date-time
-          description: 'Timestamp of the first /gate call for this step. On the first call,
-
-            equals last_attempt_at.
-
-            '
-        last_attempt_at:
-          type: string
-          format: date-time
-          description: Timestamp of this /gate call.
-        last_decision:
-          type: string
-          enum:
-          - allow
-          - block
-          - require_approval
-          description: 'Decision of the immediately prior /gate call. On the first call
-
-            (gate_count == 1), equals the current decision (first-call
-
-            invariant).
-
-            '
-          example: allow
-        idempotency_key:
-          type: string
-          description: 'The caller-supplied business-level key recorded on this step
-
-            (Issue #1673 Phase 2). Always present in the schema — empty
-
-            string `""` if the caller never supplied one.
-
-            '
-          example: payment:wire:invoice-7721
-    ResumePlanResponse:
-      type: object
-      properties:
-        plan_id:
-          type: string
-        status:
-          type: string
-          enum:
-          - awaiting_approval
-          - completed
-          - failed
-          description: Status after resuming
-        result:
-          description: Final result if plan completed
-        approved:
-          type: boolean
-          description: 'True when the resume was driven by an approval; false when
-
-            the resume rejected the pending decision. Mirrors the
-
-            decision the caller submitted on /resume.
-
-            '
-        message:
-          type: string
-          description: 'Human-readable summary of the resume outcome (e.g.
-
-            "Step 3 approved; plan continuing to step 4").
-
-            '
-        next_step:
-          type: integer
-          description: '1-based index of the next step the orchestrator will run
-
-            after the resume completes. Absent when the plan is
-
-            already terminal.
-
-            '
-        next_step_name:
-          type: string
-          description: 'Name of the step at `next_step` (mirrors PlanStep.name).
-
-            Useful for callers rendering "Continuing to: …" UI.
-
-            '
-        step_result:
-          description: 'Result of the step that was waiting on this approval.
-
-            Shape depends on the step type; treat as opaque on the
-
-            client unless the step type is known.
-
-            '
-        total_steps:
-          type: integer
-          description: 'Total number of steps in the plan, so callers can render
-
-            "Step N of M" without a separate plan-status lookup.
-
-            '
-        ignored_foreign_gate_rows:
-          type: integer
-          description: 'Gate rows on the plan''s workflow whose step id is not one of
-
-            the plan''s own step gates (written by another caller of the
-
-            workflow''s gate route). The resume neither approves, rejects
-
-            nor waits on them. Present on an approving resume that read
-
-            the workflow''s gate rows.
-
-            '
-        workflow_id:
-          type: string
-          description: 'WCP workflow id this plan is bound to. Surfaced here so
-
-            callers don''t need a separate /plans/{id} round-trip after
-
-            resume to learn the workflow id.
-
-            '
-    RollbackPlanResponse:
-      type: object
-      description: Response after rolling back a plan to a previous version
-      required:
-      - plan_id
-      - version
-      - previous_version
-      - status
-      properties:
-        plan_id:
-          type: string
-          description: Plan identifier
-          example: plan_1705312200_abc123
-        version:
-          type: integer
-          description: New version number after rollback
-          example: 4
-        previous_version:
-          type: integer
-          description: The version that was restored
-          example: 2
-        status:
-          type: string
-          description: Plan status after rollback
-          enum:
-          - pending
-          - executing
-          example: pending
-    PlanVersionEntry:
-      type: object
-      properties:
-        version:
-          type: integer
-        changed_at:
-          type: string
-          format: date-time
-        changed_by:
-          type: string
-        change_type:
-          type: string
-          enum:
-          - created
-          - updated
-          - rollback
-        change_summary:
-          type: string
-    PlanVersionsResponse:
-      type: object
-      properties:
-        plan_id:
-          type: string
-        versions:
-          type: array
-          items:
-            $ref: '#/components/schemas/PlanVersionEntry'
-    UpdatePlanRequest:
-      type: object
-      required:
-      - version
-      properties:
-        version:
-          type: integer
-          description: Expected current version (for optimistic locking)
-          example: 1
-        execution_mode:
-          type: string
-          enum:
-          - auto
-          - parallel
-          - sequential
-          - balanced
-          - confirm
-          - step
-          description: New execution mode
-        domain:
-          type: string
-          description: New domain
-        metadata:
-          type: object
-          additionalProperties: true
-          description: Additional metadata to set
     ApprovalResponse:
       type: object
       description: 'Rich response returned by the WCP `/approve` and `/reject` endpoints
@@ -2218,6 +1616,156 @@ components:
           type: string
           description: Human-readable status summary
           example: Step approved
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        role:
+          type: string
+        region:
+          type: string
+          description: User's region, read by geo-based routing policies.
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
+    PolicyEvaluationResult:
+      type: object
+      description: 'The policy verdict carried on every orchestrator response. Its property
+
+        SET is held equal to the Go type''s JSON members by
+
+        `TestThePublishedSchemasMatchTheTypesThePlatformMarshals`, which
+
+        compares the two by reflection, so a field added to one and not the
+
+        other fails CI rather than reaching a spec-generated client (#3724).
+
+        The properties are also written in the Go type''s declaration order as a
+
+        courtesy to a reader diffing the two; nothing enforces that, and order
+
+        is not part of the contract.
+
+        '
+      properties:
+        allowed:
+          type: boolean
+        applied_policies:
+          type: array
+          items:
+            type: string
+        risk_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        severity:
+          type: string
+          enum:
+          - critical
+          - high
+          - medium
+          - low
+          description: Highest severity among the matched policies.
+        severity_policy_id:
+          type: string
+          description: The policy that contributed `severity`.
+        required_actions:
+          type: array
+          items:
+            type: string
+        processing_time_ms:
+          type: integer
+        database_accessed:
+          type: boolean
+        evaluation_error:
+          type: boolean
+          description: 'Distinguishes **could not govern** from **a policy said block**,
+
+            and is the only signal that does. True when the engine could NOT
+
+            complete evaluation because governance-segment resolution failed
+
+            (a resolver or storage error -- never "the caller belongs to zero
+
+            segments"). `allowed` is always false when this is set, because the
+
+            engine fails CLOSED on that error, so a consumer reading only
+
+            `allowed` still behaves safely; a consumer that audits or alerts
+
+            MUST read this field to tell an availability failure apart from a
+
+            genuine policy match. Before it existed the only signal was the
+
+            magic string `applied_policies: ["segment_resolution_failed"]`.
+
+            '
+        segments_resolved:
+          type: boolean
+          description: 'True only when a resolved, non-empty governance-segment set was
+
+            actually factored into this verdict. False covers every legitimate
+
+            organisation-only case -- no identity supplied, no resolver wired
+
+            (community, or no SCIM), or the caller belongs to zero segments --
+
+            as well as the `evaluation_error` case. None of those are failures:
+
+            the flag exists so a reader of a policy-simulation preview does not
+
+            mistake a legitimate org-only allow for a segment-aware one.
+
+            '
+        applied_policies_detail:
+          type: array
+          description: 'Structured mirror of `applied_policies` carrying each matched
+
+            policy''s risk level and allow_override metadata, without a second
+
+            query. No session override is applied to a result in v11 (#4252).
+
+            '
+          items:
+            $ref: '#/components/schemas/AppliedPolicyDetail'
+        preferred_provider:
+          type: string
+          description: 'LLM provider a matched routing policy prefers. When more than one
+
+            applying route row names one, the LAST applying row in evaluation
+
+            order wins it and the routing reason: rows are walked by priority,
+
+            highest first, then newest first, so the winner is the
+
+            lowest-priority applying row (#4249).
+
+            '
+        allowed_providers:
+          type: array
+          items:
+            type: string
+          description: 'Strict provider allow-list for compliance routing. Failover stays
+
+            within this list. It is the intersection of every applying route
+
+            row''s list, whatever their order; an empty intersection refuses the
+
+            request (`no_compliant_provider`).
+
+            '
+        routing_reason:
+          type: string
+          description: Why routing was changed.
     PlanResponse:
       type: object
       properties:
@@ -2347,27 +1895,434 @@ components:
             plan body.
 
             '
-    UserContext:
+    RetryContext:
+      type: object
+      description: 'First-class retry and execution state (Issue #1673 Phase 1). Always
+
+        present on every `StepGateResponse`, including the first gate call.
+
+        Replaces the ambiguous `cached: bool` signal with unambiguous state
+
+        the agent and policy engine can reason about.
+
+        '
+      required:
+      - gate_count
+      - completion_count
+      - prior_completion_status
+      - prior_output_available
+      - prior_output
+      - prior_completion_at
+      - first_attempt_at
+      - last_attempt_at
+      - last_decision
+      - idempotency_key
+      properties:
+        gate_count:
+          type: integer
+          minimum: 1
+          description: 'Number of /gate calls for this (workflow_id, step_id), including
+
+            the current call. First call returns 1.
+
+            '
+          example: 2
+        completion_count:
+          type: integer
+          minimum: 0
+          description: 'Number of /complete calls for this (workflow_id, step_id). Normally
+
+            0 on first gate, 1 after the step completes.
+
+            '
+          example: 1
+        prior_completion_status:
+          type: string
+          enum:
+          - none
+          - completed
+          - gated_not_completed
+          description: '"none" on first gate call. "completed" when a prior /gate + /complete
+
+            both landed. "gated_not_completed" when a prior /gate landed but no
+
+            /complete followed — uncertain territory the agent needs to reconcile
+
+            against the downstream system before re-executing.
+
+            '
+          example: completed
+        prior_output_available:
+          type: boolean
+          description: 'True iff prior_completion_status == "completed". Mirrors whether
+
+            prior_output *could* be returned if include_prior_output=true.
+
+            '
+          example: true
+        prior_output:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+          description: 'Always present in the schema. Populated only when the caller set
+
+            ?include_prior_output=true AND prior_output_available is true.
+
+            Otherwise null.
+
+            '
+        prior_completion_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Timestamp of the prior /complete call, if any.
+        first_attempt_at:
+          type: string
+          format: date-time
+          description: 'Timestamp of the first /gate call for this step. On the first call,
+
+            equals last_attempt_at.
+
+            '
+        last_attempt_at:
+          type: string
+          format: date-time
+          description: Timestamp of this /gate call.
+        last_decision:
+          type: string
+          enum:
+          - allow
+          - block
+          - require_approval
+          description: 'Decision of the immediately prior /gate call. On the first call
+
+            (gate_count == 1), equals the current decision (first-call
+
+            invariant).
+
+            '
+          example: allow
+        idempotency_key:
+          type: string
+          description: 'The caller-supplied business-level key recorded on this step
+
+            (Issue #1673 Phase 2). Always present in the schema — empty
+
+            string `""` if the caller never supplied one.
+
+            '
+          example: payment:wire:invoice-7721
+    PlanRequest:
+      type: object
+      required:
+      - query
+      - user
+      properties:
+        query:
+          type: string
+          description: Natural language task description
+        domain:
+          type: string
+          enum:
+          - travel
+          - healthcare
+          - finance
+          - generic
+          default: generic
+          description: Task domain for specialized handling
+        execution_mode:
+          type: string
+          enum:
+          - auto
+          - parallel
+          - sequential
+          - balanced
+          - confirm
+          - step
+          default: auto
+          description: 'How to execute sub-tasks.
+
+            - `auto`: Automatically determines parallel/sequential (recommended)
+
+            - `parallel`: Force parallel execution of all independent steps
+
+            - `sequential`: Force sequential step-by-step execution
+
+            - `balanced`: I/O-bound connector steps parallel, LLM steps sequential
+
+            - `confirm`: Every step requires explicit approval before execution (Enterprise only)
+
+            - `step`: First step auto-executes, subsequent steps require approval (Enterprise only)
+
+            '
+        user:
+          $ref: '#/components/schemas/UserContext'
+        client:
+          type: object
+          additionalProperties: true
+        context:
+          type: object
+          additionalProperties: true
+    AppliedPolicyDetail:
+      type: object
+      description: 'One structured per-policy match inside `PolicyEvaluationResult`.
+
+        '
+      properties:
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        description:
+          type: string
+        action:
+          type: string
+        risk_level:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          - critical
+        allow_override:
+          type: boolean
+          description: False if and only if the policy forbids a session override.
+        matched_rule:
+          type: string
+        segment_id:
+          type: string
+          description: 'The governance segment this policy is scoped to, or absent when it
+
+            is not segment-scoped. ATTRIBUTION AND AUDIT ONLY -- it is not an
+
+            override-eligibility signal anywhere: a segment-scoped policy uses
+
+            the same `allow_override` contract as a tenant policy.
+
+            '
+    StepStatus:
+      type: object
+      description: Status of an individual execution step
+      required:
+      - step_id
+      - step_index
+      - step_name
+      - status
+      properties:
+        step_id:
+          type: string
+          description: Unique step identifier
+          example: step_0_analyze
+        step_index:
+          type: integer
+          description: Position in the execution sequence (0-based)
+          example: 0
+        step_name:
+          type: string
+          description: Human-readable step name
+          example: analyze
+        step_type:
+          type: string
+          enum:
+          - llm_call
+          - tool_call
+          - connector_call
+          - human_task
+          - synthesis
+          - action
+          - gate
+          description: Type of step operation
+          example: llm_call
+        status:
+          type: string
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - skipped
+          - blocked
+          - approval
+          description: Current step status
+          example: completed
+        duration:
+          type: string
+          description: Human-readable step duration
+          example: 8s
+        started_at:
+          type: string
+          format: date-time
+          description: When the step started
+        ended_at:
+          type: string
+          format: date-time
+          description: When the step ended
+        model:
+          type: string
+          description: LLM model used (for llm_call steps)
+          example: gpt-4
+        provider:
+          type: string
+          description: LLM provider (for llm_call steps)
+          example: openai
+        cost_usd:
+          type: number
+          format: float
+          description: Cost of this step in USD
+          example: 0.04
+        input_tokens:
+          type: integer
+          description: Number of input tokens (for LLM steps)
+        output_tokens:
+          type: integer
+          description: Number of output tokens (for LLM steps)
+        error:
+          type: string
+          description: Error message if step failed
+    ResumePlanResponse:
       type: object
       properties:
-        id:
+        plan_id:
+          type: string
+        status:
+          type: string
+          enum:
+          - awaiting_approval
+          - completed
+          - failed
+          description: Status after resuming
+        result:
+          description: Final result if plan completed
+        approved:
+          type: boolean
+          description: 'True when the resume was driven by an approval; false when
+
+            the resume rejected the pending decision. Mirrors the
+
+            decision the caller submitted on /resume.
+
+            '
+        message:
+          type: string
+          description: 'Human-readable summary of the resume outcome (e.g.
+
+            "Step 3 approved; plan continuing to step 4").
+
+            '
+        next_step:
           type: integer
-        email:
+          description: '1-based index of the next step the orchestrator will run
+
+            after the resume completes. Absent when the plan is
+
+            already terminal.
+
+            '
+        next_step_name:
           type: string
-        role:
+          description: 'Name of the step at `next_step` (mirrors PlanStep.name).
+
+            Useful for callers rendering "Continuing to: …" UI.
+
+            '
+        step_result:
+          description: 'Result of the step that was waiting on this approval.
+
+            Shape depends on the step type; treat as opaque on the
+
+            client unless the step type is known.
+
+            '
+        total_steps:
+          type: integer
+          description: 'Total number of steps in the plan, so callers can render
+
+            "Step N of M" without a separate plan-status lookup.
+
+            '
+        ignored_foreign_gate_rows:
+          type: integer
+          description: 'Gate rows on the plan''s workflow whose step id is not one of
+
+            the plan''s own step gates (written by another caller of the
+
+            workflow''s gate route). The resume neither approves, rejects
+
+            nor waits on them. Present on an approving resume that read
+
+            the workflow''s gate rows.
+
+            '
+        workflow_id:
           type: string
-        region:
+          description: 'WCP workflow id this plan is bound to. Surfaced here so
+
+            callers don''t need a separate /plans/{id} round-trip after
+
+            resume to learn the workflow id.
+
+            '
+    CancelPlanResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        plan_id:
           type: string
-          description: User's region, read by geo-based routing policies.
-        permissions:
+        status:
+          type: string
+          enum:
+          - cancelled
+        message:
+          type: string
+          description: 'Human-readable summary of the cancel outcome (e.g.
+
+            "Plan cancelled — 3 of 5 steps had already executed and
+
+            were rolled back"). Useful for end-user UI; programmatic
+
+            callers should prefer `status`.
+
+            '
+    RollbackPlanResponse:
+      type: object
+      description: Response after rolling back a plan to a previous version
+      required:
+      - plan_id
+      - version
+      - previous_version
+      - status
+      properties:
+        plan_id:
+          type: string
+          description: Plan identifier
+          example: plan_1705312200_abc123
+        version:
+          type: integer
+          description: New version number after rollback
+          example: 4
+        previous_version:
+          type: integer
+          description: The version that was restored
+          example: 2
+        status:
+          type: string
+          description: Plan status after rollback
+          enum:
+          - pending
+          - executing
+          example: pending
+    PlanVersionsResponse:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        versions:
           type: array
           items:
-            type: string
-        tenant_id:
-          type: string
-        org_id:
-          type: string
-          description: Organisation for multi-tenant isolation, populated from the X-Org-ID header the agent stamps on the trusted hop.
+            $ref: '#/components/schemas/PlanVersionEntry'
   responses:
     StepRequestTooLargeFlat:
       description: 'The request body is over 1 MiB (1,048,576 bytes), refused whole before
@@ -2394,6 +2349,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Decisions & Overrides API
+  title: AxonFlow Orchestrator Decisions & Overrides API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Decisions & Overrides across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -153,11 +153,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/overrides/{id}:
     get:
       tags:
@@ -266,11 +261,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           $ref: '#/components/responses/PolicyOverrideWriteRetired'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/decisions:
     get:
       tags:
@@ -394,11 +384,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/decisions/{id}/explain:
     get:
       tags:
@@ -487,133 +472,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
-  headers:
-    XAxonflowReadScope:
-      description: "RBAC read-scope diagnostic. Echoes the read scope the orchestrator\nresolved server-side for this caller and applied to the query:\n\n- `tenant` — the caller may read every user's rows within the\n  (header-forced) tenant: a validated `admin`/`owner` role over the\n  internal proxy-auth channel, the customer-portal's tenant-scope\n  assertion, or a single-operator deployment (`DEPLOYMENT_MODE=community`,\n  and `community-saas` for requests proven to have arrived over the\n  agent gateway — there the organization, tenant and credential are one\n  `cs_<uuid>`, so \"tenant-wide\" is that one evaluator's own data).\n- `own-rows` — the caller has a validated per-user identity but no\n  tenant-wide authority, so the read was restricted to rows stamped\n  with their own canonical `user_email`.\n- `none` — fail-closed. The caller presented neither tenant-wide\n  authority nor a per-user identity, so **zero rows** were returned.\n  The orchestrator also logs one diagnostic line on this path.\n\nThe header exists so that a `200` with an empty page — or a `404` on a\nrecord that does exist — is distinguishable from a genuinely empty\ntrail. That ambiguity is what let a whole deployment read zero rows\nwithout anyone noticing.\n\n**Diagnostic only.** The response body is byte-for-byte unchanged by\nits presence or value, and nothing keys authorization off it. It is a\nRESPONSE header the orchestrator writes, never an input: a\nclient-supplied `X-Axonflow-Read-Scope` REQUEST header is stripped by\nthe agent gateway and is never trusted. Scope is derived from the\nvalidated identity carried over the internal agent→orchestrator\nproxy-auth channel.\n\nRead scope is also a separate axis from administrative authority.\n`tenant` here does not imply the caller may run whole-tenant compliance\nexports or the cost/usage/execution family — those stay admin-gated and\nstill return 403.\n\nStamped before the handler writes its status line, so it is present on\nany response produced after the scope is resolved (including the\ndeliberately non-oracle `404`s), and absent on requests rejected before\nthat point (e.g. a missing `X-Tenant-ID`).\n"
-      schema:
-        type: string
-        enum:
-        - tenant
-        - own-rows
-        - none
-        example: tenant
-  responses:
-    PolicyOverrideWriteRetired:
-      description: 'Policy overrides are retired in v11 (PRD v11 §1.5, #4252). The
-
-        workflow step gate no longer reads a session override (the last
-
-        deciding reader, the agent''s tier pass, goes with #4281), so the
-
-        session override writes answer this in every edition and on every
-
-        database role, after the guards that authenticate the request. A
-
-        policy is enabled, disabled or re-actioned in the organization''s
-
-        typed document through `/api/v1/typed-policies`. The body is the
-
-        coded envelope with `code` the string `LEGACY_POLICY_WRITE_FROZEN`.
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/CodedErrorResponse'
-          example:
-            error:
-              code: LEGACY_POLICY_WRITE_FROZEN
-              message: 'Policy overrides are retired in v11: a policy is enabled, disabled or re-actioned in the organization''s typed document (a shipped system control in its system_controls section) through the typed authoring route at /api/v1/typed-policies. Reads on this endpoint are unaffected.'
-  parameters:
-    OrgIDHeader:
-      name: X-Org-ID
-      in: header
-      required: false
-      description: 'Organization identifier. Falls back to authenticated org from
-
-        the Basic auth client when omitted. Surface for callers that
-
-        need to override (e.g. cross-org admin reads in Enterprise).
-
-        '
-      schema:
-        type: string
-      example: travel-us
-    TenantIDHeader:
-      name: X-Tenant-ID
-      in: header
-      required: true
-      description: 'Tenant identifier scoping the request. The AxonFlow Agent gateway
-
-        sets this header after authentication; the orchestrator fails closed
-
-        when it is absent (401 on audit/decision endpoints, 400 on others —
-
-        see each operation). Clients cannot widen their scope through it:
-
-        handlers force the tenant filter from this header, never from the
-
-        request body.
-
-        '
-      schema:
-        type: string
-      example: travel-us
   schemas:
-    DecisionListLimitEnvelope:
-      type: object
-      description: 'Tier-limit envelope returned with 429 when the requested page size
-
-        exceeds the tier cap. Same shape as the plugin rate-limit envelopes.
-
-        '
-      properties:
-        error:
-          type: string
-          example: Free tier shows the last 5 decisions in 24h. Pro raises this to 100 decisions in the last 30 days.
-        limit_type:
-          type: string
-          example: decision_list_size
-        tier:
-          type: string
-          description: Effective tier the request was evaluated under
-        limit:
-          type: integer
-          description: The tier's page cap
-        remaining:
-          type: integer
-          example: 0
-        upgrade:
-          type: object
-          properties:
-            tier:
-              type: string
-              example: Pro
-            wording:
-              type: string
-            compare_url:
-              type: string
-              example: https://getaxonflow.com/pricing/
-            buy_url:
-              type: string
-    OverrideDetail:
-      $ref: '#/components/schemas/OverrideView'
-    OverrideSummary:
-      $ref: '#/components/schemas/OverrideView'
-    DecisionListResponse:
-      type: object
-      properties:
-        decisions:
-          type: array
-          description: Always an array (`[]` when empty)
-          items:
-            $ref: '#/components/schemas/DecisionListItem'
     CreateOverrideRequest:
       type: object
       required:
@@ -814,42 +674,78 @@ components:
       - override_reason
       - created_by
       - created_at
-    CodedErrorResponse:
+    DecisionListItem:
       type: object
-      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+      properties:
+        decision_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        decision:
+          type: string
+          description: Canonical verdict
+          enum:
+          - allowed
+          - blocked
+          - redacted
+          - needs_approval
+          - error
+        policy_id:
+          type: string
+        tool_signature:
+          type: string
+        context:
+          type: object
+          additionalProperties:
+            type: string
+          description: Decision context, truncated to at most 5 keys (sorted)
+        transfer_basis:
+          type: string
+          description: UU PDP Pasal 56 transfer basis; Enterprise cross-border rows only
+        data_residency:
+          type: string
+          description: ISO 3166-1 alpha-2 destination country; Enterprise only
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
 
-        screaming-snake string enum. This is what the per-handler `writeError`
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
 
-        methods emit across the policy API, the LLM provider API, the agents,
+        writer (240 call sites), so it is the shape of every error from the
 
-        template, unified-execution and media-governance APIs, and every
-
-        handler in the RBI module (362 call sites in total).
+        core request, audit, plan, workflow, execution and connector surfaces.
 
 
-        It is one of TWO error SHAPES this document describes. `code` is a
+        It is one of THREE error SHAPES this document describes. See
 
-        STRING on this envelope; it is never an HTTP status integer.
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
 
-        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+        the note on `components.responses` for why there is more than one.
 
-        the five values the LLM-provider handlers emit.
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
 
         '
       properties:
+        success:
+          type: boolean
+          example: false
         error:
-          type: object
-          properties:
-            code:
-              type: string
-              description: Machine-readable error code, screaming snake case.
-              example: NOT_FOUND
-            message:
-              type: string
-          required:
-          - code
-          - message
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
       required:
+      - success
       - error
     DecisionExplanation:
       type: object
@@ -936,79 +832,163 @@ components:
             type: string
         context_truncated:
           type: boolean
-    DecisionListItem:
+    CodedErrorResponse:
       type: object
-      properties:
-        decision_id:
-          type: string
-        timestamp:
-          type: string
-          format: date-time
-        decision:
-          type: string
-          description: Canonical verdict
-          enum:
-          - allowed
-          - blocked
-          - redacted
-          - needs_approval
-          - error
-        policy_id:
-          type: string
-        tool_signature:
-          type: string
-        context:
-          type: object
-          additionalProperties:
-            type: string
-          description: Decision context, truncated to at most 5 keys (sorted)
-        transfer_basis:
-          type: string
-          description: UU PDP Pasal 56 transfer basis; Enterprise cross-border rows only
-        data_residency:
-          type: string
-          description: ISO 3166-1 alpha-2 destination country; Enterprise only
-    ErrorResponse:
-      type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
 
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+        screaming-snake string enum. This is what the per-handler `writeError`
 
-        writer (240 call sites), so it is the shape of every error from the
+        methods emit across the policy API, the LLM provider API, the agents,
 
-        core request, audit, plan, workflow, execution and connector surfaces.
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
 
 
-        It is one of THREE error SHAPES this document describes. See
+        It is one of TWO error SHAPES this document describes. `code` is a
 
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+        STRING on this envelope; it is never an HTTP status integer.
 
-        the note on `components.responses` for why there is more than one.
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
 
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
+        the five values the LLM-provider handlers emit.
 
         '
       properties:
-        success:
-          type: boolean
-          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
+    OverrideSummary:
+      $ref: '#/components/schemas/OverrideView'
+    DecisionListResponse:
+      type: object
+      properties:
+        decisions:
+          type: array
+          description: Always an array (`[]` when empty)
+          items:
+            $ref: '#/components/schemas/DecisionListItem'
+    OverrideDetail:
+      $ref: '#/components/schemas/OverrideView'
+    DecisionListLimitEnvelope:
+      type: object
+      description: 'Tier-limit envelope returned with 429 when the requested page size
+
+        exceeds the tier cap. Same shape as the plugin rate-limit envelopes.
+
+        '
+      properties:
         error:
           type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
-      required:
-      - success
-      - error
+          example: Free tier shows the last 5 decisions in 24h. Pro raises this to 100 decisions in the last 30 days.
+        limit_type:
+          type: string
+          example: decision_list_size
+        tier:
+          type: string
+          description: Effective tier the request was evaluated under
+        limit:
+          type: integer
+          description: The tier's page cap
+        remaining:
+          type: integer
+          example: 0
+        upgrade:
+          type: object
+          properties:
+            tier:
+              type: string
+              example: Pro
+            wording:
+              type: string
+            compare_url:
+              type: string
+              example: https://getaxonflow.com/pricing/
+            buy_url:
+              type: string
+  headers:
+    XAxonflowReadScope:
+      description: "RBAC read-scope diagnostic. Echoes the read scope the orchestrator\nresolved server-side for this caller and applied to the query:\n\n- `tenant` — the caller may read every user's rows within the\n  (header-forced) tenant: a validated `admin`/`owner` role over the\n  internal proxy-auth channel, the customer-portal's tenant-scope\n  assertion, or a single-operator deployment (`DEPLOYMENT_MODE=community`,\n  and `community-saas` for requests proven to have arrived over the\n  agent gateway — there the organization, tenant and credential are one\n  `cs_<uuid>`, so \"tenant-wide\" is that one evaluator's own data).\n- `own-rows` — the caller has a validated per-user identity but no\n  tenant-wide authority, so the read was restricted to rows stamped\n  with their own canonical `user_email`.\n- `none` — fail-closed. The caller presented neither tenant-wide\n  authority nor a per-user identity, so **zero rows** were returned.\n  The orchestrator also logs one diagnostic line on this path.\n\nThe header exists so that a `200` with an empty page — or a `404` on a\nrecord that does exist — is distinguishable from a genuinely empty\ntrail. That ambiguity is what let a whole deployment read zero rows\nwithout anyone noticing.\n\n**Diagnostic only.** The response body is byte-for-byte unchanged by\nits presence or value, and nothing keys authorization off it. It is a\nRESPONSE header the orchestrator writes, never an input: a\nclient-supplied `X-Axonflow-Read-Scope` REQUEST header is stripped by\nthe agent gateway and is never trusted. Scope is derived from the\nvalidated identity carried over the internal agent→orchestrator\nproxy-auth channel.\n\nRead scope is also a separate axis from administrative authority.\n`tenant` here does not imply the caller may run whole-tenant compliance\nexports or the cost/usage/execution family — those stay admin-gated and\nstill return 403.\n\nStamped before the handler writes its status line, so it is present on\nany response produced after the scope is resolved (including the\ndeliberately non-oracle `404`s), and absent on requests rejected before\nthat point (e.g. a missing `X-Tenant-ID`).\n"
+      schema:
+        type: string
+        enum:
+        - tenant
+        - own-rows
+        - none
+        example: tenant
+  parameters:
+    OrgIDHeader:
+      name: X-Org-ID
+      in: header
+      required: false
+      description: 'Organization identifier. Falls back to authenticated org from
+
+        the Basic auth client when omitted. Surface for callers that
+
+        need to override (e.g. cross-org admin reads in Enterprise).
+
+        '
+      schema:
+        type: string
+      example: travel-us
+    TenantIDHeader:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: 'Tenant identifier scoping the request. The AxonFlow Agent gateway
+
+        sets this header after authentication; the orchestrator fails closed
+
+        when it is absent (401 on audit/decision endpoints, 400 on others —
+
+        see each operation). Clients cannot widen their scope through it:
+
+        handlers force the tenant filter from this header, never from the
+
+        request body.
+
+        '
+      schema:
+        type: string
+      example: travel-us
+  responses:
+    PolicyOverrideWriteRetired:
+      description: 'Policy overrides are retired in v11 (PRD v11 §1.5, #4252). The
+
+        workflow step gate no longer reads a session override (the last
+
+        deciding reader, the agent''s tier pass, goes with #4281), so the
+
+        session override writes answer this in every edition and on every
+
+        database role, after the guards that authenticate the request. A
+
+        policy is enabled, disabled or re-actioned in the organization''s
+
+        typed document through `/api/v1/typed-policies`. The body is the
+
+        coded envelope with `code` the string `LEGACY_POLICY_WRITE_FROZEN`.
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: LEGACY_POLICY_WRITE_FROZEN
+              message: 'Policy overrides are retired in v11: a policy is enabled, disabled or re-actioned in the organization''s typed document (a shipped system control in its system_controls section) through the typed authoring route at /api/v1/typed-policies. Reads on this endpoint are unaffected.'
   securitySchemes:
     basicAuth:
       type: http
@@ -1019,6 +999,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

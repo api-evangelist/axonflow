@@ -1,6 +1,9 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Registry API
+  title: AxonFlow MAS FEAT Compliance Registry API
+  description: '> **Enterprise only** — the MAS FEAT module is compiled only into Enterprise
+
+    > builds (`//go:build enterprise`).'
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +11,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Registry across 2 of this provider''s published API definitions: axonflow-masfeat-api.yaml, axonflow-masfeat-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (via AxonFlow agent proxy)
@@ -122,13 +124,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/registry/summary:
     get:
       summary: Get Registry Summary
@@ -149,13 +144,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/registry/{id}:
     get:
       summary: Get AI System
@@ -262,15 +250,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
 components:
   schemas:
+    UpdateRegistryRequest:
+      type: object
+      properties:
+        system_name:
+          type: string
+        description:
+          type: string
+        use_case:
+          type: string
+          enum:
+          - credit_scoring
+          - robo_advisory
+          - insurance_underwriting
+          - trading_algorithm
+          - aml_cft
+          - customer_service
+          - fraud_detection
+          - other
+        status:
+          type: string
+          enum:
+          - draft
+          - active
+          - suspended
+          - retired
+          description: 'Target system status. Status transitions (e.g. activation) are
+
+            performed via this field; there is no separate activation endpoint.
+
+            '
+        risk_rating_impact:
+          type: integer
+          minimum: 1
+          maximum: 5
+        risk_rating_complexity:
+          type: integer
+          minimum: 1
+          maximum: 5
+        risk_rating_reliance:
+          type: integer
+          minimum: 1
+          maximum: 5
+        owner_team:
+          type: string
+        owner_email:
+          type: string
+        data_sources:
+          type: array
+          items:
+            type: string
+        model_type:
+          type: string
+        version:
+          type: string
+    RegistrySummary:
+      type: object
+      properties:
+        org_id:
+          type: string
+        total_systems:
+          type: integer
+        active_systems:
+          type: integer
+        high_materiality:
+          type: integer
+        medium_materiality:
+          type: integer
+        low_materiality:
+          type: integer
+        assessments_due:
+          type: integer
+        kill_switches_triggered:
+          type: integer
+    RegistryListResponse:
+      type: object
+      properties:
+        systems:
+          type: array
+          items:
+            $ref: '#/components/schemas/AISystemRegistry'
+        count:
+          type: integer
+          description: Number of systems returned
+    RetireSystemResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: System retired successfully
+        id:
+          type: string
+          description: Registry record ID of the retired system
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
     AISystemRegistry:
       type: object
       properties:
@@ -362,95 +441,6 @@ components:
           type: string
         updated_by:
           type: string
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error message
-    UpdateRegistryRequest:
-      type: object
-      properties:
-        system_name:
-          type: string
-        description:
-          type: string
-        use_case:
-          type: string
-          enum:
-          - credit_scoring
-          - robo_advisory
-          - insurance_underwriting
-          - trading_algorithm
-          - aml_cft
-          - customer_service
-          - fraud_detection
-          - other
-        status:
-          type: string
-          enum:
-          - draft
-          - active
-          - suspended
-          - retired
-          description: 'Target system status. Status transitions (e.g. activation) are
-
-            performed via this field; there is no separate activation endpoint.
-
-            '
-        risk_rating_impact:
-          type: integer
-          minimum: 1
-          maximum: 5
-        risk_rating_complexity:
-          type: integer
-          minimum: 1
-          maximum: 5
-        risk_rating_reliance:
-          type: integer
-          minimum: 1
-          maximum: 5
-        owner_team:
-          type: string
-        owner_email:
-          type: string
-        data_sources:
-          type: array
-          items:
-            type: string
-        model_type:
-          type: string
-        version:
-          type: string
-    RegistryListResponse:
-      type: object
-      properties:
-        systems:
-          type: array
-          items:
-            $ref: '#/components/schemas/AISystemRegistry'
-        count:
-          type: integer
-          description: Number of systems returned
-    RegistrySummary:
-      type: object
-      properties:
-        org_id:
-          type: string
-        total_systems:
-          type: integer
-        active_systems:
-          type: integer
-        high_materiality:
-          type: integer
-        medium_materiality:
-          type: integer
-        low_materiality:
-          type: integer
-        assessments_due:
-          type: integer
-        kill_switches_triggered:
-          type: integer
     CreateRegistryRequest:
       type: object
       required:
@@ -516,15 +506,6 @@ components:
         version:
           type: string
           description: System/model version
-    RetireSystemResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: System retired successfully
-        id:
-          type: string
-          description: Registry record ID of the retired system
   parameters:
     RegistryID:
       name: id
@@ -555,6 +536,3 @@ components:
         `"system"`.
 
         '
-x-refined-from:
-- axonflow-masfeat-api.yaml
-- axonflow-masfeat-openapi.yml

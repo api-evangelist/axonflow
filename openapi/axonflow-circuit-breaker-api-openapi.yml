@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Circuit Breaker API
+  title: AxonFlow Agent Circuit Breaker API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Circuit Breaker across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -90,13 +90,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/circuit-breaker/reset:
     post:
       tags:
@@ -146,13 +139,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/circuit-breaker/check:
     post:
       tags:
@@ -219,13 +205,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/emergency-stop:
     post:
       tags:
@@ -248,13 +227,6 @@ paths:
           description: Emergency stop activated (see the trip endpoint for the body shape)
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/emergency-stop/release:
     post:
       tags:
@@ -277,13 +249,6 @@ paths:
           description: Emergency stop released (see the reset endpoint for the body shape)
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/circuit-breaker/status:
     get:
       tags:
@@ -318,13 +283,6 @@ paths:
                         type: boolean
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/circuit-breaker/history:
     get:
       tags:
@@ -364,13 +322,6 @@ paths:
                         type: integer
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/circuit-breaker/config:
     get:
       tags:
@@ -424,13 +375,6 @@ paths:
           description: Config updated
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/circuit-breaker/notifications:
     get:
       tags:
@@ -486,13 +430,6 @@ paths:
           description: Notification config created
         '400':
           $ref: '#/components/responses/BadRequest'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/circuit-breaker/notifications/{id}:
     put:
       tags:
@@ -534,152 +471,8 @@ paths:
           description: Notification config deleted
         '404':
           description: Notification config not found
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
   schemas:
-    CircuitBreakerConfigUpdate:
-      type: object
-      required:
-      - tenant_id
-      properties:
-        tenant_id:
-          type: string
-        error_threshold:
-          type:
-          - integer
-          - 'null'
-        violation_threshold:
-          type:
-          - integer
-          - 'null'
-        window_seconds:
-          type:
-          - integer
-          - 'null'
-        default_timeout_seconds:
-          type:
-          - integer
-          - 'null'
-        max_timeout_seconds:
-          type:
-          - integer
-          - 'null'
-        enable_auto_recovery:
-          type:
-          - boolean
-          - 'null'
-    CircuitBreakerTripRequest:
-      type: object
-      description: 'Request body for trip / emergency-stop. Org and user identity come
-
-        from the `X-Org-ID` (or `X-Tenant-ID`) and `X-User-ID` headers, not
-
-        the body. Source of truth: `platform/agent/circuitbreaker/handler.go`
-
-        (TripRequest).
-
-        '
-      properties:
-        scope:
-          type: string
-          enum:
-          - global
-          - tenant
-          - client
-          - policy
-          default: global
-          description: Blast radius of the stop
-        scope_id:
-          type: string
-          description: Required for non-global scopes (tenant/client/policy ID)
-        reason:
-          type: string
-          enum:
-          - manual
-          - policy_violation
-          - risk_level
-          - error_rate
-          default: manual
-        comment:
-          type: string
-          description: Free-text audit-trail comment
-        duration_minutes:
-          type: integer
-          description: Auto-expire after N minutes; 0 or omitted = indefinite
-    CircuitBreakerNotificationConfig:
-      type: object
-      properties:
-        id:
-          type: string
-        org_id:
-          type: string
-        tenant_id:
-          type: string
-        type:
-          type: string
-          enum:
-          - webhook
-          - slack
-          - pagerduty
-        url:
-          type: string
-        secret:
-          type: string
-          description: Masked in GET responses
-        active:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    CircuitBreakerResetRequest:
-      type: object
-      description: 'Request body for reset / emergency-stop release. Org and user
-
-        identity come from headers, not the body. Source of truth:
-
-        `platform/agent/circuitbreaker/handler.go` (ResetRequest).
-
-        '
-      properties:
-        scope:
-          type: string
-          enum:
-          - global
-          - tenant
-          - client
-          - policy
-          default: global
-        scope_id:
-          type: string
-        comment:
-          type: string
-          description: Free-text audit-trail comment
-    CircuitBreakerNotificationUpdate:
-      type: object
-      properties:
-        type:
-          type: string
-          enum:
-          - webhook
-          - slack
-          - pagerduty
-        url:
-          type: string
-        secret:
-          type: string
-        tenant_id:
-          type: string
-        active:
-          type: boolean
     CircuitBreakerConfigResponse:
       type: object
       properties:
@@ -713,6 +506,22 @@ components:
         overrides:
           type: object
           description: Tenant-specific override values (present when source is tenant)
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
     CircuitBreaker:
       type: object
       description: 'A circuit record as returned by the status and history endpoints.
@@ -778,22 +587,46 @@ components:
         updated_at:
           type: string
           format: date-time
-    ErrorResponse:
+    CircuitBreakerResetRequest:
       type: object
-      description: 'Handler-written error envelope. Note the agent has a second error
+      description: 'Request body for reset / emergency-stop release. Org and user
 
-        envelope for middleware-written errors (see JSONError) — clients
+        identity come from headers, not the body. Source of truth:
 
-        should tolerate both shapes on 4xx/5xx.
+        `platform/agent/circuitbreaker/handler.go` (ResetRequest).
 
         '
       properties:
-        success:
-          type: boolean
-          example: false
-        error:
+        scope:
           type: string
-          description: Error message
+          enum:
+          - global
+          - tenant
+          - client
+          - policy
+          default: global
+        scope_id:
+          type: string
+        comment:
+          type: string
+          description: Free-text audit-trail comment
+    CircuitBreakerNotificationUpdate:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - webhook
+          - slack
+          - pagerduty
+        url:
+          type: string
+        secret:
+          type: string
+        tenant_id:
+          type: string
+        active:
+          type: boolean
     CircuitBreakerNotificationCreate:
       type: object
       required:
@@ -818,6 +651,103 @@ components:
         active:
           type: boolean
           default: true
+    CircuitBreakerConfigUpdate:
+      type: object
+      required:
+      - tenant_id
+      properties:
+        tenant_id:
+          type: string
+        error_threshold:
+          type:
+          - integer
+          - 'null'
+        violation_threshold:
+          type:
+          - integer
+          - 'null'
+        window_seconds:
+          type:
+          - integer
+          - 'null'
+        default_timeout_seconds:
+          type:
+          - integer
+          - 'null'
+        max_timeout_seconds:
+          type:
+          - integer
+          - 'null'
+        enable_auto_recovery:
+          type:
+          - boolean
+          - 'null'
+    CircuitBreakerNotificationConfig:
+      type: object
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        tenant_id:
+          type: string
+        type:
+          type: string
+          enum:
+          - webhook
+          - slack
+          - pagerduty
+        url:
+          type: string
+        secret:
+          type: string
+          description: Masked in GET responses
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CircuitBreakerTripRequest:
+      type: object
+      description: 'Request body for trip / emergency-stop. Org and user identity come
+
+        from the `X-Org-ID` (or `X-Tenant-ID`) and `X-User-ID` headers, not
+
+        the body. Source of truth: `platform/agent/circuitbreaker/handler.go`
+
+        (TripRequest).
+
+        '
+      properties:
+        scope:
+          type: string
+          enum:
+          - global
+          - tenant
+          - client
+          - policy
+          default: global
+          description: Blast radius of the stop
+        scope_id:
+          type: string
+          description: Required for non-global scopes (tenant/client/policy ID)
+        reason:
+          type: string
+          enum:
+          - manual
+          - policy_violation
+          - risk_level
+          - error_rate
+          default: manual
+        comment:
+          type: string
+          description: Free-text audit-trail comment
+        duration_minutes:
+          type: integer
+          description: Auto-expire after N minutes; 0 or omitted = indefinite
   responses:
     BadRequest:
       description: Invalid request body or parameters
@@ -920,6 +850,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

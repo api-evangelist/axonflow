@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow OJK Compliance API
+  title: AxonFlow Orchestrator OJK Compliance API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged OJK Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -214,11 +214,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/ojk/audit/export/{id}:
     get:
       tags:
@@ -305,11 +300,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/ojk/audit/retention:
     get:
       tags:
@@ -391,11 +381,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/ojk/audit/readiness:
     get:
       tags:
@@ -491,11 +476,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/ojk/breach/notify:
     post:
       tags:
@@ -593,11 +573,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/ojk/breach/acknowledge:
     post:
       tags:
@@ -688,11 +663,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/ojk/breach/evaluate-deadlines:
     post:
       tags:
@@ -763,11 +733,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/ojk/dashboard:
     get:
       tags:
@@ -842,11 +807,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OJKAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
     OJKAuditExportRequest:
@@ -925,6 +885,147 @@ components:
         include_pii:
           type: boolean
           default: false
+    OJKAPIError:
+      type: object
+      description: OJK module error envelope
+      properties:
+        code:
+          type: string
+          description: 'Machine-readable error code (e.g. missing_tenant,
+
+            invalid_request, validation_error, missing_export_id, not_found,
+
+            invalid_transition, internal_error, method_not_allowed)
+
+            '
+        message:
+          type: string
+        details:
+          type: string
+          description: Omitted when empty
+    OJKComplianceReadinessResponse:
+      type: object
+      properties:
+        ready:
+          type: boolean
+          description: True at score 80+
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        framework:
+          type: string
+          example: OJK_BI_COMBINED
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              status:
+                type: string
+                enum:
+                - pass
+                - fail
+                - warning
+                - unknown
+                description: '`unknown` was MISSING and is emitted routinely (#3435 R8),
+
+                  the same defect corrected on SEBIComplianceCheck.status in
+
+                  the same PR. `OJKCheckUnknown = "unknown"` (ojk/types.go) is
+
+                  assigned by every check in ojk/readiness.go that could not
+
+                  MEASURE the control it names, and four of the five checks
+
+                  read the database, so an unreachable database puts four of
+
+                  them here. The exception is the first, Data Retention, which
+
+                  reads configuration rather than a table and is therefore only
+
+                  ever `pass` or `fail`.
+
+                  '
+              details:
+                type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+    OJKBreachNotification:
+      type: object
+      description: 'UU PDP Art. 46 breach notification. On submission the server assigns
+
+        id / created_at / submitted_at and computes notification_deadline
+
+        (discovery_time + 72h) — client-supplied values for those fields
+
+        are ignored. notified_authority defaults to MOCDA only when the
+
+        client omits it; a supplied value is honored.
+
+        '
+      required:
+      - incident_timestamp
+      - discovery_time
+      - data_subjects_affected
+      - data_types_involved
+      - description
+      - remediation_steps
+      properties:
+        id:
+          type: string
+          description: Server-assigned
+        incident_timestamp:
+          type: string
+          format: date-time
+        discovery_time:
+          type: string
+          format: date-time
+        notification_deadline:
+          type: string
+          format: date-time
+          description: Server-computed (discovery_time + 72h)
+        data_subjects_affected:
+          type: integer
+          minimum: 1
+        data_types_involved:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        description:
+          type: string
+        remediation_steps:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        notified_authority:
+          type: string
+          description: Defaults to MOCDA
+        status:
+          type: string
+          enum:
+          - draft
+          - submitted
+          - acknowledged
+          - overdue
+          - failed
+        submitted_at:
+          type: string
+          format: date-time
+        acknowledged_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
     OJKAuditExportResponse:
       type: object
       properties:
@@ -1256,24 +1357,6 @@ components:
           type: string
           format: date-time
           description: Never set by the current implementation (omitted)
-    OJKAPIError:
-      type: object
-      description: OJK module error envelope
-      properties:
-        code:
-          type: string
-          description: 'Machine-readable error code (e.g. missing_tenant,
-
-            invalid_request, validation_error, missing_export_id, not_found,
-
-            invalid_transition, internal_error, method_not_allowed)
-
-            '
-        message:
-          type: string
-        details:
-          type: string
-          description: Omitted when empty
     OJKDashboardResponse:
       type: object
       properties:
@@ -1299,129 +1382,6 @@ components:
         last_updated:
           type: string
           format: date-time
-    OJKBreachNotification:
-      type: object
-      description: 'UU PDP Art. 46 breach notification. On submission the server assigns
-
-        id / created_at / submitted_at and computes notification_deadline
-
-        (discovery_time + 72h) — client-supplied values for those fields
-
-        are ignored. notified_authority defaults to MOCDA only when the
-
-        client omits it; a supplied value is honored.
-
-        '
-      required:
-      - incident_timestamp
-      - discovery_time
-      - data_subjects_affected
-      - data_types_involved
-      - description
-      - remediation_steps
-      properties:
-        id:
-          type: string
-          description: Server-assigned
-        incident_timestamp:
-          type: string
-          format: date-time
-        discovery_time:
-          type: string
-          format: date-time
-        notification_deadline:
-          type: string
-          format: date-time
-          description: Server-computed (discovery_time + 72h)
-        data_subjects_affected:
-          type: integer
-          minimum: 1
-        data_types_involved:
-          type: array
-          minItems: 1
-          items:
-            type: string
-        description:
-          type: string
-        remediation_steps:
-          type: array
-          minItems: 1
-          items:
-            type: string
-        notified_authority:
-          type: string
-          description: Defaults to MOCDA
-        status:
-          type: string
-          enum:
-          - draft
-          - submitted
-          - acknowledged
-          - overdue
-          - failed
-        submitted_at:
-          type: string
-          format: date-time
-        acknowledged_at:
-          type: string
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
-    OJKComplianceReadinessResponse:
-      type: object
-      properties:
-        ready:
-          type: boolean
-          description: True at score 80+
-        score:
-          type: integer
-          minimum: 0
-          maximum: 100
-        framework:
-          type: string
-          example: OJK_BI_COMBINED
-        checks:
-          type: array
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-              description:
-                type: string
-              status:
-                type: string
-                enum:
-                - pass
-                - fail
-                - warning
-                - unknown
-                description: '`unknown` was MISSING and is emitted routinely (#3435 R8),
-
-                  the same defect corrected on SEBIComplianceCheck.status in
-
-                  the same PR. `OJKCheckUnknown = "unknown"` (ojk/types.go) is
-
-                  assigned by every check in ojk/readiness.go that could not
-
-                  MEASURE the control it names, and four of the five checks
-
-                  read the database, so an unreachable database puts four of
-
-                  them here. The exception is the first, Data Retention, which
-
-                  reads configuration rather than a table and is therefore only
-
-                  ever `pass` or `fail`.
-
-                  '
-              details:
-                type: string
-        recommendations:
-          type: array
-          items:
-            type: string
   securitySchemes:
     basicAuth:
       type: http
@@ -1432,6 +1392,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

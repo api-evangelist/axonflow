@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Unified Executions API
+  title: AxonFlow Orchestrator Unified Executions API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Unified Executions across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -114,11 +114,6 @@ paths:
             '
         '500':
           description: "The listing could not be served. Beyond an ordinary query\nfailure, one arm of this status is a deliberate refusal of the\norg-wide read (#3367), reachable only on the org-wide branch\nthat the trusted-hop `X-Axonflow-Tenancy-Scope` header selects:\n\n- **No BYPASSRLS admin pool.** A portal org-wide list on a\n  deployment running `axonflow_app_role` (the default since\n  v9.0.0) with no admin pool installed would be filtered to zero\n  rows by the tenant-keyed RLS predicate on `execution_history`,\n  and a `200` carrying a well-formed empty list is exactly the\n  confident-empty page this refusal exists to remove. **The\n  remedy is to set `AXONFLOW_DB_PLATFORM_ADMIN_URL`.** In\n  practice this arm is defence in depth rather than a shape a\n  running deployment reaches: the orchestrator carries a fatal\n  boot guard on exactly that combination, so a deployment with\n  the app-role posture enabled and this variable unset refuses\n  to boot rather than serving the route at all. The refusal\n  below the guard exists so that relaxing the guard could never\n  silently restore the confident-empty page.\n\n- **A sentinel org key.** The org-wide branch requires a\n  non-empty stamped `X-Org-ID`, but the handler does not check\n  it against the unowned-org sentinel, so a trusted-hop\n  request stamped with the sentinel value reaches the\n  repository's org-key validation and its refusal surfaces as\n  this 500. A real organisation id never takes this arm.\n\nThe execution repository carries two further org-wide refusals\n(an org key with leading or trailing whitespace, and an\norg-wide read that also carries a tenant narrowing), but\nneither is reachable through this endpoint: the handler trims\nthe org key once and clears the tenant narrowing before\nselecting the org-wide branch, so a padded `X-Org-ID` is\nserved after trimming, not refused. The EMPTY half of the\nrepository's org-key validation is also prevented by\nconstruction, because the org-wide branch requires a non-empty\nkey; the SENTINEL half is not, which is why it appears in the\ncause list above. The unreachable refusals stay in the\nrepository as defense in depth against a future caller that\nskips the handler's normalization; today this endpoint's\nhandler is the repository listing's only caller.\n"
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/unified/executions/{id}:
     get:
       tags:
@@ -163,11 +158,6 @@ paths:
           description: Execution not found (or belongs to another tenant/org)
         '500':
           description: Failed to resolve execution
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/unified/executions/{id}/cancel:
     post:
       tags:
@@ -228,11 +218,6 @@ paths:
           description: Execution is already in a terminal state
         '500':
           description: Cancellation failed
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/unified/executions/{id}/stream:
     get:
       tags:
@@ -278,11 +263,6 @@ paths:
                 type: string
         '429':
           description: Too many concurrent connections (Community edition limit)
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   parameters:
     TenantIDHeader:
@@ -306,6 +286,21 @@ components:
         type: string
       example: travel-us
   schemas:
+    UnifiedExecutionListResponse:
+      type: object
+      properties:
+        executions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnifiedExecutionStatus'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
     UnifiedStepStatus:
       type: object
       properties:
@@ -466,21 +461,6 @@ components:
         updated_at:
           type: string
           format: date-time
-    UnifiedExecutionListResponse:
-      type: object
-      properties:
-        executions:
-          type: array
-          items:
-            $ref: '#/components/schemas/UnifiedExecutionStatus'
-        total:
-          type: integer
-        limit:
-          type: integer
-        offset:
-          type: integer
-        has_more:
-          type: boolean
   securitySchemes:
     basicAuth:
       type: http
@@ -491,6 +471,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

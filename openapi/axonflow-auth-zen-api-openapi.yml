@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Auth ZEN API
+  title: AxonFlow Agent Auth ZEN API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged AuthZEN across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -258,58 +258,64 @@ paths:
               example:
                 code: evaluation_unavailable
                 message: the evaluator did not return a verdict
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
   schemas:
-    AuthZENObligation:
+    AuthZENIdentifier:
       type: object
       required:
+      - kind
       - type
-      - mandatory
-      - source_policy
-      - schema_version
+      - local
       additionalProperties: false
       properties:
-        type:
+        kind:
           type: string
           enum:
-          - approval_challenge
-          - field_remove
-          - field_redact
-          - field_hash
-          - field_mask
-          - field_annotate
-          - field_tokenize
-          - schema_transform
-          - response_filter
-          - route_restriction
-          - step_up_authentication
-          - quota_reservation
-          - immutable_audit
-          - notification
-        target:
+          - organization
+          - principal
+          - group
+          - resource
+          - action
+          - tool
+          - client
+          - session
+        type:
           type: string
-          description: The canonical field path for a disclosure transform; empty otherwise.
-        params:
-          type: object
-          additionalProperties:
-            type: string
-          description: "The type's own parameters. Two obligations of the same type and\ntarget with different params are INCOMPARABLE and deny rather than\nbeing merged, so a PEP never receives a parameter set no policy\nasked for.\n\nThe keys each family composes, and how:\n\n* `approval_challenge` — `quorum` (integer), `eligible`\n  (comma-separated group identifiers), `separation_of_duties`\n  (`true`/`false`; any other spelling is REFUSED rather than read\n  as `false`), and the optional `expiry_seconds`. Where several\n  policies carry an expiry the SHORTEST wins (a conjunction is\n  discharged only while all of it is live, and timeout is always\n  deny), and the carried value sets the window whether it is\n  shorter or longer than the deployment's window (#4249). An\n  approval no policy gives an expiry takes the deployment's window,\n  `AXONFLOW_APPROVAL_TTL_SECONDS` (15 minutes when unset). Only a\n  **mandatory** obligation's expiry is read: an advisory control\n  that could set the window would be deciding when the request\n  stops being able to proceed. Bounded to 60..604800 seconds,\n  refused rather than clamped at either end, for the parameter and\n  the deployment variable alike (an out-of-bounds variable refuses\n  the process's boot). The optional `severity` (`low`, `medium`,\n  `high` or `critical`; any other spelling is REFUSED) is the\n  severity the approval's queue row carries; the highest among the\n  mandatory obligations wins, an advisory one's is ignored, and with\n  none stated the queue derives it from the request's risk score\n  (#4249).\n* `route_restriction` — `allowed_destinations` (comma-separated),\n  intersected across policies; an empty intersection denies. Route\n  properties are namespaced `route.` (`route.tls`, `route.region`,\n  `route.method`); each value is the comma-separated set permitted\n  for that property, and they intersect per key under the same\n  rule. A parameter that is neither is REFUSED: without the\n  namespace an ordinary annotation on two policies intersects to an\n  empty set and denies a request neither said anything about\n  routing for.\n* `step_up_authentication` — `assurance` (`aal1`, `aal2`, `aal3`;\n  the maximum wins) and the optional `methods` (comma-separated,\n  intersected). An ABSENT `methods` means unconstrained, so a\n  policy may require a higher assurance without enumerating how it\n  is reached; a carried-but-empty value is refused. No other key.\n* `immutable_audit` and `notification` — `delivery`\n  (`best_effort`, `at_least_once`, `durable`; the strongest wins)\n  plus the sink's own keys, which form the merge identity: two\n  obligations agreeing on every key but `delivery` are ONE\n  instruction carrying the stronger guarantee.\n* `quota_reservation` — `counter`, `window`, `unit`, a positive\n  `limit`, and `amount_from`. THE QUANTITY IS A REFERENCE, NOT A\n  VALUE: `amount_from` names the request attribute carrying it, and\n  the reservation service resolves it per request, because a budget\n  that reserved a number the policy carried would not be measuring\n  the request at all. All five are required — a reservation that\n  names no counter is not a reservation, and the caller would\n  proceed believing capacity was held. It follows that composition\n  does not sum: there is no per-policy quantity to add, and adding\n  the `limit`s would loosen the caps rather than tighten them. Two\n  policies stating the same constraint deduplicate into one\n  instruction naming both; two stating different caps on one\n  counter are two constraints the reservation must each satisfy, so\n  the tighter binds.\n* disclosure transforms — the transform's own keys (`keep=last4`).\n"
-        mandatory:
+        qualifier:
+          type: string
+        local:
+          type: string
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
+
+        envelope for middleware-written errors (see JSONError) — clients
+
+        should tolerate both shapes on 4xx/5xx.
+
+        '
+      properties:
+        success:
           type: boolean
-          description: A mandatory obligation that cannot be discharged denies.
-        source_policy:
+          example: false
+        error:
           type: string
-          minLength: 1
-        schema_version:
-          type: integer
-          minimum: 1
+          description: Error message
+    AuthZENResponse:
+      type: object
+      description: 'The AuthZEN reply. `decision` is true only for an ALLOW state; the
+
+        collapse is total in both directions.
+
+        '
+      required:
+      - decision
+      additionalProperties: false
+      properties:
+        decision:
+          type: boolean
+        context:
+          $ref: '#/components/schemas/AuthZENResponseContext'
     AuthZENApprovalClause:
       type: object
       required:
@@ -325,6 +331,92 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/AuthZENIdentifier'
+    AuthZENError:
+      type: object
+      description: 'A structured refusal. It is a DIFFERENT shape from a decision and
+
+        carries no `decision` member, because a request that was never
+
+        evaluated must not be indistinguishable from one that was evaluated
+
+        and denied.
+
+        '
+      required:
+      - code
+      - message
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          enum:
+          - malformed_envelope
+          - incomplete_evaluation
+          - unsupported_subject
+          - unsupported_action
+          - unsupported_resource
+          - unevaluable_attribute
+          - missing_evaluable_content
+          - evaluation_unavailable
+          description: 'Only `evaluation_unavailable` is retryable; every other code names
+
+            something about the request that will not change on a retry.
+
+            '
+        pointer:
+          type: string
+          description: 'RFC 6901 JSON Pointer naming the member that could not be
+
+            evaluated. A refusal without it sends the caller to the docs.
+
+            '
+          example: /evaluation/subject/properties
+        message:
+          type: string
+          minLength: 1
+        supported:
+          type: array
+          items:
+            type: string
+          description: What would have been accepted at `pointer`, when the set is closed.
+        request_id:
+          type: string
+    AuthZENEnvelope:
+      type: object
+      description: 'Exactly two members are defined and exactly one may be PRESENT.
+
+        Presence is decided on the key set, so a null beside a populated member
+
+        still counts as present and the envelope is malformed.
+
+        '
+      additionalProperties: false
+      oneOf:
+      - required:
+        - evaluation
+        not:
+          required:
+          - evaluations
+      - required:
+        - evaluations
+        not:
+          required:
+          - evaluation
+      properties:
+        evaluation:
+          allOf:
+          - $ref: '#/components/schemas/AuthZENRequest'
+          - required:
+            - subject
+            - action
+            - resource
+          description: 'The singular member. It has no shared base to inherit from, so it
+
+            must carry its own subject, action and resource.
+
+            '
+        evaluations:
+          $ref: '#/components/schemas/AuthZENBulk'
     AuthZENSubject:
       type: object
       description: 'The AuthZEN subject. `type` and `id` are canonical identifier
@@ -411,6 +503,121 @@ components:
         properties:
           type: object
           description: Caller-supplied resource attributes. Refused when non-empty.
+    AuthZENBulk:
+      type: object
+      description: 'The plural envelope. The decision count is fixed by the mapping, never
+
+        by argument data, so an empty `evaluations` array is malformed rather
+
+        than a request for zero decisions.
+
+        '
+      required:
+      - evaluations
+      additionalProperties: false
+      properties:
+        subject:
+          $ref: '#/components/schemas/AuthZENSubject'
+        action:
+          $ref: '#/components/schemas/AuthZENAction'
+        resource:
+          $ref: '#/components/schemas/AuthZENResource'
+        context:
+          $ref: '#/components/schemas/AuthZENContext'
+        evaluations:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/AuthZENRequest'
+    AuthZENContext:
+      type: object
+      description: 'The evaluation context. Only `args` and `correlation` are understood;
+
+        any other member is refused by name.
+
+        '
+      additionalProperties: false
+      properties:
+        args:
+          type: object
+          additionalProperties: false
+          required:
+          - query
+          description: 'The content to evaluate. Only `query` is read; an argument beside
+
+            it is refused rather than silently ignored.
+
+            '
+          properties:
+            query:
+              type: string
+              minLength: 1
+        correlation:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Audit correlation keys. Values must be strings.
+
+            '
+    AuthZENRequest:
+      type: object
+      description: 'One evaluation. Every member is structurally optional because a plural
+
+        entry inherits what it omits from the shared base; the singular member
+
+        carries its own required set. Completeness of the MERGED entry is
+
+        enforced by the server, not by this schema.
+
+        '
+      additionalProperties: false
+      properties:
+        subject:
+          $ref: '#/components/schemas/AuthZENSubject'
+        action:
+          $ref: '#/components/schemas/AuthZENAction'
+        resource:
+          $ref: '#/components/schemas/AuthZENResource'
+        context:
+          $ref: '#/components/schemas/AuthZENContext'
+    AuthZENAction:
+      type: object
+      required:
+      - name
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          enum:
+          - llm.completion
+          - tool.call
+          - agent.invoke
+          description: The evaluable action set. Anything else is refused.
+        properties:
+          type: object
+          description: Caller-supplied action attributes. Refused when non-empty.
+    AuthZENApprovalRequirement:
+      type: object
+      description: A conjunction of threshold clauses; clauses are never collapsed.
+      required:
+      - all_of
+      - separation_of_duties
+      - expires_at
+      additionalProperties: false
+      properties:
+        all_of:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AuthZENApprovalClause'
+        separation_of_duties:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          description: Timeout is always deny; a non-response never proves approval.
     AuthZENResponseContext:
       type: object
       description: 'The AxonFlow profile payload, returned only to a caller that negotiated
@@ -541,264 +748,72 @@ components:
           type: string
           minLength: 1
           example: '2026-08-29'
-    AuthZENEnvelope:
+    AuthZENObligation:
       type: object
-      description: 'Exactly two members are defined and exactly one may be PRESENT.
-
-        Presence is decided on the key set, so a null beside a populated member
-
-        still counts as present and the envelope is malformed.
-
-        '
-      additionalProperties: false
-      oneOf:
-      - required:
-        - evaluation
-        not:
-          required:
-          - evaluations
-      - required:
-        - evaluations
-        not:
-          required:
-          - evaluation
-      properties:
-        evaluation:
-          allOf:
-          - $ref: '#/components/schemas/AuthZENRequest'
-          - required:
-            - subject
-            - action
-            - resource
-          description: 'The singular member. It has no shared base to inherit from, so it
-
-            must carry its own subject, action and resource.
-
-            '
-        evaluations:
-          $ref: '#/components/schemas/AuthZENBulk'
-    AuthZENBulk:
-      type: object
-      description: 'The plural envelope. The decision count is fixed by the mapping, never
-
-        by argument data, so an empty `evaluations` array is malformed rather
-
-        than a request for zero decisions.
-
-        '
       required:
-      - evaluations
+      - type
+      - mandatory
+      - source_policy
+      - schema_version
       additionalProperties: false
       properties:
-        subject:
-          $ref: '#/components/schemas/AuthZENSubject'
-        action:
-          $ref: '#/components/schemas/AuthZENAction'
-        resource:
-          $ref: '#/components/schemas/AuthZENResource'
-        context:
-          $ref: '#/components/schemas/AuthZENContext'
-        evaluations:
-          type: array
-          minItems: 1
-          maxItems: 64
-          items:
-            $ref: '#/components/schemas/AuthZENRequest'
-    AuthZENContext:
-      type: object
-      description: 'The evaluation context. Only `args` and `correlation` are understood;
-
-        any other member is refused by name.
-
-        '
-      additionalProperties: false
-      properties:
-        args:
-          type: object
-          additionalProperties: false
-          required:
-          - query
-          description: 'The content to evaluate. Only `query` is read; an argument beside
-
-            it is refused rather than silently ignored.
-
-            '
-          properties:
-            query:
-              type: string
-              minLength: 1
-        correlation:
+        type:
+          type: string
+          enum:
+          - approval_challenge
+          - field_remove
+          - field_redact
+          - field_hash
+          - field_mask
+          - field_annotate
+          - field_tokenize
+          - schema_transform
+          - response_filter
+          - route_restriction
+          - step_up_authentication
+          - quota_reservation
+          - immutable_audit
+          - notification
+        target:
+          type: string
+          description: The canonical field path for a disclosure transform; empty otherwise.
+        params:
           type: object
           additionalProperties:
             type: string
-          description: 'Audit correlation keys. Values must be strings.
-
-            '
-    AuthZENRequest:
-      type: object
-      description: 'One evaluation. Every member is structurally optional because a plural
-
-        entry inherits what it omits from the shared base; the singular member
-
-        carries its own required set. Completeness of the MERGED entry is
-
-        enforced by the server, not by this schema.
-
-        '
-      additionalProperties: false
-      properties:
-        subject:
-          $ref: '#/components/schemas/AuthZENSubject'
-        action:
-          $ref: '#/components/schemas/AuthZENAction'
-        resource:
-          $ref: '#/components/schemas/AuthZENResource'
-        context:
-          $ref: '#/components/schemas/AuthZENContext'
-    AuthZENApprovalRequirement:
-      type: object
-      description: A conjunction of threshold clauses; clauses are never collapsed.
-      required:
-      - all_of
-      - separation_of_duties
-      - expires_at
-      additionalProperties: false
-      properties:
-        all_of:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/AuthZENApprovalClause'
-        separation_of_duties:
+          description: "The type's own parameters. Two obligations of the same type and\ntarget with different params are INCOMPARABLE and deny rather than\nbeing merged, so a PEP never receives a parameter set no policy\nasked for.\n\nThe keys each family composes, and how:\n\n* `approval_challenge` — `quorum` (integer), `eligible`\n  (comma-separated group identifiers), `separation_of_duties`\n  (`true`/`false`; any other spelling is REFUSED rather than read\n  as `false`), and the optional `expiry_seconds`. Where several\n  policies carry an expiry the SHORTEST wins (a conjunction is\n  discharged only while all of it is live, and timeout is always\n  deny), and the carried value sets the window whether it is\n  shorter or longer than the deployment's window (#4249). An\n  approval no policy gives an expiry takes the deployment's window,\n  `AXONFLOW_APPROVAL_TTL_SECONDS` (15 minutes when unset). Only a\n  **mandatory** obligation's expiry is read: an advisory control\n  that could set the window would be deciding when the request\n  stops being able to proceed. Bounded to 60..604800 seconds,\n  refused rather than clamped at either end, for the parameter and\n  the deployment variable alike (an out-of-bounds variable refuses\n  the process's boot). The optional `severity` (`low`, `medium`,\n  `high` or `critical`; any other spelling is REFUSED) is the\n  severity the approval's queue row carries; the highest among the\n  mandatory obligations wins, an advisory one's is ignored, and with\n  none stated the queue derives it from the request's risk score\n  (#4249).\n* `route_restriction` — `allowed_destinations` (comma-separated),\n  intersected across policies; an empty intersection denies. Route\n  properties are namespaced `route.` (`route.tls`, `route.region`,\n  `route.method`); each value is the comma-separated set permitted\n  for that property, and they intersect per key under the same\n  rule. A parameter that is neither is REFUSED: without the\n  namespace an ordinary annotation on two policies intersects to an\n  empty set and denies a request neither said anything about\n  routing for.\n* `step_up_authentication` — `assurance` (`aal1`, `aal2`, `aal3`;\n  the maximum wins) and the optional `methods` (comma-separated,\n  intersected). An ABSENT `methods` means unconstrained, so a\n  policy may require a higher assurance without enumerating how it\n  is reached; a carried-but-empty value is refused. No other key.\n* `immutable_audit` and `notification` — `delivery`\n  (`best_effort`, `at_least_once`, `durable`; the strongest wins)\n  plus the sink's own keys, which form the merge identity: two\n  obligations agreeing on every key but `delivery` are ONE\n  instruction carrying the stronger guarantee.\n* `quota_reservation` — `counter`, `window`, `unit`, a positive\n  `limit`, and `amount_from`. THE QUANTITY IS A REFERENCE, NOT A\n  VALUE: `amount_from` names the request attribute carrying it, and\n  the reservation service resolves it per request, because a budget\n  that reserved a number the policy carried would not be measuring\n  the request at all. All five are required — a reservation that\n  names no counter is not a reservation, and the caller would\n  proceed believing capacity was held. It follows that composition\n  does not sum: there is no per-policy quantity to add, and adding\n  the `limit`s would loosen the caps rather than tighten them. Two\n  policies stating the same constraint deduplicate into one\n  instruction naming both; two stating different caps on one\n  counter are two constraints the reservation must each satisfy, so\n  the tighter binds.\n* disclosure transforms — the transform's own keys (`keep=last4`).\n"
+        mandatory:
           type: boolean
-        expires_at:
-          type: string
-          format: date-time
-          description: Timeout is always deny; a non-response never proves approval.
-    AuthZENResponse:
-      type: object
-      description: 'The AuthZEN reply. `decision` is true only for an ALLOW state; the
-
-        collapse is total in both directions.
-
-        '
-      required:
-      - decision
-      additionalProperties: false
-      properties:
-        decision:
-          type: boolean
-        context:
-          $ref: '#/components/schemas/AuthZENResponseContext'
-    AuthZENError:
-      type: object
-      description: 'A structured refusal. It is a DIFFERENT shape from a decision and
-
-        carries no `decision` member, because a request that was never
-
-        evaluated must not be indistinguishable from one that was evaluated
-
-        and denied.
-
-        '
-      required:
-      - code
-      - message
-      additionalProperties: false
-      properties:
-        code:
-          type: string
-          enum:
-          - malformed_envelope
-          - incomplete_evaluation
-          - unsupported_subject
-          - unsupported_action
-          - unsupported_resource
-          - unevaluable_attribute
-          - missing_evaluable_content
-          - evaluation_unavailable
-          description: 'Only `evaluation_unavailable` is retryable; every other code names
-
-            something about the request that will not change on a retry.
-
-            '
-        pointer:
-          type: string
-          description: 'RFC 6901 JSON Pointer naming the member that could not be
-
-            evaluated. A refusal without it sends the caller to the docs.
-
-            '
-          example: /evaluation/subject/properties
-        message:
+          description: A mandatory obligation that cannot be discharged denies.
+        source_policy:
           type: string
           minLength: 1
-        supported:
-          type: array
-          items:
-            type: string
-          description: What would have been accepted at `pointer`, when the set is closed.
-        request_id:
-          type: string
-    AuthZENAction:
-      type: object
-      required:
-      - name
-      additionalProperties: false
-      properties:
-        name:
-          type: string
-          minLength: 1
-          enum:
-          - llm.completion
-          - tool.call
-          - agent.invoke
-          description: The evaluable action set. Anything else is refused.
-        properties:
-          type: object
-          description: Caller-supplied action attributes. Refused when non-empty.
-    AuthZENIdentifier:
-      type: object
-      required:
-      - kind
-      - type
-      - local
-      additionalProperties: false
-      properties:
-        kind:
-          type: string
-          enum:
-          - organization
-          - principal
-          - group
-          - resource
-          - action
-          - tool
-          - client
-          - session
-        type:
-          type: string
-        qualifier:
-          type: string
-        local:
-          type: string
-    ErrorResponse:
-      type: object
-      description: 'Handler-written error envelope. Note the agent has a second error
-
-        envelope for middleware-written errors (see JSONError) — clients
-
-        should tolerate both shapes on 4xx/5xx.
-
-        '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Error message
+        schema_version:
+          type: integer
+          minimum: 1
   parameters:
+    AxonflowClient:
+      name: X-Axonflow-Client
+      in: header
+      required: false
+      description: 'Optional client-version telemetry header (`<client>/<version>`,
+
+        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
+
+        deployments with the `client_version_telemetry` capability count
+
+        validated values in the `axonflow_client_version_requests_total`
+
+        metric on the decide and MCP check-output planes. Telemetry only —
+
+        never used for authentication or authorization; invalid values are
+
+        ignored.
+
+        '
+      schema:
+        type: string
+        example: mcp-proxy/0.3.1
     AxonflowPEPHandshake:
       name: X-Axonflow-PEP-Handshake
       in: header
@@ -901,28 +916,6 @@ components:
         type: string
         maxLength: 4096
         description: base64url (padding optional) of the PEPHandshake document.
-    AxonflowClient:
-      name: X-Axonflow-Client
-      in: header
-      required: false
-      description: 'Optional client-version telemetry header (`<client>/<version>`,
-
-        e.g. `mcp-proxy/0.3.1` or `claude-code/1.9.1`). Enterprise
-
-        deployments with the `client_version_telemetry` capability count
-
-        validated values in the `axonflow_client_version_requests_total`
-
-        metric on the decide and MCP check-output planes. Telemetry only —
-
-        never used for authentication or authorization; invalid values are
-
-        ignored.
-
-        '
-      schema:
-        type: string
-        example: mcp-proxy/0.3.1
   securitySchemes:
     BasicAuth:
       type: http
@@ -994,6 +987,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

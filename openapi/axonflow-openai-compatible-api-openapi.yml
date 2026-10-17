@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow OpenAI Compatible API
+  title: AxonFlow Agent OpenAI Compatible API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged OpenAI Compatible across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -204,132 +204,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OpenAIErrorResponse'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
-  responses:
-    Unauthorized:
-      description: 'Missing or invalid authentication. Handler-written 401s use the
-
-        `{success, error}` envelope; 401s written by the auth middleware
-
-        use the `{"error": {"code", "message"}}` envelope (JSONError).
-
-        '
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
   schemas:
-    OpenAIErrorResponse:
-      type: object
-      required:
-      - error
-      properties:
-        error:
-          type: object
-          required:
-          - message
-          - type
-          properties:
-            message:
-              type: string
-              description: Human-readable error message.
-            type:
-              type: string
-              description: Error type (policy_violation, invalid_request_error, etc.).
-              enum:
-              - policy_violation
-              - invalid_request_error
-              - authentication_error
-              - server_error
-            param:
-              type:
-              - string
-              - 'null'
-            code:
-              type: string
-              description: Machine-readable error code.
-              example: policy_denied
-    ChatCompletionRequest:
-      type: object
-      required:
-      - model
-      - messages
-      properties:
-        model:
-          type: string
-          description: ID of the model to use (e.g. gpt-4o, gpt-4o-mini).
-          example: gpt-4o
-        messages:
-          type: array
-          items:
-            type: object
-            required:
-            - role
-            - content
-            properties:
-              role:
-                type: string
-                enum:
-                - system
-                - user
-                - assistant
-                - tool
-              content:
-                description: Message content (string or array for multimodal).
-              name:
-                type: string
-              tool_calls:
-                type: array
-                items:
-                  type: object
-              tool_call_id:
-                type: string
-          minItems: 1
-        temperature:
-          type: number
-          minimum: 0
-          maximum: 2
-        top_p:
-          type: number
-        max_tokens:
-          type: integer
-        max_completion_tokens:
-          type: integer
-        stream:
-          type: boolean
-          description: 'Must be false or omitted. Streaming is not supported in this
-
-            release; setting stream=true returns HTTP 400.
-
-            '
-        stop:
-          description: Up to 4 stop sequences.
-        presence_penalty:
-          type: number
-        frequency_penalty:
-          type: number
-        user:
-          type: string
-        response_format:
-          type: object
-        seed:
-          type: integer
-        tools:
-          type: array
-          items:
-            type: object
-        tool_choice:
-          description: Tool choice configuration.
     ChatCompletionResponse:
       type: object
       required:
@@ -410,6 +286,123 @@ components:
         error:
           type: string
           description: Error message
+    ChatCompletionRequest:
+      type: object
+      required:
+      - model
+      - messages
+      properties:
+        model:
+          type: string
+          description: ID of the model to use (e.g. gpt-4o, gpt-4o-mini).
+          example: gpt-4o
+        messages:
+          type: array
+          items:
+            type: object
+            required:
+            - role
+            - content
+            properties:
+              role:
+                type: string
+                enum:
+                - system
+                - user
+                - assistant
+                - tool
+              content:
+                description: Message content (string or array for multimodal).
+              name:
+                type: string
+              tool_calls:
+                type: array
+                items:
+                  type: object
+              tool_call_id:
+                type: string
+          minItems: 1
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+        top_p:
+          type: number
+        max_tokens:
+          type: integer
+        max_completion_tokens:
+          type: integer
+        stream:
+          type: boolean
+          description: 'Must be false or omitted. Streaming is not supported in this
+
+            release; setting stream=true returns HTTP 400.
+
+            '
+        stop:
+          description: Up to 4 stop sequences.
+        presence_penalty:
+          type: number
+        frequency_penalty:
+          type: number
+        user:
+          type: string
+        response_format:
+          type: object
+        seed:
+          type: integer
+        tools:
+          type: array
+          items:
+            type: object
+        tool_choice:
+          description: Tool choice configuration.
+    OpenAIErrorResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - message
+          - type
+          properties:
+            message:
+              type: string
+              description: Human-readable error message.
+            type:
+              type: string
+              description: Error type (policy_violation, invalid_request_error, etc.).
+              enum:
+              - policy_violation
+              - invalid_request_error
+              - authentication_error
+              - server_error
+            param:
+              type:
+              - string
+              - 'null'
+            code:
+              type: string
+              description: Machine-readable error code.
+              example: policy_denied
+  responses:
+    Unauthorized:
+      description: 'Missing or invalid authentication. Handler-written 401s use the
+
+        `{success, error}` envelope; 401s written by the auth middleware
+
+        use the `{"error": {"code", "message"}}` envelope (JSONError).
+
+        '
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
   securitySchemes:
     BasicAuth:
       type: http
@@ -481,6 +474,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

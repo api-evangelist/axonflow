@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow SEBI Compliance API
+  title: AxonFlow Orchestrator SEBI Compliance API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged SEBI Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -75,11 +75,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CodedErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/sebi/audit/export:
     post:
       tags:
@@ -156,11 +151,6 @@ paths:
                   retention_days: 1825
         '400':
           $ref: '#/components/responses/CodedBadRequest'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/sebi/audit/export/{export_id}:
     get:
       tags:
@@ -226,11 +216,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CodedErrorResponse'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/sebi/audit/retention:
     get:
       tags:
@@ -278,11 +263,6 @@ paths:
                   report_state: not_available
                   error_kind: not_configured
                   error: 'retention configuration was read and is empty: no active audit retention configuration row exists for this organisation and data type: "llm_calls". The platform''s built-in default of 1825 days is what WOULD be applied, not evidence of what is configured here'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/sebi/audit/readiness:
     get:
       tags:
@@ -328,13 +308,39 @@ paths:
                   details: Consider enabling for full audit trail
                 recommendations:
                 - Enable decision chain tracing to maintain full audit trail of AI decisions
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    SEBIDashboard:
+      type: object
+      description: SEBI compliance dashboard data
+      properties:
+        framework:
+          $ref: '#/components/schemas/SEBIComplianceFramework'
+        overall_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Overall compliance score (0-100)
+        overall_status:
+          $ref: '#/components/schemas/SEBIComplianceStatus'
+        last_audit_export:
+          type: string
+          format: date-time
+          description: Timestamp of last audit export
+        retention_status:
+          $ref: '#/components/schemas/SEBIRetentionResponse'
+        readiness:
+          $ref: '#/components/schemas/SEBIComplianceReadiness'
+        violations_summary:
+          $ref: '#/components/schemas/SEBIViolationsSummary'
+        pii_summary:
+          $ref: '#/components/schemas/SEBIPIISummary'
+        hitl_reviews_pending:
+          type: integer
+          description: Number of HITL reviews awaiting action
+        last_updated:
+          type: string
+          format: date-time
     SEBIAuditExportResponse:
       type: object
       description: Response for audit export requests
@@ -404,553 +410,6 @@ components:
           description: SHA-256 checksum of the export file
         metadata:
           $ref: '#/components/schemas/SEBIExportMetadata'
-    SEBIExportFormat:
-      type: string
-      description: Export output format
-      enum:
-      - json
-      - csv
-      - xml
-    CodedErrorResponse:
-      type: object
-      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
-
-        screaming-snake string enum. This is what the per-handler `writeError`
-
-        methods emit across the policy API, the LLM provider API, the agents,
-
-        template, unified-execution and media-governance APIs, and every
-
-        handler in the RBI module (362 call sites in total).
-
-
-        It is one of TWO error SHAPES this document describes. `code` is a
-
-        STRING on this envelope; it is never an HTTP status integer.
-
-        `LLMProviderAPIError` is this shape with the `code` enum constrained to
-
-        the five values the LLM-provider handlers emit.
-
-        '
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              description: Machine-readable error code, screaming snake case.
-              example: NOT_FOUND
-            message:
-              type: string
-          required:
-          - code
-          - message
-      required:
-      - error
-    SEBIPIISummary:
-      type: object
-      description: PII detection and redaction metrics
-      properties:
-        total_detections:
-          type: integer
-          description: Total PII detections
-        total_redactions:
-          type: integer
-          description: Total PII redactions
-        by_type:
-          type: object
-          properties:
-            pan:
-              type: integer
-              description: Indian PAN card detections
-            aadhaar:
-              type: integer
-              description: Indian Aadhaar card detections
-            email:
-              type: integer
-            phone:
-              type: integer
-            other:
-              type: integer
-        redaction_rate_percent:
-          type: number
-          format: float
-          description: Percentage of detections that were redacted
-    SEBIExportMetadata:
-      type: object
-      description: Export metadata for audit trail
-      properties:
-        export_version:
-          type: string
-          description: Schema version
-        generated_by:
-          type: string
-          description: System that generated the export
-        generated_at:
-          type: string
-          format: date-time
-        tenant_id:
-          type: string
-          description: 'The scope key the export was produced for. Documented as
-
-            `org_id: integer` and never emitted under that name or that type
-
-            (#3435 R8): the struct field is
-
-            `TenantID string \`json:"tenant_id"\`` (SEBIExportMetadata). Same
-
-            correction as SEBIRetentionResponse.tenant_id.
-
-            '
-        org_name:
-          type: string
-        scope_key:
-          type: string
-          description: 'Every tenancy identifier the sections were actually matched against,
-
-            rendered per dimension (#3435). It is in the artifact because each
-
-            section''s empty-state sentence is only true RELATIVE to the
-
-            identifiers searched, and a reader cannot check that without being
-
-            told what they were.
-
-            '
-        requested_by:
-          type: string
-          description: User who requested the export
-        compliance_framework:
-          $ref: '#/components/schemas/SEBIComplianceFramework'
-        retention_days:
-          type: integer
-          description: 'The retention period SEBI REQUIRES, in days (1825 = 5 years). Read
-
-            it with `retention_configured` below. It is assigned at response
-
-            construction before any query runs and is never overwritten, so it
-
-            is not a measurement of this deployment (#3435 R8).
-
-            '
-        retention_configured:
-          type: boolean
-          description: 'Whether `retention_days` was read from this organisation''s
-
-            configuration. ALWAYS `false` on this object: the export path does
-
-            not consult `audit_retention_config`. `GET
-
-            /api/v1/sebi/audit/retention` answers what is configured, per data
-
-            type, and reports `UNKNOWN` when nothing is.
-
-            '
-        checksum:
-          type: string
-          description: SHA-256 checksum of export data
-        signed_by:
-          type: string
-          description: Signing authority (for signed exports)
-    SEBIComplianceReadiness:
-      type: object
-      description: SEBI audit readiness assessment
-      properties:
-        ready:
-          type: boolean
-          description: Organization is ready for audit
-        score:
-          type: integer
-          minimum: 0
-          maximum: 100
-          description: Readiness score (0-100)
-        checks:
-          type: array
-          items:
-            $ref: '#/components/schemas/SEBIComplianceCheck'
-        recommendations:
-          type: array
-          items:
-            type: string
-          description: Improvement recommendations
-    SEBISectionStatus:
-      type: object
-      description: 'The per-data-type outcome of one export (#3435). A section that could
-
-        not be produced appears here with its cause rather than being dropped,
-
-        because an absent section and a section with nothing in it read the same
-
-        way to a regulator.
-
-        '
-      properties:
-        data_type:
-          type: string
-          description: The requested section.
-        report_state:
-          type: string
-          enum:
-          - not_available
-          - enabled_empty
-          - populated
-          description: 'This section''s three-state outcome. `partial` is a document-level
-
-            state only and never appears here.
-
-            '
-        record_count:
-          type: integer
-          description: 'Rows in the section. Always 0 when `error` is set; a reader must
-
-            consult report_state before believing it.
-
-            '
-        error:
-          type: string
-          description: 'The failure this section hit, verbatim. Always pairs with
-
-            report_state=not_available, and the section is then omitted from
-
-            records_by_type entirely rather than recorded as a zero.
-
-            '
-        error_kind:
-          type: string
-          enum:
-          - store_absent
-          - query_failed
-          - section_not_implemented
-          description: 'Classifies the failure, because report_state alone cannot.
-
-            `store_absent` is 42P01 only: an undefined COLUMN (42703) is schema
-
-            drift and lands in `query_failed`, because telling an operator to
-
-            apply a migration that is already applied sends them to the wrong
-
-            place.
-
-
-            `not_configured` is NOT in this enum, and the difference from
-
-            SEBIDataTypeRetentionStatus.error_kind is deliberate (#3435 R8).
-
-            Both fields are filled by one classifier
-
-            (`classifySectionError`), but they classify DIFFERENT error
-
-            populations, so listing the classifier''s whole range on both
-
-            schemas documented a value each one cannot carry. Here the input
-
-            is an export section''s failure: `errRetentionNotConfigured` is
-
-            constructed at exactly one site, inside `getRetentionConfig`, which
-
-            only the retention endpoint calls, so `not_configured` is
-
-            unreachable on an export section. The mirror value
-
-            `section_not_implemented` is unreachable on the retention row for
-
-            the same reason in the other direction.
-
-            '
-        scope_gap:
-          $ref: '#/components/schemas/SEBIScopeGap'
-    SEBIComplianceStatus:
-      type: string
-      description: 'Compliance status indicator.
-
-
-        `WARNING` was in this enum and is removed (#3435 R7): no code path
-
-        assigns it. The three values below are the only ones the server writes
-
-        (sebi_audit_export_service.go GetRetentionStatus). `UNKNOWN` was MISSING
-
-        and is the common answer, not an edge case: it is returned whenever the
-
-        retention period or the record counts backing a row could not be
-
-        measured, and `audit_retention_config` ships EMPTY on a stock
-
-        migration-applied database, so a stock deployment reports UNKNOWN for
-
-        every data type. A readiness CHECK speaks a different vocabulary on a
-
-        different schema: see SEBIComplianceCheck.status, which carries
-
-        `pass`/`fail`/`warning`/`unknown` and is NOT this enum.
-
-        '
-      enum:
-      - COMPLIANT
-      - NON_COMPLIANT
-      - UNKNOWN
-    SEBIComplianceFramework:
-      type: string
-      description: SEBI compliance framework identifier
-      enum:
-      - SEBI_AI_ML
-      - DPDP_ACT_2023
-      - SEBI_DPDP_COMBINED
-    SEBIDashboard:
-      type: object
-      description: SEBI compliance dashboard data
-      properties:
-        framework:
-          $ref: '#/components/schemas/SEBIComplianceFramework'
-        overall_score:
-          type: integer
-          minimum: 0
-          maximum: 100
-          description: Overall compliance score (0-100)
-        overall_status:
-          $ref: '#/components/schemas/SEBIComplianceStatus'
-        last_audit_export:
-          type: string
-          format: date-time
-          description: Timestamp of last audit export
-        retention_status:
-          $ref: '#/components/schemas/SEBIRetentionResponse'
-        readiness:
-          $ref: '#/components/schemas/SEBIComplianceReadiness'
-        violations_summary:
-          $ref: '#/components/schemas/SEBIViolationsSummary'
-        pii_summary:
-          $ref: '#/components/schemas/SEBIPIISummary'
-        hitl_reviews_pending:
-          type: integer
-          description: Number of HITL reviews awaiting action
-        last_updated:
-          type: string
-          format: date-time
-    SEBIAuditExportFilters:
-      type: object
-      description: Optional filters for audit exports
-      properties:
-        agent_ids:
-          type: array
-          items:
-            type: string
-          description: Filter by agent IDs
-        user_ids:
-          type: array
-          items:
-            type: integer
-          description: Filter by user IDs
-        severity:
-          type: string
-          description: Minimum severity level
-        policy_types:
-          type: array
-          items:
-            type: string
-          description: Filter by policy types
-        violation_types:
-          type: array
-          items:
-            type: string
-          description: Filter by violation types
-        include_model_info:
-          type: boolean
-          description: Include detailed model information
-    SEBIRetentionResponse:
-      type: object
-      description: 5-year retention compliance status
-      properties:
-        tenant_id:
-          type: string
-          description: 'The scope key the retention rows were read for. This property was
-
-            documented as `org_id: integer` and the server has never emitted
-
-            it (#3435 R8): the struct field is
-
-            `TenantID string \`json:"tenant_id"\``
-
-            (sebi_audit_export_types.go SEBIRetentionStatusResponse), so the
-
-            documented property was absent from every response and the one
-
-            the server does send was undocumented.
-
-            '
-        framework:
-          $ref: '#/components/schemas/SEBIComplianceFramework'
-        compliance_status:
-          $ref: '#/components/schemas/SEBIComplianceStatus'
-        status:
-          type: array
-          items:
-            $ref: '#/components/schemas/SEBIDataTypeRetentionStatus'
-        next_cleanup:
-          type: string
-          format: date-time
-          description: Next scheduled cleanup
-    SEBIDataTypeRetentionStatus:
-      type: object
-      description: Retention status for a data type
-      properties:
-        data_type:
-          $ref: '#/components/schemas/SEBIAuditDataType'
-        retention_days:
-          type: integer
-          description: 'The retention period in force. READ IT WITH `retention_configured`:
-
-            when that is false this is the platform''s compiled-in default, which
-
-            is what WOULD be applied and is not evidence that anything was
-
-            configured.
-
-            '
-        retention_configured:
-          type: boolean
-          description: 'Whether `retention_days` was read from this organisation''s
-
-            audit_retention_config row. False on every stock deployment, where
-
-            that table ships empty; and structurally always false for
-
-            `llm_calls` and `pii_redactions`, which audit_retention_defaults
-
-            does not seed under those keys.
-
-            '
-        oldest_record:
-          type: string
-          format: date-time
-        newest_record:
-          type: string
-          format: date-time
-        total_records:
-          type: integer
-          format: int64
-        archived_records:
-          type: integer
-          format: int64
-        storage_bytes:
-          type: integer
-          format: int64
-        compliance_status:
-          $ref: '#/components/schemas/SEBIComplianceStatus'
-        last_cleanup:
-          type: string
-          format: date-time
-        report_state:
-          type: string
-          enum:
-          - not_available
-          - enabled_empty
-          - populated
-          description: 'Whether the figures on this row were actually READ. `not_available`
-
-            means the retention configuration, the record counts, or both could
-
-            not be measured, and the row is then not a compliance assertion.
-
-            '
-        error:
-          type: string
-          description: The verbatim cause when report_state is not_available.
-        error_kind:
-          type: string
-          enum:
-          - store_absent
-          - query_failed
-          - not_configured
-          description: 'Classifies that cause. `not_configured` is the common one: the
-
-            retention read RAN and found no row.
-
-
-            `section_not_implemented` is NOT in this enum, though the shared
-
-            classifier can produce it (#3435 R8). It is constructed at exactly
-
-            one site, the export dispatcher''s default arm, which this endpoint
-
-            never reaches. See SEBISectionStatus.error_kind for the mirror.
-
-            '
-    SEBIAuditExportRequest:
-      type: object
-      description: Request to export SEBI audit data
-      required:
-      - start_date
-      - end_date
-      properties:
-        start_date:
-          type: string
-          format: date-time
-          description: Start of export period (inclusive)
-        end_date:
-          type: string
-          format: date-time
-          description: End of export period (inclusive)
-        data_types:
-          type: array
-          items:
-            $ref: '#/components/schemas/SEBIAuditDataType'
-          description: Types of audit data to export (defaults to all)
-        format:
-          $ref: '#/components/schemas/SEBIExportFormat'
-        framework:
-          $ref: '#/components/schemas/SEBIComplianceFramework'
-        include_archived:
-          type: boolean
-          default: false
-          description: Include records from cold storage
-        redact_pii:
-          type: boolean
-          default: false
-          description: Redact PII in export (for external auditors)
-        filters:
-          $ref: '#/components/schemas/SEBIAuditExportFilters'
-    SEBIViolationsSummary:
-      type: object
-      description: Policy violations summary
-      properties:
-        total:
-          type: integer
-          description: Total violations
-        by_severity:
-          type: object
-          properties:
-            critical:
-              type: integer
-            high:
-              type: integer
-            medium:
-              type: integer
-            low:
-              type: integer
-        by_type:
-          type: object
-          additionalProperties:
-            type: integer
-          description: Violations by type
-        trend:
-          type: string
-          enum:
-          - improving
-          - stable
-          - degrading
-          description: Trend direction
-    SEBIAuditDataType:
-      type: string
-      description: Type of audit data
-      enum:
-      - policy_violations
-      - llm_calls
-      - decision_chain
-      - hitl_oversight
-      - pii_redactions
-      - all
     SEBIScopeGap:
       type:
       - object
@@ -990,93 +449,36 @@ components:
         reason:
           type: string
           description: The plain-language statement carried into the artifact.
-    SEBIComplianceCheck:
-      type: object
-      description: Individual compliance check result
-      properties:
-        name:
-          type: string
-          description: Check name
-        description:
-          type: string
-          description: What the check verifies
-        status:
-          type: string
-          enum:
-          - pass
-          - fail
-          - warning
-          - unknown
-          description: '`unknown` was MISSING from this enum and is emitted on the stock
-
-            path (#3435 R8), so a generated strict client failed to
-
-            deserialise GET /api/v1/sebi/audit/readiness on every stock
-
-            deployment. A control this deployment cannot INSPECT must not be
-
-            reported as one it has, so `unknown` is distinct from `fail`.
+    SEBIComplianceStatus:
+      type: string
+      description: 'Compliance status indicator.
 
 
-            THREE of the five checks assign it (sebi_audit_export_service.go:
+        `WARNING` was in this enum and is removed (#3435 R7): no code path
 
-            Retention Configuration, PII Detection Policies, Human Oversight).
+        assigns it. The three values below are the only ones the server writes
 
-            Human Oversight joined them in #3874, which gave that check the
+        (sebi_audit_export_service.go GetRetentionStatus). `UNKNOWN` was MISSING
 
-            third answer its two siblings already had -- until then a
+        and is the common answer, not an edge case: it is returned whenever the
 
-            deployment nobody could inspect was reported identically to one
+        retention period or the record counts backing a row could not be
 
-            measured to have no oversight.
+        measured, and `audit_retention_config` ships EMPTY on a stock
 
+        migration-applied database, so a stock deployment reports UNKNOWN for
 
-            #3874 removed the reason `unknown` was the STOCK answer for two of
+        every data type. A readiness CHECK speaks a different vocabulary on a
 
-            them rather than an edge case: they queried relations no migration
+        different schema: see SEBIComplianceCheck.status, which carries
 
-            creates (`policies`, `hitl_config`), so they could return nothing
+        `pass`/`fail`/`warning`/`unknown` and is NOT this enum.
 
-            else on any deployment. They now read `static_policies` and
-
-            `hitl_approval_queue`.
-
-
-            Retention Configuration still answers `unknown` on a stock
-
-            deployment, and that is CORRECT rather than pending. Its table
-
-            exists, but nothing in the product ever writes a row to it, so no
-
-            organisation has a configured retention period to read. Making it
-
-            answerable needs a retention configuration surface that does not
-
-            exist yet; reading the system defaults instead was tried and
-
-            reverted, because it contradicts GET /api/v1/sebi/audit/retention,
-
-            which reports the same data types as not_available on the stated
-
-            grounds that a default is what WOULD be applied and not evidence of
-
-            what is configured.
-
-
-            `unknown` fails closed on `ready` for Retention Configuration and
-
-            PII Detection Policies. It does NOT clear `ready` for Human
-
-            Oversight, whose FAILING branch has always been a non-blocking
-
-            warning: blocking on unknown alone would rank "nobody could
-
-            inspect this control" as worse than "this control is absent".
-
-            '
-        details:
-          type: string
-          description: Additional information
+        '
+      enum:
+      - COMPLIANT
+      - NON_COMPLIANT
+      - UNKNOWN
     SEBIAuditExportSummary:
       type: object
       description: Statistics about the export
@@ -1177,6 +579,579 @@ components:
           description: One honest outcome per REQUESTED data type, in request order.
           items:
             $ref: '#/components/schemas/SEBISectionStatus'
+    SEBISectionStatus:
+      type: object
+      description: 'The per-data-type outcome of one export (#3435). A section that could
+
+        not be produced appears here with its cause rather than being dropped,
+
+        because an absent section and a section with nothing in it read the same
+
+        way to a regulator.
+
+        '
+      properties:
+        data_type:
+          type: string
+          description: The requested section.
+        report_state:
+          type: string
+          enum:
+          - not_available
+          - enabled_empty
+          - populated
+          description: 'This section''s three-state outcome. `partial` is a document-level
+
+            state only and never appears here.
+
+            '
+        record_count:
+          type: integer
+          description: 'Rows in the section. Always 0 when `error` is set; a reader must
+
+            consult report_state before believing it.
+
+            '
+        error:
+          type: string
+          description: 'The failure this section hit, verbatim. Always pairs with
+
+            report_state=not_available, and the section is then omitted from
+
+            records_by_type entirely rather than recorded as a zero.
+
+            '
+        error_kind:
+          type: string
+          enum:
+          - store_absent
+          - query_failed
+          - section_not_implemented
+          description: 'Classifies the failure, because report_state alone cannot.
+
+            `store_absent` is 42P01 only: an undefined COLUMN (42703) is schema
+
+            drift and lands in `query_failed`, because telling an operator to
+
+            apply a migration that is already applied sends them to the wrong
+
+            place.
+
+
+            `not_configured` is NOT in this enum, and the difference from
+
+            SEBIDataTypeRetentionStatus.error_kind is deliberate (#3435 R8).
+
+            Both fields are filled by one classifier
+
+            (`classifySectionError`), but they classify DIFFERENT error
+
+            populations, so listing the classifier''s whole range on both
+
+            schemas documented a value each one cannot carry. Here the input
+
+            is an export section''s failure: `errRetentionNotConfigured` is
+
+            constructed at exactly one site, inside `getRetentionConfig`, which
+
+            only the retention endpoint calls, so `not_configured` is
+
+            unreachable on an export section. The mirror value
+
+            `section_not_implemented` is unreachable on the retention row for
+
+            the same reason in the other direction.
+
+            '
+        scope_gap:
+          $ref: '#/components/schemas/SEBIScopeGap'
+    SEBIExportMetadata:
+      type: object
+      description: Export metadata for audit trail
+      properties:
+        export_version:
+          type: string
+          description: Schema version
+        generated_by:
+          type: string
+          description: System that generated the export
+        generated_at:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
+          description: 'The scope key the export was produced for. Documented as
+
+            `org_id: integer` and never emitted under that name or that type
+
+            (#3435 R8): the struct field is
+
+            `TenantID string \`json:"tenant_id"\`` (SEBIExportMetadata). Same
+
+            correction as SEBIRetentionResponse.tenant_id.
+
+            '
+        org_name:
+          type: string
+        scope_key:
+          type: string
+          description: 'Every tenancy identifier the sections were actually matched against,
+
+            rendered per dimension (#3435). It is in the artifact because each
+
+            section''s empty-state sentence is only true RELATIVE to the
+
+            identifiers searched, and a reader cannot check that without being
+
+            told what they were.
+
+            '
+        requested_by:
+          type: string
+          description: User who requested the export
+        compliance_framework:
+          $ref: '#/components/schemas/SEBIComplianceFramework'
+        retention_days:
+          type: integer
+          description: 'The retention period SEBI REQUIRES, in days (1825 = 5 years). Read
+
+            it with `retention_configured` below. It is assigned at response
+
+            construction before any query runs and is never overwritten, so it
+
+            is not a measurement of this deployment (#3435 R8).
+
+            '
+        retention_configured:
+          type: boolean
+          description: 'Whether `retention_days` was read from this organisation''s
+
+            configuration. ALWAYS `false` on this object: the export path does
+
+            not consult `audit_retention_config`. `GET
+
+            /api/v1/sebi/audit/retention` answers what is configured, per data
+
+            type, and reports `UNKNOWN` when nothing is.
+
+            '
+        checksum:
+          type: string
+          description: SHA-256 checksum of export data
+        signed_by:
+          type: string
+          description: Signing authority (for signed exports)
+    SEBIPIISummary:
+      type: object
+      description: PII detection and redaction metrics
+      properties:
+        total_detections:
+          type: integer
+          description: Total PII detections
+        total_redactions:
+          type: integer
+          description: Total PII redactions
+        by_type:
+          type: object
+          properties:
+            pan:
+              type: integer
+              description: Indian PAN card detections
+            aadhaar:
+              type: integer
+              description: Indian Aadhaar card detections
+            email:
+              type: integer
+            phone:
+              type: integer
+            other:
+              type: integer
+        redaction_rate_percent:
+          type: number
+          format: float
+          description: Percentage of detections that were redacted
+    SEBIRetentionResponse:
+      type: object
+      description: 5-year retention compliance status
+      properties:
+        tenant_id:
+          type: string
+          description: 'The scope key the retention rows were read for. This property was
+
+            documented as `org_id: integer` and the server has never emitted
+
+            it (#3435 R8): the struct field is
+
+            `TenantID string \`json:"tenant_id"\``
+
+            (sebi_audit_export_types.go SEBIRetentionStatusResponse), so the
+
+            documented property was absent from every response and the one
+
+            the server does send was undocumented.
+
+            '
+        framework:
+          $ref: '#/components/schemas/SEBIComplianceFramework'
+        compliance_status:
+          $ref: '#/components/schemas/SEBIComplianceStatus'
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/SEBIDataTypeRetentionStatus'
+        next_cleanup:
+          type: string
+          format: date-time
+          description: Next scheduled cleanup
+    SEBIViolationsSummary:
+      type: object
+      description: Policy violations summary
+      properties:
+        total:
+          type: integer
+          description: Total violations
+        by_severity:
+          type: object
+          properties:
+            critical:
+              type: integer
+            high:
+              type: integer
+            medium:
+              type: integer
+            low:
+              type: integer
+        by_type:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Violations by type
+        trend:
+          type: string
+          enum:
+          - improving
+          - stable
+          - degrading
+          description: Trend direction
+    SEBIDataTypeRetentionStatus:
+      type: object
+      description: Retention status for a data type
+      properties:
+        data_type:
+          $ref: '#/components/schemas/SEBIAuditDataType'
+        retention_days:
+          type: integer
+          description: 'The retention period in force. READ IT WITH `retention_configured`:
+
+            when that is false this is the platform''s compiled-in default, which
+
+            is what WOULD be applied and is not evidence that anything was
+
+            configured.
+
+            '
+        retention_configured:
+          type: boolean
+          description: 'Whether `retention_days` was read from this organisation''s
+
+            audit_retention_config row. False on every stock deployment, where
+
+            that table ships empty; and structurally always false for
+
+            `llm_calls` and `pii_redactions`, which audit_retention_defaults
+
+            does not seed under those keys.
+
+            '
+        oldest_record:
+          type: string
+          format: date-time
+        newest_record:
+          type: string
+          format: date-time
+        total_records:
+          type: integer
+          format: int64
+        archived_records:
+          type: integer
+          format: int64
+        storage_bytes:
+          type: integer
+          format: int64
+        compliance_status:
+          $ref: '#/components/schemas/SEBIComplianceStatus'
+        last_cleanup:
+          type: string
+          format: date-time
+        report_state:
+          type: string
+          enum:
+          - not_available
+          - enabled_empty
+          - populated
+          description: 'Whether the figures on this row were actually READ. `not_available`
+
+            means the retention configuration, the record counts, or both could
+
+            not be measured, and the row is then not a compliance assertion.
+
+            '
+        error:
+          type: string
+          description: The verbatim cause when report_state is not_available.
+        error_kind:
+          type: string
+          enum:
+          - store_absent
+          - query_failed
+          - not_configured
+          description: 'Classifies that cause. `not_configured` is the common one: the
+
+            retention read RAN and found no row.
+
+
+            `section_not_implemented` is NOT in this enum, though the shared
+
+            classifier can produce it (#3435 R8). It is constructed at exactly
+
+            one site, the export dispatcher''s default arm, which this endpoint
+
+            never reaches. See SEBISectionStatus.error_kind for the mirror.
+
+            '
+    SEBIComplianceReadiness:
+      type: object
+      description: SEBI audit readiness assessment
+      properties:
+        ready:
+          type: boolean
+          description: Organization is ready for audit
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Readiness score (0-100)
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SEBIComplianceCheck'
+        recommendations:
+          type: array
+          items:
+            type: string
+          description: Improvement recommendations
+    CodedErrorResponse:
+      type: object
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+
+        screaming-snake string enum. This is what the per-handler `writeError`
+
+        methods emit across the policy API, the LLM provider API, the agents,
+
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
+
+
+        It is one of TWO error SHAPES this document describes. `code` is a
+
+        STRING on this envelope; it is never an HTTP status integer.
+
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+
+        the five values the LLM-provider handlers emit.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
+    SEBIAuditExportFilters:
+      type: object
+      description: Optional filters for audit exports
+      properties:
+        agent_ids:
+          type: array
+          items:
+            type: string
+          description: Filter by agent IDs
+        user_ids:
+          type: array
+          items:
+            type: integer
+          description: Filter by user IDs
+        severity:
+          type: string
+          description: Minimum severity level
+        policy_types:
+          type: array
+          items:
+            type: string
+          description: Filter by policy types
+        violation_types:
+          type: array
+          items:
+            type: string
+          description: Filter by violation types
+        include_model_info:
+          type: boolean
+          description: Include detailed model information
+    SEBIComplianceCheck:
+      type: object
+      description: Individual compliance check result
+      properties:
+        name:
+          type: string
+          description: Check name
+        description:
+          type: string
+          description: What the check verifies
+        status:
+          type: string
+          enum:
+          - pass
+          - fail
+          - warning
+          - unknown
+          description: '`unknown` was MISSING from this enum and is emitted on the stock
+
+            path (#3435 R8), so a generated strict client failed to
+
+            deserialise GET /api/v1/sebi/audit/readiness on every stock
+
+            deployment. A control this deployment cannot INSPECT must not be
+
+            reported as one it has, so `unknown` is distinct from `fail`.
+
+
+            THREE of the five checks assign it (sebi_audit_export_service.go:
+
+            Retention Configuration, PII Detection Policies, Human Oversight).
+
+            Human Oversight joined them in #3874, which gave that check the
+
+            third answer its two siblings already had -- until then a
+
+            deployment nobody could inspect was reported identically to one
+
+            measured to have no oversight.
+
+
+            #3874 removed the reason `unknown` was the STOCK answer for two of
+
+            them rather than an edge case: they queried relations no migration
+
+            creates (`policies`, `hitl_config`), so they could return nothing
+
+            else on any deployment. They now read `static_policies` and
+
+            `hitl_approval_queue`.
+
+
+            Retention Configuration still answers `unknown` on a stock
+
+            deployment, and that is CORRECT rather than pending. Its table
+
+            exists, but nothing in the product ever writes a row to it, so no
+
+            organisation has a configured retention period to read. Making it
+
+            answerable needs a retention configuration surface that does not
+
+            exist yet; reading the system defaults instead was tried and
+
+            reverted, because it contradicts GET /api/v1/sebi/audit/retention,
+
+            which reports the same data types as not_available on the stated
+
+            grounds that a default is what WOULD be applied and not evidence of
+
+            what is configured.
+
+
+            `unknown` fails closed on `ready` for Retention Configuration and
+
+            PII Detection Policies. It does NOT clear `ready` for Human
+
+            Oversight, whose FAILING branch has always been a non-blocking
+
+            warning: blocking on unknown alone would rank "nobody could
+
+            inspect this control" as worse than "this control is absent".
+
+            '
+        details:
+          type: string
+          description: Additional information
+    SEBIExportFormat:
+      type: string
+      description: Export output format
+      enum:
+      - json
+      - csv
+      - xml
+    SEBIAuditExportRequest:
+      type: object
+      description: Request to export SEBI audit data
+      required:
+      - start_date
+      - end_date
+      properties:
+        start_date:
+          type: string
+          format: date-time
+          description: Start of export period (inclusive)
+        end_date:
+          type: string
+          format: date-time
+          description: End of export period (inclusive)
+        data_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/SEBIAuditDataType'
+          description: Types of audit data to export (defaults to all)
+        format:
+          $ref: '#/components/schemas/SEBIExportFormat'
+        framework:
+          $ref: '#/components/schemas/SEBIComplianceFramework'
+        include_archived:
+          type: boolean
+          default: false
+          description: Include records from cold storage
+        redact_pii:
+          type: boolean
+          default: false
+          description: Redact PII in export (for external auditors)
+        filters:
+          $ref: '#/components/schemas/SEBIAuditExportFilters'
+    SEBIComplianceFramework:
+      type: string
+      description: SEBI compliance framework identifier
+      enum:
+      - SEBI_AI_ML
+      - DPDP_ACT_2023
+      - SEBI_DPDP_COMBINED
+    SEBIAuditDataType:
+      type: string
+      description: Type of audit data
+      enum:
+      - policy_violations
+      - llm_calls
+      - decision_chain
+      - hitl_oversight
+      - pii_redactions
+      - all
   responses:
     CodedBadRequest:
       description: Invalid request (coded envelope)
@@ -1198,6 +1173,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow MCP Server API
+  title: AxonFlow Agent MCP Server API
+  description: REST API for the AxonFlow Agent service - Authentication, Authorization, and Static Policy Enforcement Gateway.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged MCP Server across 2 of this provider''s published API definitions: axonflow-agent-api.yaml, axonflow-agent-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (SaaS)
@@ -55,13 +55,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OAuthDiscoveryNotSupported'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /.well-known/oauth-authorization-server:
     get:
       tags:
@@ -85,13 +78,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OAuthDiscoveryNotSupported'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
   /api/v1/mcp-server:
     post:
       tags:
@@ -247,13 +233,6 @@ paths:
             5682255301, with `X-Axonflow-Tier-Limit`). No body; `Retry-After`.
 
             '
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (SaaS)
-    - url: https://axonflow.example.com
-      description: Self-hosted deployment (agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local Development
 components:
   responses:
     Unauthorized:
@@ -271,63 +250,52 @@ components:
           example:
             success: false
             error: 'Authentication required: provide Authorization header with Basic auth (clientId:clientSecret)'
-  parameters:
-    ApprovalId:
-      name: X-Axonflow-Approval-Id
-      in: header
-      required: false
-      description: 'The approval a retry spends (#4370). A call held for a person''s
+  schemas:
+    ErrorResponse:
+      type: object
+      description: 'Handler-written error envelope. Note the agent has a second error
 
-        approval is answered a `pending_approval` naming an id; once a
+        envelope for middleware-written errors (see JSONError) — clients
 
-        person approves it in the portal, the caller retries the SAME call
-
-        naming that id here (or in the body''s `approval_id` field, for a
-
-        client that cannot set headers - a header and a field naming
-
-        different ids are refused `approval_not_found`).
-
-
-        The retry is decided exactly as the first call was. Only when it is
-
-        again held for approval, and the approval is approved by a person
-
-        who is not the caller, before its expiry, unspent, and granted for
-
-        this very call (the same input, tool, route, requester and
-
-        requirement), does it pass - and the approval is spent: it admits
-
-        exactly one call. A call that is allowed anyway spends nothing; no
-
-        approval lifts a deny. Every other outcome is refused with one of
-
-        the `ApprovalHoldReason` codes. Enterprise; the Community build has
-
-        no approval queue and ignores the header.
-
-
-        WHAT "THE SAME CALL" MEANS. On the MCP routes: the connector, the
-
-        tool, the operation, the statement and its parameters (and the row
-
-        limit on `/mcp/resources/query`). On `/api/v1/decide`: the WHOLE
-
-        request the engine decided - `stage`, `target`, `query` AND
-
-        `context`. A retry that changes any of it is refused
-
-        `bound_input_changed`: resend the same `context`, and carry
-
-        per-request values (request ids, timestamps) in headers, never in
-
-        `context` - the correlation id is a header.
+        should tolerate both shapes on 4xx/5xx.
 
         '
-      schema:
-        type: string
-        format: uuid
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+    OAuthDiscoveryNotSupported:
+      type: object
+      description: 'The body both `/.well-known/oauth-*` endpoints return. Shaped to RFC
+
+        6749 section 5.2 so a client that parses discovery failures as OAuth
+
+        errors renders it instead of choking on a plaintext 404.
+
+        '
+      properties:
+        error:
+          type: string
+          enum:
+          - oauth_not_supported
+          description: Always this value.
+        error_description:
+          type: string
+          description: 'Names the mechanism this server does use - HTTP Basic with
+
+            `base64(org_id:license_key)` - and links the setup documentation.
+
+            '
+      required:
+      - error
+      - error_description
+      example:
+        error: oauth_not_supported
+        error_description: AxonFlow's MCP server uses HTTP Basic authentication (base64(org_id:license_key)), not OAuth. Set AXONFLOW_ENDPOINT and AXONFLOW_AUTH in the environment that launches your MCP client.
+  parameters:
     AxonflowPEPHandshake:
       name: X-Axonflow-PEP-Handshake
       in: header
@@ -450,51 +418,62 @@ components:
       schema:
         type: string
         example: Basic bXktb3JnOkFYT04tVjIteHh4
-  schemas:
-    ErrorResponse:
-      type: object
-      description: 'Handler-written error envelope. Note the agent has a second error
+    ApprovalId:
+      name: X-Axonflow-Approval-Id
+      in: header
+      required: false
+      description: 'The approval a retry spends (#4370). A call held for a person''s
 
-        envelope for middleware-written errors (see JSONError) — clients
+        approval is answered a `pending_approval` naming an id; once a
 
-        should tolerate both shapes on 4xx/5xx.
+        person approves it in the portal, the caller retries the SAME call
+
+        naming that id here (or in the body''s `approval_id` field, for a
+
+        client that cannot set headers - a header and a field naming
+
+        different ids are refused `approval_not_found`).
+
+
+        The retry is decided exactly as the first call was. Only when it is
+
+        again held for approval, and the approval is approved by a person
+
+        who is not the caller, before its expiry, unspent, and granted for
+
+        this very call (the same input, tool, route, requester and
+
+        requirement), does it pass - and the approval is spent: it admits
+
+        exactly one call. A call that is allowed anyway spends nothing; no
+
+        approval lifts a deny. Every other outcome is refused with one of
+
+        the `ApprovalHoldReason` codes. Enterprise; the Community build has
+
+        no approval queue and ignores the header.
+
+
+        WHAT "THE SAME CALL" MEANS. On the MCP routes: the connector, the
+
+        tool, the operation, the statement and its parameters (and the row
+
+        limit on `/mcp/resources/query`). On `/api/v1/decide`: the WHOLE
+
+        request the engine decided - `stage`, `target`, `query` AND
+
+        `context`. A retry that changes any of it is refused
+
+        `bound_input_changed`: resend the same `context`, and carry
+
+        per-request values (request ids, timestamps) in headers, never in
+
+        `context` - the correlation id is a header.
 
         '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Error message
-    OAuthDiscoveryNotSupported:
-      type: object
-      description: 'The body both `/.well-known/oauth-*` endpoints return. Shaped to RFC
-
-        6749 section 5.2 so a client that parses discovery failures as OAuth
-
-        errors renders it instead of choking on a plaintext 404.
-
-        '
-      properties:
-        error:
-          type: string
-          enum:
-          - oauth_not_supported
-          description: Always this value.
-        error_description:
-          type: string
-          description: 'Names the mechanism this server does use - HTTP Basic with
-
-            `base64(org_id:license_key)` - and links the setup documentation.
-
-            '
-      required:
-      - error
-      - error_description
-      example:
-        error: oauth_not_supported
-        error_description: AxonFlow's MCP server uses HTTP Basic authentication (base64(org_id:license_key)), not OAuth. Set AXONFLOW_ENDPOINT and AXONFLOW_AUTH in the environment that launches your MCP client.
+      schema:
+        type: string
+        format: uuid
   securitySchemes:
     BasicAuth:
       type: http
@@ -566,6 +545,3 @@ components:
         exact minting snippet.
 
         '
-x-refined-from:
-- axonflow-agent-api.yaml
-- axonflow-agent-openapi.yml

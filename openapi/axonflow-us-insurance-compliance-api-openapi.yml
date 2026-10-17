@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow US Insurance Compliance API
+  title: AxonFlow Orchestrator US Insurance Compliance API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged US Insurance Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -149,11 +149,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/USInsuranceAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/usinsurance/oversight:
     get:
       tags:
@@ -278,11 +273,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/USInsuranceAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/usinsurance/data-sources:
     get:
       tags:
@@ -392,128 +382,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/USInsuranceAPIError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
-    USInsuranceDataCategoryItem:
-      type: object
-      properties:
-        category:
-          type: string
-        occurrences:
-          type: integer
-        first_seen:
-          type: string
-          format: date-time
-        last_seen:
-          type: string
-          format: date-time
-    USInsuranceOversightItem:
-      type: object
-      properties:
-        id:
-          type: string
-        request_id:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        request_type:
-          type: string
-        trigger_reason:
-          type: string
-        policy_id:
-          type: string
-        policy_name:
-          type: string
-        severity:
-          type: string
-        status:
-          type: string
-        reviewer_id:
-          type: string
-        reviewer_role:
-          type: string
-        reviewed_at:
-          type: string
-          format: date-time
-          description: Omitted when the row was never reviewed.
-        review_latency_ms:
-          type: integer
-          format: int64
-          description: Omitted when the row was never reviewed.
-        is_exception:
-          type: boolean
-          description: 'True when the platform recorded the overridden status, OR recorded
-
-            an override trail under another status. Both arms matter: a row
-
-            carrying evidence must not drop out of the exception exhibit
-
-            because its status string differs.
-
-            '
-        override_authorized_by:
-          type: string
-          description: Omitted when none was recorded.
-        override_justification:
-          type: string
-          description: Surfaced verbatim. Omitted when none was recorded.
-    USInsuranceAPIError:
-      type: object
-      description: US insurance module error envelope
-      properties:
-        error:
-          type: string
-          description: Human-readable message. Never carries the underlying database error.
-        error_code:
-          type: string
-          description: 'Stable machine-readable code: SCOPE_REQUIRED, INVALID_PERIOD,
-
-            USINSURANCE_NOT_AVAILABLE or INTERNAL_ERROR.
-
-            '
-      required:
-      - error
-      - error_code
-    USInsuranceInventoryItem:
-      type: object
-      description: 'One AI system surface observed in governed traffic. The identity is the
-
-        recorded provider and model pair, which is the only system identity the
-
-        platform holds; a carrier''s own system name is never invented here.
-
-        '
-      properties:
-        system:
-          type: string
-          description: Rendered identity, "provider / model".
-        provider:
-          type: string
-        model:
-          type: string
-        request_types:
-          type: array
-          items:
-            type: string
-        invocations:
-          type: integer
-        decision_counts:
-          type: object
-          additionalProperties:
-            type: integer
-          description: Counts keyed by the platform's own policy_decision vocabulary.
-        first_seen:
-          type: string
-          format: date-time
-        last_seen:
-          type: string
-          format: date-time
     USInsuranceInventoryResponse:
       type: object
       properties:
@@ -575,6 +445,80 @@ components:
       - complete
       - truncated
       - unavailable
+    USInsuranceOversightResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/USInsuranceOversightItem'
+        total:
+          type: integer
+        exceptions:
+          type: integer
+          description: Count of items carrying an override trail.
+        unresolved:
+          type: integer
+          description: Count of items that were never reviewed.
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        completeness:
+          $ref: '#/components/schemas/USInsuranceCompleteness'
+    USInsuranceOversightItem:
+      type: object
+      properties:
+        id:
+          type: string
+        request_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        request_type:
+          type: string
+        trigger_reason:
+          type: string
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+        reviewer_id:
+          type: string
+        reviewer_role:
+          type: string
+        reviewed_at:
+          type: string
+          format: date-time
+          description: Omitted when the row was never reviewed.
+        review_latency_ms:
+          type: integer
+          format: int64
+          description: Omitted when the row was never reviewed.
+        is_exception:
+          type: boolean
+          description: 'True when the platform recorded the overridden status, OR recorded
+
+            an override trail under another status. Both arms matter: a row
+
+            carrying evidence must not drop out of the exception exhibit
+
+            because its status string differs.
+
+            '
+        override_authorized_by:
+          type: string
+          description: Omitted when none was recorded.
+        override_justification:
+          type: string
+          description: Surfaced verbatim. Omitted when none was recorded.
     USInsuranceDataSourcesResponse:
       type: object
       properties:
@@ -599,29 +543,70 @@ components:
             inventory and not an ECDIS register.
 
             '
-    USInsuranceOversightResponse:
+    USInsuranceAPIError:
+      type: object
+      description: US insurance module error envelope
+      properties:
+        error:
+          type: string
+          description: Human-readable message. Never carries the underlying database error.
+        error_code:
+          type: string
+          description: 'Stable machine-readable code: SCOPE_REQUIRED, INVALID_PERIOD,
+
+            USINSURANCE_NOT_AVAILABLE or INTERNAL_ERROR.
+
+            '
+      required:
+      - error
+      - error_code
+    USInsuranceDataCategoryItem:
       type: object
       properties:
-        items:
+        category:
+          type: string
+        occurrences:
+          type: integer
+        first_seen:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+    USInsuranceInventoryItem:
+      type: object
+      description: 'One AI system surface observed in governed traffic. The identity is the
+
+        recorded provider and model pair, which is the only system identity the
+
+        platform holds; a carrier''s own system name is never invented here.
+
+        '
+      properties:
+        system:
+          type: string
+          description: Rendered identity, "provider / model".
+        provider:
+          type: string
+        model:
+          type: string
+        request_types:
           type: array
           items:
-            $ref: '#/components/schemas/USInsuranceOversightItem'
-        total:
+            type: string
+        invocations:
           type: integer
-        exceptions:
-          type: integer
-          description: Count of items carrying an override trail.
-        unresolved:
-          type: integer
-          description: Count of items that were never reviewed.
-        period_start:
+        decision_counts:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Counts keyed by the platform's own policy_decision vocabulary.
+        first_seen:
           type: string
           format: date-time
-        period_end:
+        last_seen:
           type: string
           format: date-time
-        completeness:
-          $ref: '#/components/schemas/USInsuranceCompleteness'
   securitySchemes:
     basicAuth:
       type: http
@@ -632,6 +617,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Typed Policy Authoring API
+  title: AxonFlow Orchestrator Typed Policy Authoring API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Typed Policy Authoring across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -197,11 +197,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/TypedAuthoringUnconfigured'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/typed-policies/validate:
     post:
       tags:
@@ -261,11 +256,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/TypedAuthoringUnconfigured'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/typed-policies/publish:
     post:
       tags:
@@ -410,11 +400,6 @@ paths:
                     type: string
         '503':
           $ref: '#/components/responses/TypedAuthoringUnavailable'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/typed-policies/activate:
     post:
       tags:
@@ -611,11 +596,6 @@ paths:
                     type: string
         '503':
           $ref: '#/components/responses/TypedAuthoringUnavailable'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/typed-policies/active:
     get:
       tags:
@@ -690,11 +670,6 @@ paths:
                     type: string
         '503':
           $ref: '#/components/responses/TypedAuthoringUnavailable'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/typed-policies/active/summary:
     get:
       tags:
@@ -894,11 +869,6 @@ paths:
                     - summary_unavailable
                   error:
                     type: string
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/typed-policies/template:
     get:
       tags:
@@ -970,11 +940,6 @@ paths:
           description: 'The shipped template could not be rendered (`reason: organization_template_unavailable`).
 
             '
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/typed-policies/system:
     get:
       tags:
@@ -1125,13 +1090,27 @@ paths:
                           '
         '401':
           $ref: '#/components/responses/Unauthorized'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   responses:
+    TypedAuthoringUnavailable:
+      description: "The typed-authoring route cannot answer. `reason` says why:\n\n- `catalog_not_configured`: this deployment's typed-authoring\n  vocabulary could not be resolved, as `TypedAuthoringUnconfigured`\n  describes.\n- `storage_unavailable`: this deployment has a database configured for\n  typed authoring and could not use it. A publish or an activation is\n  refused rather than kept in memory, where the next restart would lose\n  it; a read of the active document is refused rather than answered\n  `404 nothing_active` (#4255), which would say the organization has no\n  active document. Retry once the database is reachable. The store's own\n  error is logged, never returned. A store that fails DURING a publish\n  or an activation, after the route was built, answers here too\n  (#4283), never `422 publication_refused` or `409 activation_refused`,\n  which are refusals of the document or the activation itself.\n- `ledger_inconsistent` (since v11.1.0, #4249 row 5797853828): the\n  store does not hold the active document its own ledger names. It is\n  the store's failure, like `storage_unavailable`, but a retry will not\n  heal it: the database is reachable and disagrees with itself, and the\n  store needs an operator's repair. An activation reads that document to\n  replace it, so `POST /activate` answers this; so do the reads of the\n  active document (`GET /active`, `GET /active/summary`), never `404\n  nothing_active` or a count of the shipped set alone, which would report\n  the organization's own controls as absent. Until v11.1.0 this state\n  answered `storage_unavailable`.\n- `workspace_building` (since v11.1.0, #4283): this request stopped\n  waiting for its organization's workspace build, which another request\n  started and which is still running. Retry in a few seconds. The step\n  the build was on is logged.\n- `workspace_unavailable` is answered with **500**, not 503, since\n  v11.1.0 (#4283), as the customer portal answers it: this\n  organization's typed-authoring workspace could not be built on this\n  process (a signing key that could not be generated, an authoring plane\n  or an activation authority that could not be constructed, a build\n  that did not complete), and a retry will not change that. A durable\n  store that cannot be opened is never this: it is\n  `storage_unavailable`. The cause is logged, never returned. A\n  `429 workspace_limit` on the same routes is the one quota: the\n  process holds its cap of workspaces and none can be evicted.\n- `key_not_loaded` (`GET /api/v1/typed-policies/active`, #4255, and\n  `POST /api/v1/typed-policies/activate`, where it is the artifact being\n  activated, #4249): the document is signed by a key this replica has not loaded,\n  and the reload that would load it did not complete in time. A read\n  whose key reload is deferred WAITS for it (at most a reload in flight\n  it joins, one reload floor of 2 seconds, plus one more floor for the\n  fresh reload it then runs or joins) and answers from the key set that\n  reload produced: `200`, `500 active_unverifiable` (on\n  activate, `500 artifact_unverifiable`) when the key is authorized\n  nowhere, or `503 storage_unavailable` when the re-read failed\n  (#4272). `key_not_loaded` is left for a reload in flight that took\n  longer than the floor; a retry after a few seconds settles it.\n"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              reason:
+                type: string
+                enum:
+                - catalog_not_configured
+                - storage_unavailable
+                - ledger_inconsistent
+                - workspace_building
+                - key_not_loaded
+              error:
+                type: string
     Unauthorized:
       description: 'Unauthorized - missing or invalid tenant/organization scope.
 
@@ -1154,8 +1133,20 @@ components:
           example:
             success: false
             error: missing tenant ID
-    TypedAuthoringUnavailable:
-      description: "The typed-authoring route cannot answer. `reason` says why:\n\n- `catalog_not_configured`: this deployment's typed-authoring\n  vocabulary could not be resolved, as `TypedAuthoringUnconfigured`\n  describes.\n- `storage_unavailable`: this deployment has a database configured for\n  typed authoring and could not use it. A publish or an activation is\n  refused rather than kept in memory, where the next restart would lose\n  it; a read of the active document is refused rather than answered\n  `404 nothing_active` (#4255), which would say the organization has no\n  active document. Retry once the database is reachable. The store's own\n  error is logged, never returned. A store that fails DURING a publish\n  or an activation, after the route was built, answers here too\n  (#4283), never `422 publication_refused` or `409 activation_refused`,\n  which are refusals of the document or the activation itself.\n- `ledger_inconsistent` (since v11.1.0, #4249 row 5797853828): the\n  store does not hold the active document its own ledger names. It is\n  the store's failure, like `storage_unavailable`, but a retry will not\n  heal it: the database is reachable and disagrees with itself, and the\n  store needs an operator's repair. An activation reads that document to\n  replace it, so `POST /activate` answers this; so do the reads of the\n  active document (`GET /active`, `GET /active/summary`), never `404\n  nothing_active` or a count of the shipped set alone, which would report\n  the organization's own controls as absent. Until v11.1.0 this state\n  answered `storage_unavailable`.\n- `workspace_building` (since v11.1.0, #4283): this request stopped\n  waiting for its organization's workspace build, which another request\n  started and which is still running. Retry in a few seconds. The step\n  the build was on is logged.\n- `workspace_unavailable` is answered with **500**, not 503, since\n  v11.1.0 (#4283), as the customer portal answers it: this\n  organization's typed-authoring workspace could not be built on this\n  process (a signing key that could not be generated, an authoring plane\n  or an activation authority that could not be constructed, a build\n  that did not complete), and a retry will not change that. A durable\n  store that cannot be opened is never this: it is\n  `storage_unavailable`. The cause is logged, never returned. A\n  `429 workspace_limit` on the same routes is the one quota: the\n  process holds its cap of workspaces and none can be evicted.\n- `key_not_loaded` (`GET /api/v1/typed-policies/active`, #4255, and\n  `POST /api/v1/typed-policies/activate`, where it is the artifact being\n  activated, #4249): the document is signed by a key this replica has not loaded,\n  and the reload that would load it did not complete in time. A read\n  whose key reload is deferred WAITS for it (at most a reload in flight\n  it joins, one reload floor of 2 seconds, plus one more floor for the\n  fresh reload it then runs or joins) and answers from the key set that\n  reload produced: `200`, `500 active_unverifiable` (on\n  activate, `500 artifact_unverifiable`) when the key is authorized\n  nowhere, or `503 storage_unavailable` when the re-read failed\n  (#4272). `key_not_loaded` is left for a reload in flight that took\n  longer than the floor; a retry after a few seconds settles it.\n"
+    TypedAuthoringUnconfigured:
+      description: 'This deployment''s typed-authoring vocabulary could not be resolved: an
+
+        unrecognised `AXONFLOW_TYPED_AUTHORING_CATALOG` value, or a deployment
+
+        vocabulary this process could not build. Unset means `deployment` (PRD
+
+        §1.5), so a stock deployment never answers this. The surface refuses
+
+        rather than validating against an empty catalog, which would reject
+
+        every policy for naming an unregistered action.
+
+        '
       content:
         application/json:
           schema:
@@ -1167,10 +1158,6 @@ components:
                 type: string
                 enum:
                 - catalog_not_configured
-                - storage_unavailable
-                - ledger_inconsistent
-                - workspace_building
-                - key_not_loaded
               error:
                 type: string
     TypedAuthoringTierLimit:
@@ -1220,34 +1207,168 @@ components:
                   where no particular policy is at fault.
 
                   '
-    TypedAuthoringUnconfigured:
-      description: 'This deployment''s typed-authoring vocabulary could not be resolved: an
+  schemas:
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
 
-        unrecognised `AXONFLOW_TYPED_AUTHORING_CATALOG` value, or a deployment
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
 
-        vocabulary this process could not build. Unset means `deployment` (PRD
+        writer (240 call sites), so it is the shape of every error from the
 
-        §1.5), so a stock deployment never answers this. The surface refuses
+        core request, audit, plan, workflow, execution and connector surfaces.
 
-        rather than validating against an empty catalog, which would reject
 
-        every policy for naming an unregistered action.
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
 
         '
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-              reason:
-                type: string
-                enum:
-                - catalog_not_configured
-              error:
-                type: string
-  schemas:
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    EditionConstructReport:
+      type: object
+      description: 'What this edition may spend. Derived from the edition profile, whose
+
+        every row cites a row of the Edition Capability Boundaries PRD.
+
+        '
+      properties:
+        edition:
+          type: string
+          enum:
+          - community
+          - evaluation
+          - enterprise
+        obligation_families:
+          type: array
+          description: 'The obligation families this edition may attach. Community and
+
+            Evaluation carry disclosure and audit/notify; route restriction is
+
+            Evaluation and above; approval and budget are Enterprise.
+
+            '
+          items:
+            type: string
+        attribute_namespaces:
+          type: array
+          description: 'The request-context attribute namespaces a condition may read.
+
+            Community carries `principal`, `action`, `resource` and `args`;
+
+            Evaluation adds `env` and `signal`; Enterprise adds `agent` and
+
+            `state`.
+
+            '
+          items:
+            type: string
+        group_scope:
+          type: boolean
+          description: 'Whether a policy may be scoped to a group. Group scope resolves
+
+            through the nested group graph, which is Enterprise.
+
+            '
+        separation_of_duties:
+          type: boolean
+          description: 'Whether a publication needs an approver other than the author and an
+
+            activation an actor other than that author. True on Enterprise, and
+
+            true on ANY edition when `tier_established` is false. Where it is
+
+            false, a sole administrator can publish and activate; nothing else
+
+            is relaxed, and every activation is still attributed and audited.
+
+            '
+        tier_established:
+          type: boolean
+          description: 'Whether this process could DETERMINE the deployment''s licensed
+
+            tier, or fell back to Community because it could not. False means
+
+            either that a licence key was present and did not verify, or that
+
+            none reached this process on a deployment whose `DEPLOYMENT_MODE`
+
+            is entitled to Enterprise.
+
+
+            When it is false the two fields above disagree on purpose:
+
+            `edition` reads `community`, because losing a construct loses a
+
+            capability and the smallest boundary is the safe fallback for one;
+
+            `separation_of_duties` reads true regardless, because losing an
+
+            approver loses a control and the smallest boundary is the
+
+            PERMISSIVE one there. Read together they say "this deployment may
+
+            be entitled to more than it is being given, and nothing is being
+
+            relaxed while that is unresolved". The remedy is an operator''s:
+
+            give this process `AXONFLOW_LICENSE_KEY`, or re-issue the licence.
+
+            '
+        reserved:
+          type: array
+          description: 'Constructs withheld for want of an edition ruling rather than by
+
+            one, reported separately because an excluded construct is an upgrade
+
+            and a reserved one is an open question.
+
+            '
+          items:
+            type: string
+    AuthoringFinding:
+      type: object
+      description: One declared save-time or publication result.
+      properties:
+        code:
+          type: string
+        severity:
+          type: string
+          enum:
+          - reject
+          - warn
+        policy_id:
+          type: string
+        summary:
+          type: string
+          description: The declared, code-level sentence, renderable verbatim.
+        detail:
+          type: string
+          description: What was wrong in this document, naming the offending value.
     TypedAuthoringActivation:
       type: object
       description: 'One activation record. Promote, rollback and withdraw each append one, and
@@ -1390,126 +1511,6 @@ components:
         message:
           type: string
           description: The same fact as a sentence, naming each omitted and each changed policy, and each changed attribute with what differs.
-    AuthoringFinding:
-      type: object
-      description: One declared save-time or publication result.
-      properties:
-        code:
-          type: string
-        severity:
-          type: string
-          enum:
-          - reject
-          - warn
-        policy_id:
-          type: string
-        summary:
-          type: string
-          description: The declared, code-level sentence, renderable verbatim.
-        detail:
-          type: string
-          description: What was wrong in this document, naming the offending value.
-    EditionConstructReport:
-      type: object
-      description: 'What this edition may spend. Derived from the edition profile, whose
-
-        every row cites a row of the Edition Capability Boundaries PRD.
-
-        '
-      properties:
-        edition:
-          type: string
-          enum:
-          - community
-          - evaluation
-          - enterprise
-        obligation_families:
-          type: array
-          description: 'The obligation families this edition may attach. Community and
-
-            Evaluation carry disclosure and audit/notify; route restriction is
-
-            Evaluation and above; approval and budget are Enterprise.
-
-            '
-          items:
-            type: string
-        attribute_namespaces:
-          type: array
-          description: 'The request-context attribute namespaces a condition may read.
-
-            Community carries `principal`, `action`, `resource` and `args`;
-
-            Evaluation adds `env` and `signal`; Enterprise adds `agent` and
-
-            `state`.
-
-            '
-          items:
-            type: string
-        group_scope:
-          type: boolean
-          description: 'Whether a policy may be scoped to a group. Group scope resolves
-
-            through the nested group graph, which is Enterprise.
-
-            '
-        separation_of_duties:
-          type: boolean
-          description: 'Whether a publication needs an approver other than the author and an
-
-            activation an actor other than that author. True on Enterprise, and
-
-            true on ANY edition when `tier_established` is false. Where it is
-
-            false, a sole administrator can publish and activate; nothing else
-
-            is relaxed, and every activation is still attributed and audited.
-
-            '
-        tier_established:
-          type: boolean
-          description: 'Whether this process could DETERMINE the deployment''s licensed
-
-            tier, or fell back to Community because it could not. False means
-
-            either that a licence key was present and did not verify, or that
-
-            none reached this process on a deployment whose `DEPLOYMENT_MODE`
-
-            is entitled to Enterprise.
-
-
-            When it is false the two fields above disagree on purpose:
-
-            `edition` reads `community`, because losing a construct loses a
-
-            capability and the smallest boundary is the safe fallback for one;
-
-            `separation_of_duties` reads true regardless, because losing an
-
-            approver loses a control and the smallest boundary is the
-
-            PERMISSIVE one there. Read together they say "this deployment may
-
-            be entitled to more than it is being given, and nothing is being
-
-            relaxed while that is unresolved". The remedy is an operator''s:
-
-            give this process `AXONFLOW_LICENSE_KEY`, or re-issue the licence.
-
-            '
-        reserved:
-          type: array
-          description: 'Constructs withheld for want of an edition ruling rather than by
-
-            one, reported separately because an excluded construct is an upgrade
-
-            and a reserved one is an open question.
-
-            '
-          items:
-            type: string
     TypedAuthoringDocumentRequest:
       type: object
       required:
@@ -1543,47 +1544,6 @@ components:
           type: array
           items:
             type: object
-    ErrorResponse:
-      type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
-
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
-
-        writer (240 call sites), so it is the shape of every error from the
-
-        core request, audit, plan, workflow, execution and connector surfaces.
-
-
-        It is one of THREE error SHAPES this document describes. See
-
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
-      required:
-      - success
-      - error
   parameters:
     TypedAuthoringUser:
       name: X-User-ID
@@ -1625,6 +1585,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

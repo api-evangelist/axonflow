@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Webhooks API
+  title: AxonFlow Orchestrator Webhooks API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Webhooks across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -93,11 +93,6 @@ paths:
                   created_at: '2026-01-17T10:00:00Z'
                   updated_at: '2026-01-17T10:00:00Z'
                 total: 1
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/webhooks/{id}:
     get:
       tags:
@@ -179,13 +174,75 @@ paths:
           description: Webhook subscription deleted
         '404':
           $ref: '#/components/responses/NotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      description: 'The FLAT error envelope: `{success, error}`. This is what
+
+        `sendErrorResponse` emits, which is the orchestrator''s dominant error
+
+        writer (240 call sites), so it is the shape of every error from the
+
+        core request, audit, plan, workflow, execution and connector surfaces.
+
+
+        It is one of THREE error SHAPES this document describes. See
+
+        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
+
+        the note on `components.responses` for why there is more than one.
+
+        `LLMProviderAPIError` is a code-constrained refinement of the coded
+
+        shape, not a fourth shape.
+
+
+        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
+
+        added by the #3901 reconciliation and this sentence was not updated with
+
+        it, so the document undercounted its own families — which is the same
+
+        defect one level up as the operations that named the wrong one.
+
+        '
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable message. There is no machine-readable code on this envelope.
+      required:
+      - success
+      - error
+    ListWebhookSubscriptionsResponse:
+      type: object
+      description: List of webhook subscriptions
+      properties:
+        subscriptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookSubscription'
+        total:
+          type: integer
+          description: Total number of subscriptions
+    UpdateWebhookRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Updated URL to receive webhook event payloads
+        events:
+          type: array
+          items:
+            type: string
+          description: Updated list of event types to subscribe to
+        active:
+          type: boolean
+          description: Whether the subscription is active
     WebhookSubscription:
       type: object
       description: A webhook subscription for receiving event notifications
@@ -231,17 +288,6 @@ components:
           type: string
           format: date-time
           description: When the subscription was last updated
-    ListWebhookSubscriptionsResponse:
-      type: object
-      description: List of webhook subscriptions
-      properties:
-        subscriptions:
-          type: array
-          items:
-            $ref: '#/components/schemas/WebhookSubscription'
-        total:
-          type: integer
-          description: Total number of subscriptions
     CreateWebhookRequest:
       type: object
       required:
@@ -283,62 +329,6 @@ components:
           type: boolean
           default: true
           description: Whether the subscription is active
-    UpdateWebhookRequest:
-      type: object
-      properties:
-        url:
-          type: string
-          format: uri
-          description: Updated URL to receive webhook event payloads
-        events:
-          type: array
-          items:
-            type: string
-          description: Updated list of event types to subscribe to
-        active:
-          type: boolean
-          description: Whether the subscription is active
-    ErrorResponse:
-      type: object
-      description: 'The FLAT error envelope: `{success, error}`. This is what
-
-        `sendErrorResponse` emits, which is the orchestrator''s dominant error
-
-        writer (240 call sites), so it is the shape of every error from the
-
-        core request, audit, plan, workflow, execution and connector surfaces.
-
-
-        It is one of THREE error SHAPES this document describes. See
-
-        `CodedErrorResponse` and `TripletErrorResponse` for the other two, and
-
-        the note on `components.responses` for why there is more than one.
-
-        `LLMProviderAPIError` is a code-constrained refinement of the coded
-
-        shape, not a fourth shape.
-
-
-        This paragraph said "TWO" until issue #3941. `TripletErrorResponse` was
-
-        added by the #3901 reconciliation and this sentence was not updated with
-
-        it, so the document undercounted its own families — which is the same
-
-        defect one level up as the operations that named the wrong one.
-
-        '
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: string
-          description: Human-readable message. There is no machine-readable code on this envelope.
-      required:
-      - success
-      - error
   responses:
     BadRequest:
       description: Invalid request
@@ -368,6 +358,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml

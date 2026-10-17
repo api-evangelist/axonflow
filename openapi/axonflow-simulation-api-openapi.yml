@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Simulation API
+  title: AxonFlow Policy Management Simulation API
+  description: REST API for managing dynamic policies in AxonFlow.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Simulation across 2 of this provider''s published API definitions: axonflow-policy-api.yaml, axonflow-policy-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (Agent single entry point, ADR-024)
@@ -78,13 +78,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimulationError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
   /api/v1/policies/impact-report:
     post:
       deprecated: true
@@ -135,13 +128,6 @@ paths:
                 $ref: '#/components/schemas/SimulationError'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
   /api/v1/policies/conflicts:
     post:
       deprecated: true
@@ -196,50 +182,8 @@ paths:
                 $ref: '#/components/schemas/SimulationError'
         '500':
           $ref: '#/components/responses/InternalError'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (Agent single entry point, ADR-024)
-    - url: http://localhost:8080
-      description: Local development (Agent single entry point)
-    - url: http://localhost:8081
-      description: Orchestrator direct (internal only)
 components:
   schemas:
-    PolicyConflict:
-      type: object
-      description: A detected conflict between two policies
-      properties:
-        policy_a:
-          $ref: '#/components/schemas/PolicyConflictRef'
-        policy_b:
-          $ref: '#/components/schemas/PolicyConflictRef'
-        conflict_type:
-          type: string
-          enum:
-          - contradictory_action
-          - shadow
-          - redundant
-        description:
-          type: string
-        severity:
-          type: string
-          enum:
-          - high
-          - medium
-          - low
-        overlapping_field:
-          type: string
-          description: Condition field both policies evaluate
-    PolicyConflictRef:
-      type: object
-      description: Identifies a policy in a conflict pair
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        type:
-          type: string
     PolicyConflictRequest:
       type: object
       properties:
@@ -265,62 +209,17 @@ components:
           type: object
           additionalProperties: true
           description: Additional context for evaluation
-    ImpactReportInput:
+    SimulationError:
       type: object
-      required:
-      - query
+      description: Flat error shape returned by the simulation endpoints
       properties:
-        query:
+        error:
           type: string
-        request_type:
+          description: Error code (duplicated in code)
+        code:
           type: string
-        user:
-          type: object
-          additionalProperties: true
-          description: User context for testing
-        context:
-          type: object
-          additionalProperties: true
-    SimulationUserContext:
-      type: object
-      description: User context for policy simulation and testing
-      properties:
-        id:
-          type: integer
-          description: Numeric user identifier
-        email:
+        message:
           type: string
-          example: analyst@company.com
-        role:
-          type: string
-          example: analyst
-        region:
-          type: string
-          description: User's region for geo-based routing policies
-        permissions:
-          type: array
-          items:
-            type: string
-        tenant_id:
-          type: string
-        org_id:
-          type: string
-          description: Organization for multi-tenant isolation
-    ImpactReportRequest:
-      type: object
-      required:
-      - policy_id
-      - inputs
-      properties:
-        policy_id:
-          type: string
-          description: Policy to test against the inputs
-        inputs:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImpactReportInput'
-          minItems: 1
-          description: Test inputs (per-tier maximum applies)
     APIError:
       type: object
       properties:
@@ -343,103 +242,31 @@ components:
                   message:
                     type: string
               description: Field-level validation errors
-    ImpactReportResult:
+    PolicyConflict:
       type: object
+      description: A detected conflict between two policies
       properties:
-        input_index:
-          type: integer
-        matched:
-          type: boolean
-        blocked:
-          type: boolean
-        actions:
-          type: array
-          items:
-            type: string
-          description: Action types that would trigger for this input
-    SimulationClientContext:
-      type: object
-      description: Client context for policy simulation
-      properties:
-        id:
+        policy_a:
+          $ref: '#/components/schemas/PolicyConflictRef'
+        policy_b:
+          $ref: '#/components/schemas/PolicyConflictRef'
+        conflict_type:
           type: string
-        name:
+          enum:
+          - contradictory_action
+          - shadow
+          - redundant
+        description:
           type: string
-        org_id:
+        severity:
           type: string
-          description: Organization ID for usage tracking
-        tenant_id:
+          enum:
+          - high
+          - medium
+          - low
+        overlapping_field:
           type: string
-    PolicyConflictResponse:
-      type: object
-      properties:
-        conflicts:
-          type: array
-          items:
-            $ref: '#/components/schemas/PolicyConflict'
-        total_policies:
-          type: integer
-          description: Number of active policies analyzed
-        conflict_count:
-          type: integer
-        checked_at:
-          type: string
-          format: date-time
-        tier:
-          type: string
-    ImpactReportResponse:
-      type: object
-      properties:
-        policy_id:
-          type: string
-        policy_name:
-          type: string
-        total_inputs:
-          type: integer
-        matched:
-          type: integer
-          description: Number of inputs that matched the policy
-        blocked:
-          type: integer
-          description: Number of inputs that would be blocked
-        match_rate:
-          type: number
-          format: float
-        block_rate:
-          type: number
-          format: float
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImpactReportResult'
-        processing_time_ms:
-          type: integer
-          format: int64
-        generated_at:
-          type: string
-          format: date-time
-        tier:
-          type: string
-    SimulationError:
-      type: object
-      description: Flat error shape returned by the simulation endpoints
-      properties:
-        error:
-          type: string
-          description: Error code (duplicated in code)
-        code:
-          type: string
-        message:
-          type: string
-    SimulationDailyUsage:
-      type: object
-      description: Simulation quota usage (omitted on unlimited tiers)
-      properties:
-        used:
-          type: integer
-        limit:
-          type: integer
-          description: Daily limit (-1 = unlimited)
+          description: Condition field both policies evaluate
     SimulatePoliciesResponse:
       type: object
       properties:
@@ -488,6 +315,158 @@ components:
           description: License tier the simulation ran under
         daily_usage:
           $ref: '#/components/schemas/SimulationDailyUsage'
+    ImpactReportInput:
+      type: object
+      required:
+      - query
+      properties:
+        query:
+          type: string
+        request_type:
+          type: string
+        user:
+          type: object
+          additionalProperties: true
+          description: User context for testing
+        context:
+          type: object
+          additionalProperties: true
+    SimulationDailyUsage:
+      type: object
+      description: Simulation quota usage (omitted on unlimited tiers)
+      properties:
+        used:
+          type: integer
+        limit:
+          type: integer
+          description: Daily limit (-1 = unlimited)
+    SimulationClientContext:
+      type: object
+      description: Client context for policy simulation
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        org_id:
+          type: string
+          description: Organization ID for usage tracking
+        tenant_id:
+          type: string
+    ImpactReportResponse:
+      type: object
+      properties:
+        policy_id:
+          type: string
+        policy_name:
+          type: string
+        total_inputs:
+          type: integer
+        matched:
+          type: integer
+          description: Number of inputs that matched the policy
+        blocked:
+          type: integer
+          description: Number of inputs that would be blocked
+        match_rate:
+          type: number
+          format: float
+        block_rate:
+          type: number
+          format: float
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImpactReportResult'
+        processing_time_ms:
+          type: integer
+          format: int64
+        generated_at:
+          type: string
+          format: date-time
+        tier:
+          type: string
+    SimulationUserContext:
+      type: object
+      description: User context for policy simulation and testing
+      properties:
+        id:
+          type: integer
+          description: Numeric user identifier
+        email:
+          type: string
+          example: analyst@company.com
+        role:
+          type: string
+          example: analyst
+        region:
+          type: string
+          description: User's region for geo-based routing policies
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type: string
+        org_id:
+          type: string
+          description: Organization for multi-tenant isolation
+    PolicyConflictRef:
+      type: object
+      description: Identifies a policy in a conflict pair
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+    ImpactReportResult:
+      type: object
+      properties:
+        input_index:
+          type: integer
+        matched:
+          type: boolean
+        blocked:
+          type: boolean
+        actions:
+          type: array
+          items:
+            type: string
+          description: Action types that would trigger for this input
+    PolicyConflictResponse:
+      type: object
+      properties:
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyConflict'
+        total_policies:
+          type: integer
+          description: Number of active policies analyzed
+        conflict_count:
+          type: integer
+        checked_at:
+          type: string
+          format: date-time
+        tier:
+          type: string
+    ImpactReportRequest:
+      type: object
+      required:
+      - policy_id
+      - inputs
+      properties:
+        policy_id:
+          type: string
+          description: Policy to test against the inputs
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImpactReportInput'
+          minItems: 1
+          description: Test inputs (per-tier maximum applies)
   parameters:
     TenantID:
       name: X-Tenant-ID
@@ -516,6 +495,3 @@ components:
             error:
               code: INTERNAL_ERROR
               message: An unexpected error occurred
-x-refined-from:
-- axonflow-policy-api.yaml
-- axonflow-policy-openapi.yml

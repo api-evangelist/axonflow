@@ -1,6 +1,9 @@
 openapi: 3.2.0
 info:
-  title: Axonflow Kill Switch API
+  title: AxonFlow MAS FEAT Compliance Kill Switch API
+  description: '> **Enterprise only** — the MAS FEAT module is compiled only into Enterprise
+
+    > builds (`//go:build enterprise`).'
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +11,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged Kill Switch across 2 of this provider''s published API definitions: axonflow-masfeat-api.yaml, axonflow-masfeat-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://agent.getaxonflow.com
   description: Production (via AxonFlow agent proxy)
@@ -46,13 +48,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/killswitch/{system_id}/configure:
     post:
       summary: Configure Kill Switch Thresholds
@@ -100,13 +95,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/killswitch/{system_id}/trigger:
     post:
       summary: Manually Trigger Kill Switch
@@ -150,13 +138,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/killswitch/{system_id}/restore:
     post:
       summary: Restore Kill Switch
@@ -200,13 +181,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
   /api/v1/masfeat/killswitch/{system_id}/history:
     get:
       summary: Get Kill Switch History
@@ -240,37 +214,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    servers:
-    - url: https://agent.getaxonflow.com
-      description: Production (via AxonFlow agent proxy)
-    - url: http://localhost:8080
-      description: Local Development (agent proxy)
-    - url: http://localhost:8081
-      description: Local Development (orchestrator direct, internal only)
 components:
   schemas:
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error message
-    KillSwitchActionResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          description: Human-readable action result
-        kill_switch:
-          $ref: '#/components/schemas/KillSwitch'
-    TriggerKillSwitchRequest:
+    RestoreKillSwitchRequest:
       type: object
       required:
       - reason
       properties:
         reason:
           type: string
-          description: Reason for triggering
+          description: Reason for restoration
     KillSwitch:
       type: object
       properties:
@@ -322,34 +275,14 @@ components:
         updated_at:
           type: string
           format: date-time
-    ConfigureKillSwitchRequest:
+    TriggerKillSwitchRequest:
       type: object
+      required:
+      - reason
       properties:
-        auto_trigger_enabled:
-          type: boolean
-          description: Enable automatic triggering on threshold breach
-        accuracy_threshold:
-          type: number
-          format: double
-          minimum: 0
-          maximum: 1
-          description: Minimum accuracy threshold (0-1)
-        bias_threshold:
-          type: number
-          format: double
-          minimum: 0
-          maximum: 1
-          description: Maximum bias threshold (0-1)
-        error_rate_threshold:
-          type: number
-          format: double
-          minimum: 0
-          maximum: 1
-          description: Maximum error rate threshold (0-1)
-        trigger_conditions:
-          type: object
-          additionalProperties: true
-          description: Additional structured trigger conditions
+        reason:
+          type: string
+          description: Reason for triggering
     KillSwitchHistoryResponse:
       type: object
       properties:
@@ -387,14 +320,48 @@ components:
         performed_at:
           type: string
           format: date-time
-    RestoreKillSwitchRequest:
+    KillSwitchActionResponse:
       type: object
-      required:
-      - reason
       properties:
-        reason:
+        message:
           type: string
-          description: Reason for restoration
+          description: Human-readable action result
+        kill_switch:
+          $ref: '#/components/schemas/KillSwitch'
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+    ConfigureKillSwitchRequest:
+      type: object
+      properties:
+        auto_trigger_enabled:
+          type: boolean
+          description: Enable automatic triggering on threshold breach
+        accuracy_threshold:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Minimum accuracy threshold (0-1)
+        bias_threshold:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Maximum bias threshold (0-1)
+        error_rate_threshold:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Maximum error rate threshold (0-1)
+        trigger_conditions:
+          type: object
+          additionalProperties: true
+          description: Additional structured trigger conditions
   parameters:
     KillSwitchSystemID:
       name: system_id
@@ -424,6 +391,3 @@ components:
         `"system"`.
 
         '
-x-refined-from:
-- axonflow-masfeat-api.yaml
-- axonflow-masfeat-openapi.yml

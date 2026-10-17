@@ -1,6 +1,7 @@
 openapi: 3.2.0
 info:
-  title: Axonflow RBI Compliance API
+  title: AxonFlow Orchestrator RBI Compliance API
+  description: REST API for the AxonFlow Orchestrator service - Policy Enforcement on the anchored engine, LLM Routing, and Multi-Agent Planning.
   version: 11.1.0
   contact:
     name: AxonFlow Support
@@ -8,7 +9,6 @@ info:
   license:
     name: Business Source License 1.1
     url: https://github.com/getaxonflow/axonflow/blob/main/LICENSE
-  description: 'Operations tagged RBI Compliance across 2 of this provider''s published API definitions: axonflow-orchestrator-api.yaml, axonflow-orchestrator-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://orchestrator.getaxonflow.com
   description: Production (SaaS)
@@ -43,11 +43,6 @@ paths:
                     type: string
                   components:
                     type: object
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/ai-systems:
     get:
       tags:
@@ -104,11 +99,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RBIAISystem'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/ai-systems/{id}:
     get:
       tags:
@@ -173,11 +163,6 @@ paths:
       responses:
         '204':
           description: AI system deleted
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/validations:
     get:
       tags:
@@ -196,11 +181,6 @@ paths:
       responses:
         '201':
           description: Validation created
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/incidents:
     get:
       tags:
@@ -219,11 +199,6 @@ paths:
       responses:
         '201':
           description: Incident created
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/killswitches:
     get:
       tags:
@@ -245,11 +220,6 @@ paths:
       responses:
         '201':
           description: Kill switch activated
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/killswitches/{id}/deactivate:
     post:
       tags:
@@ -265,11 +235,6 @@ paths:
       responses:
         '200':
           description: Kill switch deactivated
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/reports:
     get:
       tags:
@@ -288,11 +253,6 @@ paths:
       responses:
         '201':
           description: Report generation started
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/audit-exports:
     get:
       tags:
@@ -395,11 +355,6 @@ paths:
           $ref: '#/components/responses/CodedBadRequest'
         '401':
           $ref: '#/components/responses/CodedUnauthorized'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/audit-exports/{export_id}:
     get:
       tags:
@@ -484,11 +439,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/audit-exports/{export_id}/process:
     post:
       tags:
@@ -539,11 +489,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/policies/templates:
     get:
       tags:
@@ -554,11 +499,6 @@ paths:
       responses:
         '200':
           description: List of policy templates
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/ai-systems/summary:
     get:
       tags:
@@ -583,11 +523,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '500':
           $ref: '#/components/responses/CodedInternalError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/validations/{id}:
     get:
       tags:
@@ -677,11 +612,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/incidents/{id}:
     get:
       tags:
@@ -767,11 +697,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/incidents/{id}/resolve:
     post:
       tags:
@@ -837,11 +762,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/killswitches/{id}:
     get:
       tags:
@@ -871,11 +791,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/reports/{id}:
     get:
       tags:
@@ -917,11 +832,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/reports/{id}/submit:
     post:
       tags:
@@ -960,11 +870,6 @@ paths:
           $ref: '#/components/responses/CodedUnauthorized'
         '404':
           $ref: '#/components/responses/CodedNotFound'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/audit-exports/{export_id}/download:
     get:
       tags:
@@ -1016,11 +921,6 @@ paths:
           $ref: '#/components/responses/CodedNotFound'
         '500':
           $ref: '#/components/responses/CodedInternalError'
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/policies/templates/{id}:
     get:
       tags:
@@ -1057,11 +957,6 @@ paths:
             text/plain:
               schema:
                 type: string
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
   /api/v1/rbi/policies/categories:
     get:
       tags:
@@ -1086,95 +981,42 @@ paths:
             text/plain:
               schema:
                 type: string
-    servers:
-    - url: https://orchestrator.getaxonflow.com
-      description: Production (SaaS)
-    - url: http://localhost:8081
-      description: Local Development
 components:
-  responses:
-    CodedInternalError:
-      description: Internal server error (coded envelope)
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/CodedErrorResponse'
-          example:
-            error:
-              code: INTERNAL_ERROR
-              message: Internal server error
-    CodedNotFound:
-      description: Resource not found (coded envelope)
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/CodedErrorResponse'
-          example:
-            error:
-              code: NOT_FOUND
-              message: Resource not found
-    CodedUnauthorized:
-      description: Unauthorized - missing or invalid organization scope (coded envelope)
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/CodedErrorResponse'
-          example:
-            error:
-              code: UNAUTHORIZED
-              message: Organization ID required
-    CodedBadRequest:
-      description: Invalid request (coded envelope)
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/CodedErrorResponse'
-          example:
-            error:
-              code: INVALID_INPUT
-              message: connector_name is required
   schemas:
-    RBIPolicyTemplate:
+    RBIAuditExportRequest:
       type: object
+      description: Request to create an RBI audit export
+      required:
+      - export_type
+      - format
       properties:
-        id:
+        export_type:
           type: string
-        name:
+          enum:
+          - full
+          - incremental
+          description: Type of audit export
+        format:
           type: string
-        description:
-          type: string
-        type:
-          type: string
-        severity:
-          type: string
-        priority:
-          type: integer
-          description: Higher is evaluated first.
-        enabled:
-          type: boolean
-        conditions:
-          type: array
-          items:
-            $ref: '#/components/schemas/RBIPolicyCondition'
-        actions:
-          type: array
-          items:
-            $ref: '#/components/schemas/RBIPolicyAction'
-        regulatory_reference:
-          type: string
-          description: The RBI circular this template implements.
-        applicable_risk_levels:
-          type: array
-          items:
-            type: string
-        requires_board_approval:
-          type: boolean
-        created_at:
+          enum:
+          - json
+          - csv
+          - xml
+          description: Export file format
+        start_date:
           type: string
           format: date-time
-        updated_at:
+          description: Start of date range (for incremental exports)
+        end_date:
           type: string
           format: date-time
+          description: End of date range (for incremental exports)
+        requested_by:
+          type: string
+          description: User or service requesting the export
+        purpose:
+          type: string
+          description: Purpose of the export (for audit trail)
     RBIAuditExport:
       type: object
       description: RBI audit export record
@@ -1252,94 +1094,54 @@ components:
           - string
           - 'null'
           description: Error details if export failed
-    RBIAuditExportRequest:
+    RBIAISystemCreate:
       type: object
-      description: Request to create an RBI audit export
       required:
-      - export_type
-      - format
+      - system_id
+      - system_name
+      - risk_category
       properties:
-        export_type:
+        system_id:
           type: string
-          enum:
-          - full
-          - incremental
-          description: Type of audit export
-        format:
+        risk_mitigation:
+          type: object
+        recommendations:
+          type: array
+          items:
+            type: string
+        created_by:
           type: string
-          enum:
-          - json
-          - csv
-          - xml
-          description: Export file format
-        start_date:
+        created_at:
           type: string
           format: date-time
-          description: Start of date range (for incremental exports)
-        end_date:
+        updated_at:
           type: string
           format: date-time
-          description: End of date range (for incremental exports)
-        requested_by:
+        submitted_at:
           type: string
-          description: User or service requesting the export
-        purpose:
+          format: date-time
+        submitted_by:
           type: string
-          description: Purpose of the export (for audit trail)
-    CodedErrorResponse:
-      type: object
-      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
-
-        screaming-snake string enum. This is what the per-handler `writeError`
-
-        methods emit across the policy API, the LLM provider API, the agents,
-
-        template, unified-execution and media-governance APIs, and every
-
-        handler in the RBI module (362 call sites in total).
-
-
-        It is one of TWO error SHAPES this document describes. `code` is a
-
-        STRING on this envelope; it is never an HTTP status integer.
-
-        `LLMProviderAPIError` is this shape with the `code` enum constrained to
-
-        the five values the LLM-provider handlers emit.
-
-        '
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              description: Machine-readable error code, screaming snake case.
-              example: NOT_FOUND
-            message:
-              type: string
-          required:
-          - code
-          - message
-      required:
-      - error
-    RBIAISystemSummary:
+        approved_at:
+          type: string
+          format: date-time
+        approved_by:
+          type: string
+        rejected_at:
+          type: string
+          format: date-time
+        rejected_by:
+          type: string
+        rejection_reason:
+          type: string
+    RBIPolicyAction:
       type: object
       properties:
-        total_systems:
-          type: integer
-        systems_by_risk:
+        type:
+          type: string
+        config:
           type: object
-          additionalProperties:
-            type: integer
-        systems_by_status:
-          type: object
-          additionalProperties:
-            type: integer
-        systems_pending_approval:
-          type: integer
-        systems_overdue_validation:
-          type: integer
+          additionalProperties: true
     RBIAISystem:
       type: object
       properties:
@@ -1398,6 +1200,60 @@ components:
         updated_at:
           type: string
           format: date-time
+    RBIAISystemSummary:
+      type: object
+      properties:
+        total_systems:
+          type: integer
+        systems_by_risk:
+          type: object
+          additionalProperties:
+            type: integer
+        systems_by_status:
+          type: object
+          additionalProperties:
+            type: integer
+        systems_pending_approval:
+          type: integer
+        systems_overdue_validation:
+          type: integer
+    CodedErrorResponse:
+      type: object
+      description: 'The CODED error envelope: `{error: {code, message}}`, where `code` is a
+
+        screaming-snake string enum. This is what the per-handler `writeError`
+
+        methods emit across the policy API, the LLM provider API, the agents,
+
+        template, unified-execution and media-governance APIs, and every
+
+        handler in the RBI module (362 call sites in total).
+
+
+        It is one of TWO error SHAPES this document describes. `code` is a
+
+        STRING on this envelope; it is never an HTTP status integer.
+
+        `LLMProviderAPIError` is this shape with the `code` enum constrained to
+
+        the five values the LLM-provider handlers emit.
+
+        '
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, screaming snake case.
+              example: NOT_FOUND
+            message:
+              type: string
+          required:
+          - code
+          - message
+      required:
+      - error
     RBIPolicyTemplateCategory:
       type: object
       properties:
@@ -1411,54 +1267,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RBIPolicyTemplate'
-    RBIPolicyAction:
-      type: object
-      properties:
-        type:
-          type: string
-        config:
-          type: object
-          additionalProperties: true
-    RBIAISystemCreate:
-      type: object
-      required:
-      - system_id
-      - system_name
-      - risk_category
-      properties:
-        system_id:
-          type: string
-        risk_mitigation:
-          type: object
-        recommendations:
-          type: array
-          items:
-            type: string
-        created_by:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        submitted_at:
-          type: string
-          format: date-time
-        submitted_by:
-          type: string
-        approved_at:
-          type: string
-          format: date-time
-        approved_by:
-          type: string
-        rejected_at:
-          type: string
-          format: date-time
-        rejected_by:
-          type: string
-        rejection_reason:
-          type: string
     RBIPolicyCondition:
       type: object
       properties:
@@ -1467,20 +1275,89 @@ components:
         operator:
           type: string
         value: {}
+    RBIPolicyTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        severity:
+          type: string
+        priority:
+          type: integer
+          description: Higher is evaluated first.
+        enabled:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RBIPolicyCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RBIPolicyAction'
+        regulatory_reference:
+          type: string
+          description: The RBI circular this template implements.
+        applicable_risk_levels:
+          type: array
+          items:
+            type: string
+        requires_board_approval:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+  responses:
+    CodedInternalError:
+      description: Internal server error (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Internal server error
+    CodedUnauthorized:
+      description: Unauthorized - missing or invalid organization scope (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Organization ID required
+    CodedNotFound:
+      description: Resource not found (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+    CodedBadRequest:
+      description: Invalid request (coded envelope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CodedErrorResponse'
+          example:
+            error:
+              code: INVALID_INPUT
+              message: connector_name is required
   parameters:
-    LimitParam:
-      name: limit
-      in: query
-      required: false
-      description: 'Maximum number of records to return. Defaults vary by
-
-        endpoint; see per-endpoint description for the cap.
-
-        '
-      schema:
-        type: integer
-        minimum: 1
-        default: 100
     OffsetParam:
       name: offset
       in: query
@@ -1494,6 +1371,19 @@ components:
         type: integer
         minimum: 0
         default: 0
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: 'Maximum number of records to return. Defaults vary by
+
+        endpoint; see per-endpoint description for the cap.
+
+        '
+      schema:
+        type: integer
+        minimum: 1
+        default: 100
   securitySchemes:
     basicAuth:
       type: http
@@ -1504,6 +1394,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Enterprise JWT token (see /scripts/generate-jwt.sh)
-x-refined-from:
-- axonflow-orchestrator-api.yaml
-- axonflow-orchestrator-openapi.yml
