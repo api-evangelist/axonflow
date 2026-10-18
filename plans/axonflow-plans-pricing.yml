@@ -136,3 +136,60 @@ plans:
   - 200 requests per minute burst limit
   - Up to 50 custom tenant policies
   - Up to 20 HITL approvals per rolling 7 days
+x-canonical:
+  generated: '2026-10-18'
+  vocabulary: all/0-working/economics/plans-canonical.yml
+  models:
+  - free
+  - negotiated
+  - subscription
+  units: []
+  plans:
+  - name: Professional
+    access: other
+    model: unstated
+    model_how: derived
+    units: []
+    periods: []
+  - name: Enterprise
+    access: other
+    model: unstated
+    model_how: derived
+    units: []
+    periods: []
+  - name: Enterprise Plus
+    access: other
+    model: negotiated
+    model_how: derived
+    units: []
+    periods: []
+  - name: Starter
+    access: other
+    model: unstated
+    model_how: derived
+    units: []
+    periods: []
+  - name: SaaS Professional
+    access: other
+    model: unstated
+    model_how: derived
+    units: []
+    periods: []
+  - name: SaaS Enterprise
+    access: other
+    model: unstated
+    model_how: derived
+    units: []
+    periods: []
+  - name: Free
+    access: other
+    model: free
+    model_how: derived
+    units: []
+    periods: []
+  - name: Plugin Pro
+    access: other
+    model: subscription
+    model_how: derived
+    units: []
+    periods: []
