@@ -209,6 +209,8 @@ apis:
   humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
   baseURL: http://localhost:8080
   tags:
+  - Assessment
+  tags_raw:
   - Assessments
   properties:
   - type: OpenAPI
@@ -1600,6 +1602,8 @@ apis:
   humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
   baseURL: http://localhost:8080
   tags:
+  - Maps
+  tags_raw:
   - MAP
   properties:
   - type: OpenAPI
@@ -2052,6 +2056,8 @@ apis:
   humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
   baseURL: http://localhost:8080
   tags:
+  - OpenAI-Compatible
+  tags_raw:
   - OpenAI Compatible
   properties:
   - type: OpenAPI
@@ -3435,6 +3441,8 @@ apis:
   humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
   baseURL: http://localhost:8080
   tags:
+  - Webhook
+  tags_raw:
   - Webhooks
   properties:
   - type: OpenAPI
@@ -3629,6 +3637,8 @@ apis:
   humanURL: https://docs.getaxonflow.com/docs/orchestration/api-reference/
   baseURL: http://localhost:8080
   tags:
+  - AuthZEN
+  tags_raw:
   - Auth ZEN
   properties:
   - type: OpenAPI
